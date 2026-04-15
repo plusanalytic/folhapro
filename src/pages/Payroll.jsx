@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
-import MonthCloseDialog from '@/components/payroll/MonthCloseDialog';
+
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -22,7 +22,7 @@ export default function Payroll() {
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [showCloseDialog, setShowCloseDialog] = useState(false);
+
 
   const load = async () => {
     const [e, c, p, m] = await Promise.all([
