@@ -1,0 +1,68 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nome completo"
+    },
+    "cpf_cnpj": {
+      "type": "string",
+      "description": "CPF ou CNPJ"
+    },
+    "contract_type": {
+      "type": "string",
+      "enum": [
+        "CLT",
+        "PJ"
+      ],
+      "description": "Tipo de contrato"
+    },
+    "base_salary": {
+      "type": "number",
+      "description": "Sal\u00e1rio base / valor fixo"
+    },
+    "bank_name": {
+      "type": "string",
+      "description": "Nome do banco"
+    },
+    "bank_agency": {
+      "type": "string",
+      "description": "Ag\u00eancia"
+    },
+    "bank_account": {
+      "type": "string",
+      "description": "Conta"
+    },
+    "bank_beneficiary": {
+      "type": "string",
+      "description": "Favorecido"
+    },
+    "pix_key": {
+      "type": "string",
+      "description": "Chave PIX"
+    },
+    "admission_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de admiss\u00e3o"
+    },
+    "position": {
+      "type": "string",
+      "description": "Cargo"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "contract_type",
+    "company_id"
+  ]
+}

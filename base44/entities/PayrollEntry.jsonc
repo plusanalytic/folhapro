@@ -1,0 +1,133 @@
+{
+  "name": "PayrollEntry",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID do colaborador"
+    },
+    "reference_month": {
+      "type": "string",
+      "description": "M\u00eas de refer\u00eancia (YYYY-MM)"
+    },
+    "base_salary": {
+      "type": "number",
+      "description": "Sal\u00e1rio base"
+    },
+    "absences_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias de falta"
+    },
+    "absence_discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto por faltas"
+    },
+    "meal_voucher": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale Refei\u00e7\u00e3o"
+    },
+    "transport_voucher": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale Transporte"
+    },
+    "km_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Adicional KM excedente"
+    },
+    "bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Bonifica\u00e7\u00e3o / Pr\u00eamio"
+    },
+    "other_benefits": {
+      "type": "number",
+      "default": 0,
+      "description": "Outros benef\u00edcios"
+    },
+    "inss": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto INSS"
+    },
+    "fgts": {
+      "type": "number",
+      "default": 0,
+      "description": "FGTS"
+    },
+    "irrf": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto IRRF"
+    },
+    "pj_retention": {
+      "type": "number",
+      "default": 0,
+      "description": "Reten\u00e7\u00e3o PJ"
+    },
+    "first_period_advance": {
+      "type": "number",
+      "default": 0,
+      "description": "Adiantamento 1\u00ba quinzena"
+    },
+    "first_period_discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto 1\u00ba quinzena"
+    },
+    "first_period_note": {
+      "type": "string",
+      "description": "Nota 1\u00ba quinzena"
+    },
+    "second_period_discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto 2\u00ba quinzena"
+    },
+    "second_period_note": {
+      "type": "string",
+      "description": "Nota 2\u00ba quinzena"
+    },
+    "gross_total": {
+      "type": "number",
+      "description": "Total bruto"
+    },
+    "net_total": {
+      "type": "number",
+      "description": "Total l\u00edquido"
+    },
+    "first_period_net": {
+      "type": "number",
+      "description": "L\u00edquido 1\u00ba quinzena"
+    },
+    "second_period_net": {
+      "type": "number",
+      "description": "L\u00edquido 2\u00ba quinzena"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "default": "open"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    }
+  },
+  "required": [
+    "company_id",
+    "employee_id",
+    "reference_month"
+  ]
+}

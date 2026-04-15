@@ -1,0 +1,33 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da empresa"
+    },
+    "cnpj": {
+      "type": "string",
+      "description": "CNPJ da empresa"
+    },
+    "address": {
+      "type": "string",
+      "description": "Endere\u00e7o"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Telefone"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

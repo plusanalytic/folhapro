@@ -4,6 +4,10 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -63,20 +67,12 @@ module.exports = {
   		},
   		keyframes: {
   			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
+  				from: { height: '0' },
+  				to: { height: 'var(--radix-accordion-content-height)' }
   			},
   			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
+  				from: { height: 'var(--radix-accordion-content-height)' },
+  				to: { height: '0' }
   			}
   		},
   		animation: {
@@ -86,4 +82,9 @@ module.exports = {
   	}
   },
   plugins: [require("tailwindcss-animate")],
+  safelist: [
+    'text-green-600', 'text-red-600', 'text-yellow-600', 'text-blue-600',
+    'bg-green-100', 'bg-red-100', 'bg-yellow-100', 'bg-blue-100',
+    'dark:bg-green-900/20', 'dark:bg-red-900/20', 'dark:bg-yellow-900/20'
+  ]
 }

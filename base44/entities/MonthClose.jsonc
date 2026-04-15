@@ -1,0 +1,42 @@
+{
+  "name": "MonthClose",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "reference_month": {
+      "type": "string",
+      "description": "M\u00eas de refer\u00eancia (YYYY-MM)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "default": "open"
+    },
+    "closed_by": {
+      "type": "string",
+      "description": "Fechado por (email)"
+    },
+    "closed_at": {
+      "type": "string",
+      "description": "Data de fechamento"
+    },
+    "reopened_by": {
+      "type": "string",
+      "description": "Reaberto por (email)"
+    },
+    "reopened_at": {
+      "type": "string",
+      "description": "Data de reabertura"
+    }
+  },
+  "required": [
+    "company_id",
+    "reference_month"
+  ]
+}
