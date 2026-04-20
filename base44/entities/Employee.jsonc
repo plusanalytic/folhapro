@@ -4,15 +4,40 @@
   "properties": {
     "company_id": {
       "type": "string",
-      "description": "ID da empresa"
+      "description": "ID da empresa (local)"
+    },
+    "tangerino_id": {
+      "type": "string",
+      "description": "ID do colaborador no Tangerino"
+    },
+    "tangerino_company_id": {
+      "type": "string",
+      "description": "ID da empresa no Tangerino"
     },
     "name": {
       "type": "string",
       "description": "Nome completo"
     },
+    "email": {
+      "type": "string",
+      "description": "E-mail"
+    },
     "cpf_cnpj": {
       "type": "string",
       "description": "CPF ou CNPJ"
+    },
+    "pis": {
+      "type": "string",
+      "description": "PIS"
+    },
+    "gender": {
+      "type": "string",
+      "description": "G\u00eanero"
+    },
+    "birth_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de nascimento"
     },
     "contract_type": {
       "type": "string",

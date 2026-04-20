@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Pencil, Users, Search, Filter } from 'lucide-react';
+import { Pencil, Users, Search, RefreshCw, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ export default function Employees() {
   const [filterContract, setFilterContract] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   const load = async () => {
     const [e, c] = await Promise.all([base44.entities.Employee.list(), base44.entities.Company.list()]);
@@ -35,14 +36,30 @@ export default function Employees() {
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
   const handleSave = async (data) => {
-    if (editing) {
-      await base44.entities.Employee.update(editing.id, data);
-    } else {
-      await base44.entities.Employee.create(data);
-    }
+    if (editing) await base44.entities.Employee.update(editing.id, data);
     setShowForm(false);
     setEditing(null);
     load();
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const { toast } = await import('sonner');
+      const res = await base44.functions.invoke('syncEmployees', {});
+      const data = res.data;
+      if (data.success) {
+        toast.success(`Sincronização concluída! ${data.created} criados, ${data.updated} atualizados.`);
+        load();
+      } else {
+        toast.error(data.error || 'Erro na sincronização.');
+      }
+    } catch (err) {
+      const { toast } = await import('sonner');
+      toast.error('Erro ao conectar com a API do Tangerino.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -52,8 +69,9 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-muted-foreground text-sm mt-1">{employees.filter(e => e.is_active !== false).length} ativos</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-2">
-          <Plus className="w-4 h-4" /> Novo Colaborador
+        <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? 'Sincronizando...' : 'Sincronizar Tangerino'}
         </Button>
       </div>
 
@@ -134,6 +152,7 @@ export default function Employees() {
               <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhum colaborador encontrado</p>
+                {!search && <p className="text-sm mt-1">Use "Sincronizar Tangerino" para importar colaboradores.</p>}
               </td></tr>
             )}
           </tbody>
