@@ -34,6 +34,10 @@
         "second"
       ],
       "description": "Quinzena (first = 1\u201315, second = 16\u201330)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00e3o adicional"
     }
   },
   "required": [

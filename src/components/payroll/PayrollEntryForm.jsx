@@ -91,7 +91,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
+        <div className="flex-1 overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             Lançamento — {employee.name}
@@ -255,11 +256,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                 <p className="text-xs text-muted-foreground">Base 1ª Quinzena (50%)</p>
-                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total > 0 ? (calc.gross_total / 2) : 0)}</p>
+                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
               </div>
               <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                 <p className="text-xs text-muted-foreground">Base 2ª Quinzena (50%)</p>
-                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total > 0 ? (calc.gross_total / 2) : 0)}</p>
+                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
               </div>
             </div>
 
@@ -268,7 +269,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <div className="space-y-3 border border-border rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
-                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.gross_total / 2)}</span>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
                 <div>
                   <Label className="text-xs">Adiantamento</Label>
@@ -291,7 +292,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <div className="space-y-3 border border-border rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
-                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.gross_total / 2)}</span>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
@@ -350,7 +351,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           </TabsContent>
         </Tabs>
 
-        <div className="flex gap-3 pt-4 border-t border-border">
+        </div>
+        <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
         </div>

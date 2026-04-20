@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, ArrowDownCircle, Search } from 'lucide-react';
+import { Plus, Trash2, ArrowDownCircle, Search, ChevronDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
 
 function getPeriod(dateStr) {
   const day = parseInt(dateStr.split('-')[2]);
@@ -29,7 +30,9 @@ export default function CashOut() {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ employee_id: '', date: '', description: '', amount: '' });
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [form, setForm] = useState({ employee_id: '', date: '', description: '', amount: '', notes: '' });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -69,10 +72,12 @@ export default function CashOut() {
       amount: parseFloat(form.amount),
       reference_month: getMonthFromDate(form.date),
       period: getPeriod(form.date),
+      notes: form.notes || '',
     };
     const saved = await base44.entities.CashOut.create(record);
     setCashOuts(prev => [saved, ...prev]);
-    setForm({ employee_id: '', date: '', description: '', amount: '' });
+    setForm({ employee_id: '', date: '', description: '', amount: '', notes: '' });
+    setEmployeeSearch('');
     setShowForm(false);
     toast.success('Saída lançada com sucesso');
     setLoading(false);
@@ -203,45 +208,97 @@ export default function CashOut() {
         </CardContent>
       </Card>
 
-      {/* Form Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Novo Lançamento de Saída</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div>
-              <Label>Colaborador</Label>
-              <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+      {/* Form Dialog — tela inteira */}
+      <Dialog open={showForm} onOpenChange={open => { setShowForm(open); if (!open) { setEmployeeSearch(''); setShowEmployeeDropdown(false); } }}>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
+          <div className="flex-1 overflow-y-auto p-6">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl">Novo Lançamento de Saída</DialogTitle>
+            </DialogHeader>
+            <div className="max-w-2xl mx-auto space-y-5">
+              {/* Colaborador com busca por digitação */}
+              <div>
+                <Label>Colaborador</Label>
+                <div className="relative mt-1">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Digite para buscar colaborador..."
+                    value={employeeSearch}
+                    onChange={e => {
+                      setEmployeeSearch(e.target.value);
+                      setShowEmployeeDropdown(true);
+                      if (!e.target.value) setForm(f => ({ ...f, employee_id: '' }));
+                    }}
+                    onFocus={() => setShowEmployeeDropdown(true)}
+                  />
+                  {showEmployeeDropdown && employeeSearch && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                      {employees
+                        .filter(e => e.name.toLowerCase().includes(employeeSearch.toLowerCase()))
+                        .map(e => (
+                          <button
+                            key={e.id}
+                            type="button"
+                            className="w-full text-left px-4 py-2.5 hover:bg-muted text-sm flex flex-col"
+                            onClick={() => {
+                              setForm(f => ({ ...f, employee_id: e.id }));
+                              setEmployeeSearch(e.name);
+                              setShowEmployeeDropdown(false);
+                            }}
+                          >
+                            <span className="font-medium">{e.name}</span>
+                            <span className="text-xs text-muted-foreground">{companyMap[e.company_id]?.name} · {e.contract_type}</span>
+                          </button>
+                        ))}
+                      {employees.filter(e => e.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">Nenhum colaborador encontrado</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {form.employee_id && (
+                  <p className="text-xs text-primary mt-1">✓ {employeeMap[form.employee_id]?.name} selecionado</p>
+                )}
+              </div>
+
+              <div>
+                <Label>Data do lançamento</Label>
+                <Input type="date" className="mt-1 font-mono" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                {form.date && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    → {getPeriod(form.date) === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'} · {getMonthFromDate(form.date)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>Descrição</Label>
+                <Input className="mt-1" placeholder="Ex: Adiantamento, empréstimo..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+
+              <div>
+                <Label>Valor (R$)</Label>
+                <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="0,00" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+              </div>
+
+              <div>
+                <Label>Observação</Label>
+                <Textarea
+                  className="mt-1 resize-none"
+                  rows={3}
+                  placeholder="Informações adicionais sobre este lançamento..."
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                />
+              </div>
             </div>
-            <div>
-              <Label>Data do lançamento</Label>
-              <Input type="date" className="mt-1 font-mono" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-              {form.date && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  → {getPeriod(form.date) === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'} de {getMonthFromDate(form.date)}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label>Descrição</Label>
-              <Input className="mt-1" placeholder="Ex: Adiantamento, empréstimo..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Valor (R$)</Label>
-              <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="0,00" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSave} disabled={loading}>
-                {loading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
+          </div>
+          <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0 max-w-none">
+            <Button variant="outline" className="flex-1 max-w-xs" onClick={() => { setShowForm(false); setEmployeeSearch(''); }}>Cancelar</Button>
+            <Button className="flex-1 max-w-xs" onClick={handleSave} disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar Lançamento'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
