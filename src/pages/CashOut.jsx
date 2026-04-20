@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, ArrowDownCircle, Search, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ArrowDownCircle, Search, Pencil } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +34,7 @@ export default function CashOut() {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [form, setForm] = useState({ employee_id: '', date: '', description: '', amount: '', notes: '' });
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -74,12 +75,19 @@ export default function CashOut() {
       period: getPeriod(form.date),
       notes: form.notes || '',
     };
-    const saved = await base44.entities.CashOut.create(record);
-    setCashOuts(prev => [saved, ...prev]);
+    if (editingId) {
+      const updated = await base44.entities.CashOut.update(editingId, record);
+      setCashOuts(prev => prev.map(c => c.id === editingId ? updated : c));
+      toast.success('Lançamento atualizado');
+    } else {
+      const saved = await base44.entities.CashOut.create(record);
+      setCashOuts(prev => [saved, ...prev]);
+      toast.success('Saída lançada com sucesso');
+    }
     setForm({ employee_id: '', date: '', description: '', amount: '', notes: '' });
     setEmployeeSearch('');
+    setEditingId(null);
     setShowForm(false);
-    toast.success('Saída lançada com sucesso');
     setLoading(false);
   };
 
@@ -105,7 +113,7 @@ export default function CashOut() {
             <p className="text-sm text-muted-foreground">Descontos vinculados a colaboradores por quinzena</p>
           </div>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => { setEditingId(null); setForm({ employee_id: '', date: '', description: '', amount: '', notes: '' }); setEmployeeSearch(''); setShowForm(true); }}>
           <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
         </Button>
       </div>
@@ -194,7 +202,15 @@ export default function CashOut() {
                       <td className="px-4 py-3 text-right font-mono font-semibold text-destructive">
                         - {formatCurrency(c.amount)}
                       </td>
-                      <td className="px-2 py-3">
+                      <td className="px-2 py-3 flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => {
+                          setEditingId(c.id);
+                          setForm({ employee_id: c.employee_id, date: c.date, description: c.description, amount: c.amount, notes: c.notes || '' });
+                          setEmployeeSearch(employeeMap[c.employee_id]?.name || '');
+                          setShowForm(true);
+                        }}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -209,11 +225,11 @@ export default function CashOut() {
       </Card>
 
       {/* Form Dialog — tela inteira */}
-      <Dialog open={showForm} onOpenChange={open => { setShowForm(open); if (!open) { setEmployeeSearch(''); setShowEmployeeDropdown(false); } }}>
+      <Dialog open={showForm} onOpenChange={open => { setShowForm(open); if (!open) { setEmployeeSearch(''); setShowEmployeeDropdown(false); setEditingId(null); } }}>
         <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
           <div className="flex-1 overflow-y-auto p-6">
             <DialogHeader className="mb-6">
-              <DialogTitle className="text-xl">Novo Lançamento de Saída</DialogTitle>
+              <DialogTitle className="text-xl">{editingId ? 'Editar Lançamento' : 'Novo Lançamento de Saída'}</DialogTitle>
             </DialogHeader>
             <div className="max-w-2xl mx-auto space-y-5">
               {/* Colaborador com busca por digitação */}
@@ -295,9 +311,9 @@ export default function CashOut() {
             </div>
           </div>
           <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0 max-w-none">
-            <Button variant="outline" className="flex-1 max-w-xs" onClick={() => { setShowForm(false); setEmployeeSearch(''); }}>Cancelar</Button>
+            <Button variant="outline" className="flex-1 max-w-xs" onClick={() => { setShowForm(false); setEmployeeSearch(''); setEditingId(null); }}>Cancelar</Button>
             <Button className="flex-1 max-w-xs" onClick={handleSave} disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar Lançamento'}
+              {loading ? 'Salvando...' : editingId ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
             </Button>
           </div>
         </DialogContent>
