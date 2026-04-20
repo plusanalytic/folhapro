@@ -44,12 +44,17 @@ Deno.serve(async (req) => {
     }
 
     let created = 0;
-    let updated = 0;
+    let skipped = 0;
 
     for (const rc of remoteCompanies) {
-      // Mapeia os campos retornados pela API Tangerino
-      // Campos confirmados: id, cnpj, socialReason, fantasyName, descriptionName
       const tangerinoId = String(rc.id ?? '');
+      if (!tangerinoId) continue;
+
+      // Se já existe um cadastro com esse tangerino_id, ignora (não duplica, não atualiza)
+      if (existingByTangerinoId[tangerinoId]) {
+        skipped++;
+        continue;
+      }
 
       const payload = {
         name: rc.socialReason ?? rc.fantasyName ?? rc.descriptionName ?? rc.name ?? '',
@@ -63,21 +68,15 @@ Deno.serve(async (req) => {
 
       if (!payload.name) continue;
 
-      const existingEntry = existingByTangerinoId[tangerinoId];
-      if (existingEntry) {
-        await base44.asServiceRole.entities.Company.update(existingEntry.id, payload);
-        updated++;
-      } else {
-        await base44.asServiceRole.entities.Company.create(payload);
-        created++;
-      }
+      await base44.asServiceRole.entities.Company.create(payload);
+      created++;
     }
 
     return Response.json({
       success: true,
-      synced: created + updated,
+      synced: created,
       created,
-      updated,
+      skipped,
       total_from_api: remoteCompanies.length,
     });
 
