@@ -28,10 +28,20 @@
       "default": 0,
       "description": "Desconto por faltas"
     },
+    "meal_voucher_day_value": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale Refei\u00e7\u00e3o - valor por dia"
+    },
+    "meal_voucher_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale Refei\u00e7\u00e3o - quantidade de dias"
+    },
     "meal_voucher": {
       "type": "number",
       "default": 0,
-      "description": "Vale Refei\u00e7\u00e3o"
+      "description": "Vale Refei\u00e7\u00e3o total (valor dia * dias)"
     },
     "transport_voucher": {
       "type": "number",
@@ -43,6 +53,16 @@
       "default": 0,
       "description": "Adicional KM excedente"
     },
+    "motorcycle_rental": {
+      "type": "number",
+      "default": 0,
+      "description": "Aluguel da Motocicleta"
+    },
+    "hazard_pay": {
+      "type": "number",
+      "default": 0,
+      "description": "Periculosidade"
+    },
     "bonus": {
       "type": "number",
       "default": 0,
@@ -52,6 +72,31 @@
       "type": "number",
       "default": 0,
       "description": "Outros benef\u00edcios"
+    },
+    "union_contribution_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "Contribui\u00e7\u00e3o Assistencial (%) sobre piso salarial"
+    },
+    "union_contribution": {
+      "type": "number",
+      "default": 0,
+      "description": "Contribui\u00e7\u00e3o Assistencial (valor)"
+    },
+    "meal_voucher_discount_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto VR (%) sobre total do VR"
+    },
+    "meal_voucher_discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto VR (valor)"
+    },
+    "life_insurance": {
+      "type": "number",
+      "default": 0,
+      "description": "Seguro de vida (R$)"
     },
     "inss": {
       "type": "number",

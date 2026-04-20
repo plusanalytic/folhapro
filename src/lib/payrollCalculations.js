@@ -50,6 +50,25 @@ export function calculateFGTS(salary) {
   return Math.round(salary * FGTS_RATE * 100) / 100;
 }
 
+// Calcula dias úteis de um mês (seg-sex, sem feriados nacionais fixos)
+export function getWorkingDaysInMonth(yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  // Feriados nacionais fixos (MM-DD)
+  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  let count = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d);
+    const dow = date.getDay(); // 0=dom, 6=sab
+    if (dow === 0 || dow === 6) continue;
+    const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (nationalHolidays.includes(mmdd)) continue;
+    // Páscoa - Sexta-feira Santa (variável, aproximação simples ignorada por ora)
+    count++;
+  }
+  return count;
+}
+
 export function calculateAbsenceDiscount(salary, absenceDays, workingDaysInMonth = 30) {
   if (absenceDays <= 0) return 0;
   const dailyRate = salary / workingDaysInMonth;
@@ -68,21 +87,33 @@ export function calculatePayroll(entry, contractType) {
     fgts = calculateFGTS(salaryAfterAbsence);
     irrf = calculateIRRF(salaryAfterAbsence, inss);
   } else {
-    // PJ - retenção opcional
     pjRetention = entry.pj_retention || 0;
   }
 
-  const totalBenefits = (entry.meal_voucher || 0) + (entry.transport_voucher || 0) +
-    (entry.km_bonus || 0) + (entry.bonus || 0) + (entry.other_benefits || 0);
+  // Vale Refeição = valor dia * dias
+  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+
+  const totalBenefits = mealVoucher + (entry.transport_voucher || 0) +
+    (entry.km_bonus || 0) + (entry.motorcycle_rental || 0) + (entry.hazard_pay || 0) +
+    (entry.bonus || 0) + (entry.other_benefits || 0);
 
   const grossTotal = salaryAfterAbsence + totalBenefits;
-  const totalDiscounts = inss + irrf + pjRetention + (entry.first_period_discount || 0) + (entry.second_period_discount || 0);
+
+  // Contribuição Assistencial (%) sobre piso salarial (base_salary)
+  const unionContribution = Math.round(salary * ((entry.union_contribution_pct || 0) / 100) * 100) / 100;
+  // Desconto VR (%) sobre total do VR
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  // Seguro de vida
+  const lifeInsurance = entry.life_insurance || 0;
+
+  const totalDiscounts = inss + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance +
+    (entry.first_period_discount || 0) + (entry.second_period_discount || 0);
   const netTotal = grossTotal - totalDiscounts;
 
   // Quinzenal split
   const firstPeriodBase = salaryAfterAbsence / 2;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = firstPeriodBase + (entry.meal_voucher || 0) + (entry.transport_voucher || 0) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const firstPeriodNet = firstPeriodBase + mealVoucher + (entry.transport_voucher || 0) - firstPeriodAdvance - (entry.first_period_discount || 0);
 
   const secondPeriodNet = netTotal - firstPeriodNet;
 
@@ -91,6 +122,9 @@ export function calculatePayroll(entry, contractType) {
     inss,
     fgts,
     irrf,
+    meal_voucher: mealVoucher,
+    union_contribution: unionContribution,
+    meal_voucher_discount: mealVoucherDiscount,
     gross_total: Math.round(grossTotal * 100) / 100,
     net_total: Math.round(netTotal * 100) / 100,
     first_period_net: Math.round(firstPeriodNet * 100) / 100,
