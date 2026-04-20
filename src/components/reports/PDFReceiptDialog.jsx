@@ -2,36 +2,60 @@ import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer } from 'lucide-react';
-import { formatCurrency, numberToWords, getMonthName } from '@/lib/payrollCalculations';
+import { formatCurrency, numberToWords, getMonthName, calculatePayroll } from '@/lib/payrollCalculations';
 
 // ─── Holerite completo ────────────────────────────────────────────────────────
 function HoleriteContent({ employee, entry, month, company }) {
   const isCLT = employee.contract_type === 'CLT';
+
+  // Recalcula a partir dos dados salvos para garantir valores corretos
+  const calc = calculatePayroll({
+    base_salary:             entry?.base_salary ?? 0,
+    absences_days:           entry?.absences_days ?? 0,
+    meal_voucher_day_value:  entry?.meal_voucher_day_value ?? 0,
+    meal_voucher_days:       entry?.meal_voucher_days ?? 0,
+    transport_voucher:       entry?.transport_voucher ?? 0,
+    km_bonus:                entry?.km_bonus ?? 0,
+    motorcycle_rental:       entry?.motorcycle_rental ?? 0,
+    hazard_pay:              entry?.hazard_pay ?? 0,
+    bonus:                   entry?.bonus ?? 0,
+    other_benefits:          entry?.other_benefits ?? 0,
+    union_contribution_pct:  entry?.union_contribution_pct ?? 0,
+    meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+    life_insurance:          entry?.life_insurance ?? 0,
+    inss_pct:                entry?.inss_pct ?? 0,
+    inss_discount:           entry?.inss_discount ?? 0,
+    pj_retention:            entry?.pj_retention ?? 0,
+    first_period_advance:    entry?.first_period_advance ?? 0,
+    first_period_discount:   entry?.first_period_discount ?? 0,
+    second_period_discount:  entry?.second_period_discount ?? 0,
+  }, employee.contract_type);
+
   const baseSalary   = entry?.base_salary ?? 0;
-  const absDiscount  = entry?.absence_discount ?? 0;
-  const mealVoucher  = entry?.meal_voucher ?? 0;
+  const absDiscount  = calc.absence_discount;
+  const mealVoucher  = calc.meal_voucher;
   const mealVDays    = entry?.meal_voucher_days ?? 0;
   const mealVDay     = entry?.meal_voucher_day_value ?? 0;
-  const mealVDisc    = entry?.meal_voucher_discount ?? 0;
+  const mealVDisc    = calc.meal_voucher_discount;
   const transport    = entry?.transport_voucher ?? 0;
   const kmBonus      = entry?.km_bonus ?? 0;
   const motoRental   = entry?.motorcycle_rental ?? 0;
   const hazardPay    = entry?.hazard_pay ?? 0;
   const bonus        = entry?.bonus ?? 0;
   const otherBen     = entry?.other_benefits ?? 0;
-  const unionContr   = entry?.union_contribution ?? 0;
+  const unionContr   = calc.union_contribution;
   const lifeIns      = entry?.life_insurance ?? 0;
-  const inss         = entry?.inss ?? 0;
-  const irrf         = entry?.irrf ?? 0;
-  const fgts         = entry?.fgts ?? 0;
+  const inss         = calc.inss_net;
+  const irrf         = calc.irrf;
+  const fgts         = calc.fgts;
   const pjRet        = entry?.pj_retention ?? 0;
   const firstAdv     = entry?.first_period_advance ?? 0;
   const firstDisc    = entry?.first_period_discount ?? 0;
   const secondDisc   = entry?.second_period_discount ?? 0;
-  const grossTotal   = entry?.gross_total ?? 0;
-  const netTotal     = entry?.net_total ?? 0;
-  const firstNet     = entry?.first_period_net ?? 0;
-  const secondNet    = entry?.second_period_net ?? 0;
+  const grossTotal   = calc.gross_total;
+  const netTotal     = calc.net_total;
+  const firstNet     = calc.first_period_net;
+  const secondNet    = calc.second_period_net;
   const monthName    = getMonthName(month);
 
   const proventos = [
