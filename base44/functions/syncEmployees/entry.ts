@@ -13,22 +13,14 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Busca colaboradores do Tangerino
-    const response = await fetch("https://employer.tangerino.com.br/employee/find-all", {
-      headers: {
-        'accept': 'application/json;charset=UTF-8',
-        'Authorization': TANGERINO_AUTH,
-      },
+    // Busca todos os colaboradores em uma única request
+    const apiRes = await fetch(`https://employer.tangerino.com.br/employee/find-all?page=0&size=300`, {
+      headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
     });
+    if (!apiRes.ok) return Response.json({ error: `Tangerino API error: ${apiRes.status}` }, { status: 500 });
 
-    if (!response.ok) {
-      return Response.json({ error: `Tangerino API error: ${response.status}` }, { status: 500 });
-    }
-
-    const raw = await response.json();
-    const remoteEmployees = Array.isArray(raw)
-      ? raw
-      : (raw.content || raw.data || raw.employees || raw.items || []);
+    const raw = await apiRes.json();
+    const remoteEmployees = Array.isArray(raw) ? raw : (raw.content || []);
 
     // Busca empresas e colaboradores locais
     const [localCompanies, localEmployees] = await Promise.all([
@@ -51,37 +43,47 @@ Deno.serve(async (req) => {
     let created = 0;
     let updated = 0;
 
-    for (const re of remoteEmployees) {
-      const tangerinoId = String(re.id ?? '');
-      if (!tangerinoId) continue;
+    // Processa em lotes de 20 para não sobrecarregar
+    const BATCH_SIZE = 20;
+    for (let i = 0; i < remoteEmployees.length; i += BATCH_SIZE) {
+      const batch = remoteEmployees.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async (re) => {
+        const tangerinoId = String(re.id ?? '');
+        if (!tangerinoId) return null;
 
-      const companyTangerinoId = String(re.company?.id ?? '');
-      const localCompany = companyByTangerinoId[companyTangerinoId];
+        const companyTangerinoId = String(re.company?.id ?? '');
+        const localCompany = companyByTangerinoId[companyTangerinoId];
 
-      const payload = {
-        tangerino_id: tangerinoId,
-        name: re.name ?? '',
-        email: re.email ?? '',
-        cpf_cnpj: re.cpf ?? re.document ?? '',
-        pis: re.pis ?? '',
-        gender: re.gender ?? '',
-        admission_date: tsToDate(re.admissionDate ?? re.effectiveDate),
-        birth_date: tsToDate(re.birthDate),
-        contract_type: re.contractType === 'PJ' ? 'PJ' : 'CLT',
-        company_id: localCompany?.id ?? '',
-        tangerino_company_id: companyTangerinoId,
-        is_active: re.fired === false || re.status === 0,
-        base_salary: re.salary ?? re.baseSalary ?? 0,
-        position: re.jobRoleDTO?.name ?? re.position ?? '',
-      };
+        const payload = {
+          tangerino_id: tangerinoId,
+          name: re.name ?? '',
+          email: re.email ?? '',
+          cpf_cnpj: re.cpf ?? re.document ?? '',
+          pis: re.pis ?? '',
+          gender: re.gender ?? '',
+          admission_date: tsToDate(re.admissionDate ?? re.effectiveDate),
+          birth_date: tsToDate(re.birthDate),
+          contract_type: re.contractType === 'PJ' ? 'PJ' : 'CLT',
+          company_id: localCompany?.id ?? '',
+          tangerino_company_id: companyTangerinoId,
+          is_active: re.fired === false || re.status === 0,
+          base_salary: re.salary ?? re.baseSalary ?? 0,
+          position: re.jobRoleDTO?.name ?? re.position ?? '',
+        };
 
-      const existing = localByTangerinoId[tangerinoId];
-      if (existing) {
-        await base44.asServiceRole.entities.Employee.update(existing.id, payload);
-        updated++;
-      } else {
-        await base44.asServiceRole.entities.Employee.create(payload);
-        created++;
+        const existing = localByTangerinoId[tangerinoId];
+        if (existing) {
+          await base44.asServiceRole.entities.Employee.update(existing.id, payload);
+          return 'updated';
+        } else {
+          await base44.asServiceRole.entities.Employee.create(payload);
+          return 'created';
+        }
+      }));
+
+      for (const r of batchResults) {
+        if (r === 'created') created++;
+        else if (r === 'updated') updated++;
       }
     }
 
