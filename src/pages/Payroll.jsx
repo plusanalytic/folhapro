@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Lock, Unlock, Search, Filter, FileText, Eye } from 'lucide-react';
+import { Plus, Lock, Unlock, Search, FileText, Eye, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
-
+import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -23,7 +23,7 @@ export default function Payroll() {
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
-
+  const [printReceipt, setPrintReceipt] = useState(null); // { employee, entry, company }
 
   const load = async () => {
     const [e, c, p, m] = await Promise.all([
@@ -208,24 +208,34 @@ export default function Payroll() {
                           </td>
                           <td className="p-3 pr-6 text-right">
                             <div className="flex gap-1.5 justify-end">
-                              {entry && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title="Visualizar"
-                                  onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={closed}
-                                onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
-                              >
-                                {entry ? 'Editar' : 'Lançar'}
-                              </Button>
+                             {entry && (
+                               <>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   title="Visualizar"
+                                   onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
+                                 >
+                                   <Eye className="w-3.5 h-3.5" />
+                                 </Button>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   title="Imprimir Recibo"
+                                   onClick={() => setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id) })}
+                                 >
+                                   <Printer className="w-3.5 h-3.5" />
+                                 </Button>
+                               </>
+                             )}
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               disabled={closed}
+                               onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
+                             >
+                               {entry ? 'Editar' : 'Lançar'}
+                             </Button>
                             </div>
                           </td>
                         </tr>
@@ -238,6 +248,17 @@ export default function Payroll() {
           </Card>
         );
       })}
+
+      {printReceipt && (
+        <PDFReceiptDialog
+          employee={printReceipt.employee}
+          entry={printReceipt.entry}
+          company={printReceipt.company}
+          referenceMonth={selectedMonth}
+          receiptType="holerite"
+          onClose={() => setPrintReceipt(null)}
+        />
+      )}
 
       {showForm && editingEmployee && (
         <PayrollEntryForm
