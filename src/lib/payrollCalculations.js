@@ -117,16 +117,13 @@ export function calculatePayroll(entry, contractType) {
   const inssDiscount = Math.min(entry.inss_discount || 0, inss);
   const inssNet = Math.max(0, inss - inssDiscount);
 
-  const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance +
-    (entry.first_period_discount || 0) + (entry.second_period_discount || 0);
+  const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance;
   const netTotal = grossTotal - totalDiscounts;
 
-  // Quinzenal split
-  const firstPeriodBase = salaryAfterAbsence / 2;
+  // Quinzenal split — descontos quinzenais NÃO afetam o net_total, apenas o valor de cada quinzena
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = firstPeriodBase + mealVoucher + (entry.transport_voucher || 0) - firstPeriodAdvance - (entry.first_period_discount || 0);
-
-  const secondPeriodNet = netTotal - firstPeriodNet;
+  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
 
   return {
     absence_discount: absenceDiscount,
