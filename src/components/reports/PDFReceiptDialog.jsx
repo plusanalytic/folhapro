@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer } from 'lucide-react';
 import { formatCurrency, numberToWords, getMonthName, calculatePayroll } from '@/lib/payrollCalculations';
+import { base44 } from '@/api/base44Client';
 
 // ─── Holerite completo ────────────────────────────────────────────────────────
 function HoleriteContent({ employee, entry, month, company }) {
@@ -325,6 +326,44 @@ function MotoReceiptContent({ employee, entry, month }) {
 // ─── Dialog principal ─────────────────────────────────────────────────────────
 export default function PDFReceiptDialog({ employee, entry, receiptType, referenceMonth, onClose, company }) {
   const printRef = useRef();
+  const [mergedEntry, setMergedEntry] = useState(entry);
+
+  // Busca CashOuts atualizados e mescla com os descontos salvos no entry
+  useEffect(() => {
+    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
+      const firstFromCash = cashOuts.filter(c => c.period === 'first').map(c => ({
+        id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
+      }));
+      const secondFromCash = cashOuts.filter(c => c.period === 'second').map(c => ({
+        id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
+      }));
+
+      const savedFirst  = (entry?.first_discounts  ?? []).filter(x => !x.fromCashOut);
+      const savedSecond = (entry?.second_discounts ?? []).filter(x => !x.fromCashOut);
+
+      const firstDiscounts  = [...savedFirst,  ...firstFromCash];
+      const secondDiscounts = [...savedSecond, ...secondFromCash];
+
+      const firstTotal  = firstDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
+      const secondTotal = secondDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
+
+      // Recalcula net quinzenal com os descontos atualizados
+      const netTotal = entry?.net_total ?? 0;
+      const firstAdv = entry?.first_period_advance ?? 0;
+      const firstNet  = Math.round(((netTotal / 2) - firstAdv  - firstTotal)  * 100) / 100;
+      const secondNet = Math.round(((netTotal / 2)             - secondTotal) * 100) / 100;
+
+      setMergedEntry({
+        ...entry,
+        first_discounts:    firstDiscounts,
+        second_discounts:   secondDiscounts,
+        first_period_discount:  firstTotal,
+        second_period_discount: secondTotal,
+        first_period_net:   firstNet,
+        second_period_net:  secondNet,
+      });
+    });
+  }, [employee.id, referenceMonth]);
 
   const handlePrint = () => {
     const content = printRef.current?.innerHTML;
@@ -365,7 +404,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           </div>
         </DialogHeader>
         <div ref={printRef} className="overflow-auto bg-white">
-          <HoleriteContent employee={employee} entry={entry} month={referenceMonth} company={company} />
+          <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
         </div>
       </DialogContent>
     </Dialog>
