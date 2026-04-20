@@ -22,6 +22,10 @@
       "type": "string",
       "description": "Telefone"
     },
+    "tangerino_id": {
+      "type": "string",
+      "description": "ID da empresa no Tangerino/Solides"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
