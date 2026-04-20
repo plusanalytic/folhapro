@@ -8,59 +8,57 @@ import { formatCurrency, numberToWords, getMonthName, calculatePayroll } from '@
 function HoleriteContent({ employee, entry, month, company }) {
   const isCLT = employee.contract_type === 'CLT';
 
-  // Recalcula a partir dos dados salvos para garantir valores corretos
+  // Recalcula proventos/descontos globais (sem quinzenal)
   const calc = calculatePayroll({
-    base_salary:             entry?.base_salary ?? 0,
-    absences_days:           entry?.absences_days ?? 0,
-    meal_voucher_day_value:  entry?.meal_voucher_day_value ?? 0,
-    meal_voucher_days:       entry?.meal_voucher_days ?? 0,
-    transport_voucher:       entry?.transport_voucher ?? 0,
-    km_bonus:                entry?.km_bonus ?? 0,
-    motorcycle_rental:       entry?.motorcycle_rental ?? 0,
-    hazard_pay:              entry?.hazard_pay ?? 0,
-    bonus:                   entry?.bonus ?? 0,
-    other_benefits:          entry?.other_benefits ?? 0,
-    union_contribution_pct:  entry?.union_contribution_pct ?? 0,
+    base_salary:               entry?.base_salary ?? 0,
+    absences_days:             entry?.absences_days ?? 0,
+    meal_voucher_day_value:    entry?.meal_voucher_day_value ?? 0,
+    meal_voucher_days:         entry?.meal_voucher_days ?? 0,
+    transport_voucher:         entry?.transport_voucher ?? 0,
+    km_bonus:                  entry?.km_bonus ?? 0,
+    motorcycle_rental:         entry?.motorcycle_rental ?? 0,
+    hazard_pay:                entry?.hazard_pay ?? 0,
+    bonus:                     entry?.bonus ?? 0,
+    other_benefits:            entry?.other_benefits ?? 0,
+    union_contribution_pct:    entry?.union_contribution_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
-    life_insurance:          entry?.life_insurance ?? 0,
-    inss_pct:                entry?.inss_pct ?? 0,
-    inss_discount:           entry?.inss_discount ?? 0,
-    pj_retention:            entry?.pj_retention ?? 0,
-    first_period_advance:    entry?.first_period_advance ?? 0,
-    first_period_discount:   entry?.first_period_discount ?? 0,
-    second_period_discount:  entry?.second_period_discount ?? 0,
+    life_insurance:            entry?.life_insurance ?? 0,
+    inss_pct:                  entry?.inss_pct ?? 0,
+    inss_discount:             entry?.inss_discount ?? 0,
+    pj_retention:              entry?.pj_retention ?? 0,
+    first_period_advance:      0,
+    first_period_discount:     0,
+    second_period_discount:    0,
   }, employee.contract_type);
 
-  const baseSalary   = entry?.base_salary ?? 0;
-  const absDiscount  = calc.absence_discount;
-  const mealVoucher  = calc.meal_voucher;
-  const mealVDays    = entry?.meal_voucher_days ?? 0;
-  const mealVDay     = entry?.meal_voucher_day_value ?? 0;
-  const mealVDisc    = calc.meal_voucher_discount;
-  const transport    = entry?.transport_voucher ?? 0;
-  const kmBonus      = entry?.km_bonus ?? 0;
-  const motoRental   = entry?.motorcycle_rental ?? 0;
-  const hazardPay    = entry?.hazard_pay ?? 0;
-  const bonus        = entry?.bonus ?? 0;
-  const otherBen     = entry?.other_benefits ?? 0;
-  const unionContr   = calc.union_contribution;
-  const lifeIns      = entry?.life_insurance ?? 0;
-  const inss         = calc.inss_net;
-  const irrf         = calc.irrf;
-  const fgts         = calc.fgts;
-  const pjRet        = entry?.pj_retention ?? 0;
-  const firstAdv     = entry?.first_period_advance ?? 0;
-  const firstDisc    = entry?.first_period_discount ?? 0;
-  const secondDisc   = entry?.second_period_discount ?? 0;
-  const grossTotal   = calc.gross_total;
-  const netTotal     = calc.net_total;
-  const firstNet     = calc.first_period_net;
-  const secondNet    = calc.second_period_net;
-  const monthName    = getMonthName(month);
+  const baseSalary  = entry?.base_salary ?? 0;
+  const mealVDays   = entry?.meal_voucher_days ?? 0;
+  const mealVDay    = entry?.meal_voucher_day_value ?? 0;
+  const transport   = entry?.transport_voucher ?? 0;
+  const kmBonus     = entry?.km_bonus ?? 0;
+  const motoRental  = entry?.motorcycle_rental ?? 0;
+  const hazardPay   = entry?.hazard_pay ?? 0;
+  const bonus       = entry?.bonus ?? 0;
+  const otherBen    = entry?.other_benefits ?? 0;
+  const pjRet       = entry?.pj_retention ?? 0;
+  const lifeIns     = entry?.life_insurance ?? 0;
+  const firstAdv    = entry?.first_period_advance ?? 0;
+  const grossTotal  = calc.gross_total;
+  const netTotal    = calc.net_total;
+
+  // Valores de quinzena: usar os salvos no entry (calculados no momento do save com descontos reais)
+  const firstNet  = entry?.first_period_net  ?? 0;
+  const secondNet = entry?.second_period_net ?? 0;
+
+  // Descontos detalhados por quinzena
+  const firstDiscounts  = entry?.first_discounts  ?? [];
+  const secondDiscounts = entry?.second_discounts ?? [];
+
+  const monthName = getMonthName(month);
 
   const proventos = [
     { label: 'Salário Base', value: baseSalary, show: true },
-    { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: mealVoucher, show: mealVoucher > 0 },
+    { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
     { label: 'Vale Transporte', value: transport, show: transport > 0 },
     { label: 'Adicional KM', value: kmBonus, show: kmBonus > 0 },
     { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
@@ -70,16 +68,13 @@ function HoleriteContent({ employee, entry, month, company }) {
   ].filter(x => x.show);
 
   const descontos = [
-    { label: `Desc. Faltas (${entry?.absences_days ?? 0}d)`, value: absDiscount, show: absDiscount > 0 },
-    { label: 'INSS', value: inss, show: inss > 0 },
-    { label: 'IRRF', value: irrf, show: irrf > 0 },
+    { label: `Desc. Faltas (${entry?.absences_days ?? 0}d)`, value: calc.absence_discount, show: calc.absence_discount > 0 },
+    { label: 'INSS', value: calc.inss_net, show: calc.inss_net > 0 },
+    { label: 'IRRF', value: calc.irrf, show: calc.irrf > 0 },
     { label: 'Retenção PJ', value: pjRet, show: pjRet > 0 },
-    { label: 'Contribuição Assistencial', value: unionContr, show: unionContr > 0 },
-    { label: 'Desconto Vale Refeição', value: mealVDisc, show: mealVDisc > 0 },
+    { label: 'Contribuição Assistencial', value: calc.union_contribution, show: calc.union_contribution > 0 },
+    { label: 'Desconto Vale Refeição', value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
     { label: 'Seguro de Vida', value: lifeIns, show: lifeIns > 0 },
-    { label: 'Adiantamento 1ª Quinzena', value: firstAdv, show: firstAdv > 0 },
-    { label: 'Descontos 1ª Quinzena', value: firstDisc, show: firstDisc > 0 },
-    { label: 'Descontos 2ª Quinzena', value: secondDisc, show: secondDisc > 0 },
   ].filter(x => x.show);
 
   const totalDescontos = descontos.reduce((s, d) => s + d.value, 0);
@@ -170,23 +165,68 @@ function HoleriteContent({ employee, entry, month, company }) {
         </tbody>
       </table>
 
-      {/* ── Resumo financeiro ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isCLT ? '1fr 1fr 1fr' : '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-        {isCLT && (
-          <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '10px 14px' }}>
-            <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase' }}>FGTS (8%)</div>
-            <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#239BB6', fontFamily: 'monospace', marginTop: '3px' }}>{formatCurrency(fgts)}</div>
+      {/* ── Resumo Quinzenal ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+        {/* 1ª Quinzena */}
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            1ª Quinzena (1–15)
           </div>
-        )}
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', padding: '10px 14px' }}>
-          <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase' }}>1ª Quinzena a Receber</div>
-          <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#6a3eaf', fontFamily: 'monospace', marginTop: '3px' }}>{formatCurrency(firstNet)}</div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
+              <span>Base (50% líquido)</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
+            </div>
+            {firstAdv > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>Adiantamento</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span>
+              </div>
+            )}
+            {firstDiscounts.map((d, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+              <span style={{ color: '#6a3eaf' }}>A Receber</span>
+              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
+            </div>
+          </div>
         </div>
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', padding: '10px 14px' }}>
-          <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase' }}>2ª Quinzena a Receber</div>
-          <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#6a3eaf', fontFamily: 'monospace', marginTop: '3px' }}>{formatCurrency(secondNet)}</div>
+
+        {/* 2ª Quinzena */}
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            2ª Quinzena (16–30)
+          </div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
+              <span>Base (50% líquido)</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
+            </div>
+            {secondDiscounts.map((d, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+              <span style={{ color: '#6a3eaf' }}>A Receber</span>
+              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* FGTS info (CLT) */}
+      {isCLT && (
+        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>FGTS (8%) — informativo</span>
+          <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#239BB6', fontFamily: 'monospace' }}>{formatCurrency(calc.fgts)}</span>
+        </div>
+      )}
 
       {/* ── Líquido Total ── */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
