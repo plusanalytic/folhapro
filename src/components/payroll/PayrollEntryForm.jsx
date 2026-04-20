@@ -191,6 +191,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
               </>
             )}
+
+            <Separator />
+            <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
+              <div>
+                <p className="font-bold text-base">Total a Receber</p>
+                <p className="text-xs text-muted-foreground">Líquido após todos os descontos</p>
+              </div>
+              <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.net_total)}</p>
+            </div>
           </TabsContent>
 
           <TabsContent value="quinzenal" className="space-y-4 mt-4">
