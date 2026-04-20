@@ -53,6 +53,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       meal_voucher_discount: calc.meal_voucher_discount,
       inss_pct: form.inss_pct,
       inss_discount: form.inss_discount,
+      inss: calc.inss_net,
       reference_month: referenceMonth,
     });
   };

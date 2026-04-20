@@ -103,6 +103,11 @@
       "default": 0,
       "description": "INSS % manual (0 = usar tabela progressiva)"
     },
+    "inss_discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto manual aplicado sobre o INSS calculado (R$)"
+    },
     "inss": {
       "type": "number",
       "default": 0,
