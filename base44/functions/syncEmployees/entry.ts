@@ -34,10 +34,20 @@ Deno.serve(async (req) => {
       if (c.tangerino_id) companyByTangerinoId[String(c.tangerino_id)] = c;
     }
 
-    // Mapeia tangerino_id -> employee local
+    // Mapeia tangerino_id -> employee local (mantém apenas um por tangerino_id — o mais antigo)
     const localByTangerinoId = {};
     for (const e of localEmployees) {
-      if (e.tangerino_id) localByTangerinoId[String(e.tangerino_id)] = e;
+      if (!e.tangerino_id) continue;
+      const tid = String(e.tangerino_id);
+      if (!localByTangerinoId[tid]) {
+        localByTangerinoId[tid] = e;
+      } else {
+        // Mantém o mais antigo, ignora duplicata
+        const existing = localByTangerinoId[tid];
+        if (new Date(e.created_date) < new Date(existing.created_date)) {
+          localByTangerinoId[tid] = e;
+        }
+      }
     }
 
     let created = 0;
