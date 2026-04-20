@@ -113,7 +113,11 @@ export function calculatePayroll(entry, contractType) {
   // Seguro de vida
   const lifeInsurance = entry.life_insurance || 0;
 
-  const totalDiscounts = inss + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance +
+  // Desconto manual sobre o INSS (reduz o valor do INSS a ser descontado)
+  const inssDiscount = Math.min(entry.inss_discount || 0, inss);
+  const inssNet = Math.max(0, inss - inssDiscount);
+
+  const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance +
     (entry.first_period_discount || 0) + (entry.second_period_discount || 0);
   const netTotal = grossTotal - totalDiscounts;
 
@@ -127,6 +131,7 @@ export function calculatePayroll(entry, contractType) {
   return {
     absence_discount: absenceDiscount,
     inss,
+    inss_net: inssNet,
     fgts,
     irrf,
     meal_voucher: mealVoucher,

@@ -27,6 +27,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     life_insurance: entry?.life_insurance ?? 0,
     inss_pct: entry?.inss_pct ?? 0,
+    inss_discount: entry?.inss_discount ?? 0,
     pj_retention: entry?.pj_retention ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
     first_period_discount: entry?.first_period_discount ?? 0,
@@ -51,6 +52,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       union_contribution: calc.union_contribution,
       meal_voucher_discount: calc.meal_voucher_discount,
       inss_pct: form.inss_pct,
+      inss_discount: form.inss_discount,
       reference_month: referenceMonth,
     });
   };
@@ -186,6 +188,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
                   </div>
+                  <div>
+                    <Label>Desconto INSS (R$)</Label>
+                    <div className="flex gap-2 mt-1 items-center">
+                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="Valor a descontar do INSS" value={form.inss_discount} onChange={e => setNum('inss_discount', e.target.value)} />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">INSS líquido: {formatCurrency(calc.inss_net)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Reduz o INSS calculado no total a receber</p>
+                  </div>
                 </div>
               </>
             )}
@@ -272,7 +282,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <span className="font-mono">{formatCurrency(calc.gross_total)}</span>
               </div>
               {employee.contract_type === 'CLT' && <>
-                {calc.inss > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">INSS</span><span className="font-mono text-destructive">- {formatCurrency(calc.inss)}</span></div>}
+                {calc.inss > 0 && <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-destructive">INSS{form.inss_discount > 0 ? ` (desc. ${formatCurrency(form.inss_discount)})` : ''}</span>
+                  <span className="font-mono text-destructive">- {formatCurrency(calc.inss_net)}</span>
+                </div>}
                 {calc.irrf > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">IRRF</span><span className="font-mono text-destructive">- {formatCurrency(calc.irrf)}</span></div>}
               </>}
               {form.pj_retention > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Retenção PJ</span><span className="font-mono text-destructive">- {formatCurrency(form.pj_retention)}</span></div>}
