@@ -80,7 +80,7 @@ export default function Companies() {
             disabled={syncing}
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Tangerino'}
+            {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
           </Button>
 
         </div>
@@ -116,7 +116,7 @@ export default function Companies() {
               <Link2 className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Sync Tangerino</p>
+              <p className="text-xs text-muted-foreground">Sync Solides</p>
               <p className="text-xl font-bold">{totalSynced}</p>
             </div>
           </CardContent>
@@ -152,7 +152,7 @@ export default function Companies() {
                   </Badge>
                   {company.tangerino_id && (
                     <Badge variant="outline" className="text-xs text-blue-600 border-blue-200 bg-blue-50 gap-1">
-                      <Link2 className="w-2.5 h-2.5" /> Tangerino
+                      <Link2 className="w-2.5 h-2.5" /> Solides
                     </Badge>
                   )}
                 </div>
@@ -173,7 +173,7 @@ export default function Companies() {
               )}
               {company.tangerino_id && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  ID Tangerino: <span className="font-mono">{company.tangerino_id}</span>
+                  ID Solides: <span className="font-mono">{company.tangerino_id}</span>
                 </p>
               )}
 
@@ -205,7 +205,7 @@ export default function Companies() {
             <Building2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="font-medium">Nenhuma empresa encontrada</p>
             <p className="text-sm mt-1">
-            {search ? 'Tente outro termo de busca.' : 'Use o botão "Sincronizar Tangerino" para importar empresas.'}
+            {search ? 'Tente outro termo de busca.' : 'Use o botão "Sincronizar Solides" para importar empresas.'}
             </p>
           </div>
         )}

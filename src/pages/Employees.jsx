@@ -90,7 +90,7 @@ export default function Employees() {
         </div>
         <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
           <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar Tangerino'}
+          {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
         </Button>
       </div>
 
@@ -230,7 +230,7 @@ export default function Employees() {
               <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhum colaborador encontrado</p>
-                {!search && <p className="text-sm mt-1">Use "Sincronizar Tangerino" para importar colaboradores.</p>}
+                {!search && <p className="text-sm mt-1">Use "Sincronizar Solides" para importar colaboradores.</p>}
               </td></tr>
             )}
           </tbody>
