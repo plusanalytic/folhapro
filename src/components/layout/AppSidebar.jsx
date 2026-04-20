@@ -15,8 +15,8 @@ export default function AppSidebar() {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-sidebar flex flex-col z-40">
-      <div className="p-5 border-b border-sidebar-border flex items-center justify-center">
+    <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40" style={{ backgroundColor: '#8953FF' }}>
+      <div className="p-5 flex items-center justify-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
         <img
           src="https://media.base44.com/images/public/69dfcba2fae1c77226b7a4da/324c9c675_LOGOCONTACTA-SEMFUNDO-DEITADO1.png"
           alt="Contacta"
@@ -32,25 +32,26 @@ export default function AppSidebar() {
             <Link
               key={path}
               to={path}
+              style={active ? { backgroundColor: '#239BB6' } : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group',
                 active
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  ? 'text-white'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1">{label}</span>
-              {active && <ChevronRight className="w-3 h-3 opacity-60" />}
+              {active && <ChevronRight className="w-3 h-3 opacity-80" />}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
         <Link
           to="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-all"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
         >
           <Settings className="w-4 h-4" />
           <span>Configurações</span>
