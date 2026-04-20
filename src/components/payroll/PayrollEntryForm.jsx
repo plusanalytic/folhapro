@@ -10,7 +10,7 @@ import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth }
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
-export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose }) {
+export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
 
   const [form, setForm] = useState({
@@ -60,7 +60,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     });
   }, [employee.id, referenceMonth]);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
@@ -95,7 +95,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         <div className="flex-1 overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            Lançamento — {employee.name}
+            {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
             <Badge variant={employee.contract_type === 'CLT' ? 'default' : 'secondary'}>{employee.contract_type}</Badge>
             <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
           </DialogTitle>
@@ -109,15 +109,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           </TabsList>
 
           <TabsContent value="proventos" className="space-y-4 mt-4">
+            {readOnly && (
+              <div className="bg-muted/50 border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground">
+                Modo visualização — nenhuma alteração pode ser realizada.
+              </div>
+            )}
             {/* Salário e Faltas */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Salário Base / Valor Fixo</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.base_salary} onChange={e => setNum('base_salary', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.base_salary} onChange={e => setNum('base_salary', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Faltas (dias)</Label>
-                <Input className="mt-1" type="number" step="1" min="0" value={form.absences_days} onChange={e => setNum('absences_days', e.target.value)} />
+                <Input className="mt-1" type="number" step="1" min="0" value={form.absences_days} onChange={e => setNum('absences_days', e.target.value)} disabled={readOnly} />
               </div>
             </div>
 
@@ -129,12 +134,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <Label>Vale Refeição</Label>
               <div className="flex gap-2 mt-1 items-center">
                 <div className="flex-1">
-                  <Input className="font-mono" type="number" step="0.01" placeholder="Valor/dia" value={form.meal_voucher_day_value} onChange={e => setNum('meal_voucher_day_value', e.target.value)} />
+                  <Input className="font-mono" type="number" step="0.01" placeholder="Valor/dia" value={form.meal_voucher_day_value} onChange={e => setNum('meal_voucher_day_value', e.target.value)} disabled={readOnly} />
                   <p className="text-xs text-muted-foreground mt-0.5">Valor por dia</p>
                 </div>
                 <span className="text-muted-foreground font-bold text-lg">×</span>
                 <div className="w-24">
-                  <Input className="font-mono text-center" type="number" step="1" min="0" value={form.meal_voucher_days} onChange={e => setNum('meal_voucher_days', e.target.value)} />
+                  <Input className="font-mono text-center" type="number" step="1" min="0" value={form.meal_voucher_days} onChange={e => setNum('meal_voucher_days', e.target.value)} disabled={readOnly} />
                   <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
                 </div>
                 <span className="text-muted-foreground">=</span>
@@ -148,27 +153,27 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Vale Transporte</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Adicional KM</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.km_bonus} onChange={e => setNum('km_bonus', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.km_bonus} onChange={e => setNum('km_bonus', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Aluguel da Motocicleta</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.motorcycle_rental} onChange={e => setNum('motorcycle_rental', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.motorcycle_rental} onChange={e => setNum('motorcycle_rental', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Periculosidade</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.hazard_pay} onChange={e => setNum('hazard_pay', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.hazard_pay} onChange={e => setNum('hazard_pay', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Bonificação / Prêmio</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.bonus} onChange={e => setNum('bonus', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.bonus} onChange={e => setNum('bonus', e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <Label>Outros Benefícios</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.other_benefits} onChange={e => setNum('other_benefits', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.other_benefits} onChange={e => setNum('other_benefits', e.target.value)} disabled={readOnly} />
               </div>
             </div>
 
@@ -178,20 +183,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <div>
                 <Label>Contribuição Assistencial (% sobre piso salarial)</Label>
                 <div className="flex gap-2 mt-1 items-center">
-                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.union_contribution_pct} onChange={e => setNum('union_contribution_pct', e.target.value)} />
+                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.union_contribution_pct} onChange={e => setNum('union_contribution_pct', e.target.value)} disabled={readOnly} />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.union_contribution)}</span>
                 </div>
               </div>
               <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
                 <div className="flex gap-2 mt-1 items-center">
-                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.meal_voucher_discount_pct} onChange={e => setNum('meal_voucher_discount_pct', e.target.value)} />
+                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.meal_voucher_discount_pct} onChange={e => setNum('meal_voucher_discount_pct', e.target.value)} disabled={readOnly} />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                 </div>
               </div>
               <div>
                 <Label>Seguro de Vida (R$)</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.life_insurance} onChange={e => setNum('life_insurance', e.target.value)} />
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.life_insurance} onChange={e => setNum('life_insurance', e.target.value)} disabled={readOnly} />
               </div>
             </div>
 
@@ -202,7 +207,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Retenção PJ</Label>
-                    <Input className="mt-1 font-mono" type="number" step="0.01" value={form.pj_retention} onChange={e => setNum('pj_retention', e.target.value)} />
+                    <Input className="mt-1 font-mono" type="number" step="0.01" value={form.pj_retention} onChange={e => setNum('pj_retention', e.target.value)} disabled={readOnly} />
                   </div>
                 </div>
               </>
@@ -216,7 +221,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div>
                     <Label>INSS % (base: salário + periculosidade)</Label>
                     <div className="flex gap-2 mt-1 items-center">
-                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="% ou deixe 0 para tabela" value={form.inss_pct} onChange={e => setNum('inss_pct', e.target.value)} />
+                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="% ou deixe 0 para tabela" value={form.inss_pct} onChange={e => setNum('inss_pct', e.target.value)} disabled={readOnly} />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
@@ -224,7 +229,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div>
                     <Label>Desconto INSS (R$)</Label>
                     <div className="flex gap-2 mt-1 items-center">
-                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="Valor a descontar do INSS" value={form.inss_discount} onChange={e => setNum('inss_discount', e.target.value)} />
+                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="Valor a descontar do INSS" value={form.inss_discount} onChange={e => setNum('inss_discount', e.target.value)} disabled={readOnly} />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">INSS líquido: {formatCurrency(calc.inss_net)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Reduz o INSS calculado no total a receber</p>
@@ -273,11 +278,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div>
                   <Label className="text-xs">Adiantamento</Label>
-                  <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} />
+                  <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} disabled={readOnly} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                  <PeriodDiscountsTable items={firstDiscounts} onChange={setFirstDiscounts} />
+                  <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} />
                 </div>
                 <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                   <div>
@@ -296,7 +301,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                  <PeriodDiscountsTable items={secondDiscounts} onChange={setSecondDiscounts} />
+                  <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} />
                 </div>
                 <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                   <div>
@@ -353,8 +358,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
         </div>
         <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+          {readOnly ? (
+            <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+          ) : (
+            <>
+              <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+              <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Lock, Unlock, Search, Filter, FileText } from 'lucide-react';
+import { Plus, Lock, Unlock, Search, Filter, FileText, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +22,7 @@ export default function Payroll() {
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [viewOnly, setViewOnly] = useState(false);
 
 
   const load = async () => {
@@ -206,14 +207,26 @@ export default function Payroll() {
                             </Badge>
                           </td>
                           <td className="p-3 pr-6 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={closed}
-                              onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setShowForm(true); }}
-                            >
-                              {entry ? 'Editar' : 'Lançar'}
-                            </Button>
+                            <div className="flex gap-1.5 justify-end">
+                              {entry && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Visualizar"
+                                  onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={closed}
+                                onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
+                              >
+                                {entry ? 'Editar' : 'Lançar'}
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -231,8 +244,9 @@ export default function Payroll() {
           employee={editingEmployee}
           entry={editingEntry}
           referenceMonth={selectedMonth}
+          readOnly={viewOnly}
           onSave={handleSaveEntry}
-          onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); }}
+          onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
         />
       )}
     </div>

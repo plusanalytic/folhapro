@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 
-export default function PeriodDiscountsTable({ items = [], onChange, readonly = false }) {
+export default function PeriodDiscountsTable({ items = [], onChange, readonly = false, readOnly = false }) {
   const [newRow, setNewRow] = useState({ date: '', description: '', amount: '' });
 
   const addRow = () => {
@@ -26,13 +26,13 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
               <th className="text-left px-3 py-2 font-medium">Data</th>
               <th className="text-left px-3 py-2 font-medium">Descrição</th>
               <th className="text-right px-3 py-2 font-medium">Valor</th>
-              {!readonly && <th className="w-8" />}
+              {!(readonly || readOnly) && <th className="w-8" />}
             </tr>
           </thead>
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td colSpan={readonly ? 3 : 4} className="text-center text-muted-foreground py-4 text-xs">
+                <td colSpan={(readonly || readOnly) ? 3 : 4} className="text-center text-muted-foreground py-4 text-xs">
                   Nenhum desconto lançado
                 </td>
               </tr>
@@ -42,7 +42,7 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
                 <td className="px-3 py-2 font-mono text-xs">{row.date}</td>
                 <td className="px-3 py-2">{row.description}</td>
                 <td className="px-3 py-2 text-right font-mono text-destructive">- {formatCurrency(row.amount)}</td>
-                {!readonly && (
+                {!(readonly || readOnly) && (
                   <td className="px-2 py-2">
                     <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeRow(idx)}>
                       <Trash2 className="w-3 h-3" />
@@ -57,14 +57,14 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
               <tr className="border-t border-border bg-muted/20">
                 <td colSpan={2} className="px-3 py-2 font-semibold text-xs text-muted-foreground">Total descontos</td>
                 <td className="px-3 py-2 text-right font-mono font-semibold text-destructive">- {formatCurrency(total)}</td>
-                {!readonly && <td />}
+                {!(readonly || readOnly) && <td />}
               </tr>
             </tfoot>
           )}
         </table>
       </div>
 
-      {!readonly && (
+      {!(readonly || readOnly) && (
         <div className="flex gap-2 items-center">
           <Input
             type="date"
