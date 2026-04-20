@@ -16,16 +16,13 @@ export default function AppSidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 bg-sidebar flex flex-col z-40">
-      <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Banknote className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <div>
-            <p className="text-sidebar-foreground font-semibold text-sm">FolhaPro</p>
-            <p className="text-sidebar-foreground/50 text-xs">Gestão de Folha</p>
-          </div>
-        </div>
+      <div className="p-5 border-b border-sidebar-border flex items-center justify-center">
+        <img
+          src="https://media.base44.com/images/public/69dfcba2fae1c77226b7a4da/324c9c675_LOGOCONTACTA-SEMFUNDO-DEITADO1.png"
+          alt="Contacta"
+          className="h-10 w-auto object-contain"
+          style={{ filter: 'brightness(0) invert(1)' }}
+        />
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
