@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
+import PeriodDiscountsTable from './PeriodDiscountsTable';
+import { base44 } from '@/api/base44Client';
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
@@ -30,17 +32,42 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     inss_discount: entry?.inss_discount ?? 0,
     pj_retention: entry?.pj_retention ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
-    first_period_discount: entry?.first_period_discount ?? 0,
-    first_period_note: entry?.first_period_note ?? '',
-    second_period_discount: entry?.second_period_discount ?? 0,
-    second_period_note: entry?.second_period_note ?? '',
     notes: entry?.notes ?? '',
   });
+
+  // Descontos quinzenais (lista de {date, description, amount, id})
+  const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
+  const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
+
+  // Carregar CashOuts do colaborador no mês
+  useEffect(() => {
+    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
+      const fromCashFirst = cashOuts.filter(c => c.period === 'first').map(c => ({
+        id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
+      }));
+      const fromCashSecond = cashOuts.filter(c => c.period === 'second').map(c => ({
+        id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
+      }));
+      // Mescla: mantém manuais já existentes + CashOuts (evita duplicatas por id)
+      setFirstDiscounts(prev => {
+        const manual = prev.filter(x => !x.fromCashOut);
+        return [...manual, ...fromCashFirst];
+      });
+      setSecondDiscounts(prev => {
+        const manual = prev.filter(x => !x.fromCashOut);
+        return [...manual, ...fromCashSecond];
+      });
+    });
+  }, [employee.id, referenceMonth]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
-  const calc = calculatePayroll(form, employee.contract_type);
+  const firstDiscountTotal = firstDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
+  const secondDiscountTotal = secondDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
+
+  const calcForm = { ...form, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
+  const calc = calculatePayroll(calcForm, employee.contract_type);
 
   const handleSave = () => {
     onSave({
@@ -54,6 +81,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       inss_pct: form.inss_pct,
       inss_discount: form.inss_discount,
       inss: calc.inss_net,
+      first_period_discount: firstDiscountTotal,
+      second_period_discount: secondDiscountTotal,
+      first_discounts: firstDiscounts,
+      second_discounts: secondDiscounts,
       reference_month: referenceMonth,
     });
   };
@@ -219,40 +250,58 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             </div>
           </TabsContent>
 
-          <TabsContent value="quinzenal" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <p className="font-semibold text-sm">1º Quinzena (1–15)</p>
-                <div>
-                  <Label>Adiantamento</Label>
-                  <Input className="mt-1 font-mono" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} />
+          <TabsContent value="quinzenal" className="space-y-5 mt-4">
+            {/* Resumo 50/50 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
+                <p className="text-xs text-muted-foreground">Base 1ª Quinzena (50%)</p>
+                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total > 0 ? (calc.gross_total / 2) : 0)}</p>
+              </div>
+              <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
+                <p className="text-xs text-muted-foreground">Base 2ª Quinzena (50%)</p>
+                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total > 0 ? (calc.gross_total / 2) : 0)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 1ª Quinzena */}
+              <div className="space-y-3 border border-border rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.gross_total / 2)}</span>
                 </div>
                 <div>
-                  <Label>Desconto</Label>
-                  <Input className="mt-1 font-mono" type="number" step="0.01" value={form.first_period_discount} onChange={e => setNum('first_period_discount', e.target.value)} />
+                  <Label className="text-xs">Adiantamento</Label>
+                  <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} />
                 </div>
                 <div>
-                  <Label>Nota</Label>
-                  <Input className="mt-1" value={form.first_period_note} onChange={e => set('first_period_note', e.target.value)} placeholder="Observação..." />
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
+                  <PeriodDiscountsTable items={firstDiscounts} onChange={setFirstDiscounts} />
                 </div>
-                <div className="bg-primary/10 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Á Receber 1º 15</p>
+                <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
+                    <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance)}</p>
+                  </div>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.first_period_net)}</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <p className="font-semibold text-sm">2º Quinzena (16–30)</p>
-                <div>
-                  <Label>Desconto</Label>
-                  <Input className="mt-1 font-mono" type="number" step="0.01" value={form.second_period_discount} onChange={e => setNum('second_period_discount', e.target.value)} />
+              {/* 2ª Quinzena */}
+              <div className="space-y-3 border border-border rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.gross_total / 2)}</span>
                 </div>
                 <div>
-                  <Label>Nota</Label>
-                  <Input className="mt-1" value={form.second_period_note} onChange={e => set('second_period_note', e.target.value)} placeholder="Observação..." />
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
+                  <PeriodDiscountsTable items={secondDiscounts} onChange={setSecondDiscounts} />
                 </div>
-                <div className="bg-primary/10 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Á Receber 2º 15</p>
+                <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Á Receber 2ª Quinzena</p>
+                    <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal)}</p>
+                  </div>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.second_period_net)}</p>
                 </div>
               </div>

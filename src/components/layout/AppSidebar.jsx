@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { path: '/companies', icon: Building2, label: 'Empresas' },
   { path: '/employees', icon: Users, label: 'Colaboradores' },
   { path: '/payroll', icon: Banknote, label: 'Folha de Pagamento' },
+  { path: '/cashout', icon: ArrowDownCircle, label: 'Saída de Caixa' },
   { path: '/reports', icon: FileText, label: 'Relatórios' },
 ];
 

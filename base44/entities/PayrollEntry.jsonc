@@ -20,152 +20,133 @@
     },
     "absences_days": {
       "type": "number",
-      "default": 0,
-      "description": "Dias de falta"
+      "default": 0
     },
     "absence_discount": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto por faltas"
+      "default": 0
     },
     "meal_voucher_day_value": {
       "type": "number",
-      "default": 0,
-      "description": "Vale Refei\u00e7\u00e3o - valor por dia"
+      "default": 0
     },
     "meal_voucher_days": {
       "type": "number",
-      "default": 0,
-      "description": "Vale Refei\u00e7\u00e3o - quantidade de dias"
+      "default": 0
     },
     "meal_voucher": {
       "type": "number",
-      "default": 0,
-      "description": "Vale Refei\u00e7\u00e3o total (valor dia * dias)"
+      "default": 0
     },
     "transport_voucher": {
       "type": "number",
-      "default": 0,
-      "description": "Vale Transporte"
+      "default": 0
     },
     "km_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "Adicional KM excedente"
+      "default": 0
     },
     "motorcycle_rental": {
       "type": "number",
-      "default": 0,
-      "description": "Aluguel da Motocicleta"
+      "default": 0
     },
     "hazard_pay": {
       "type": "number",
-      "default": 0,
-      "description": "Periculosidade"
+      "default": 0
     },
     "bonus": {
       "type": "number",
-      "default": 0,
-      "description": "Bonifica\u00e7\u00e3o / Pr\u00eamio"
+      "default": 0
     },
     "other_benefits": {
       "type": "number",
-      "default": 0,
-      "description": "Outros benef\u00edcios"
+      "default": 0
     },
     "union_contribution_pct": {
       "type": "number",
-      "default": 0,
-      "description": "Contribui\u00e7\u00e3o Assistencial (%) sobre piso salarial"
+      "default": 0
     },
     "union_contribution": {
       "type": "number",
-      "default": 0,
-      "description": "Contribui\u00e7\u00e3o Assistencial (valor)"
+      "default": 0
     },
     "meal_voucher_discount_pct": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto VR (%) sobre total do VR"
+      "default": 0
     },
     "meal_voucher_discount": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto VR (valor)"
+      "default": 0
     },
     "life_insurance": {
       "type": "number",
-      "default": 0,
-      "description": "Seguro de vida (R$)"
+      "default": 0
     },
     "inss_pct": {
       "type": "number",
-      "default": 0,
-      "description": "INSS % manual (0 = usar tabela progressiva)"
+      "default": 0
     },
     "inss_discount": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto manual aplicado sobre o INSS calculado (R$)"
+      "default": 0
     },
     "inss": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto INSS"
+      "default": 0
     },
     "fgts": {
       "type": "number",
-      "default": 0,
-      "description": "FGTS"
+      "default": 0
     },
     "irrf": {
       "type": "number",
-      "default": 0,
-      "description": "Desconto IRRF"
+      "default": 0
     },
     "pj_retention": {
       "type": "number",
-      "default": 0,
-      "description": "Reten\u00e7\u00e3o PJ"
+      "default": 0
     },
     "first_period_advance": {
       "type": "number",
-      "default": 0,
-      "description": "Adiantamento 1\u00ba quinzena"
+      "default": 0
     },
     "first_period_discount": {
       "type": "number",
       "default": 0,
-      "description": "Desconto 1\u00ba quinzena"
+      "description": "Total descontos 1\u00aa quinzena"
     },
-    "first_period_note": {
-      "type": "string",
-      "description": "Nota 1\u00ba quinzena"
+    "first_discounts": {
+      "type": "array",
+      "description": "Lista de descontos da 1\u00aa quinzena [{date, description, amount}]",
+      "items": {
+        "type": "object"
+      },
+      "default": []
     },
     "second_period_discount": {
       "type": "number",
       "default": 0,
-      "description": "Desconto 2\u00ba quinzena"
+      "description": "Total descontos 2\u00aa quinzena"
     },
-    "second_period_note": {
-      "type": "string",
-      "description": "Nota 2\u00ba quinzena"
+    "second_discounts": {
+      "type": "array",
+      "description": "Lista de descontos da 2\u00aa quinzena [{date, description, amount}]",
+      "items": {
+        "type": "object"
+      },
+      "default": []
     },
     "gross_total": {
-      "type": "number",
-      "description": "Total bruto"
+      "type": "number"
     },
     "net_total": {
-      "type": "number",
-      "description": "Total l\u00edquido"
+      "type": "number"
     },
     "first_period_net": {
-      "type": "number",
-      "description": "L\u00edquido 1\u00ba quinzena"
+      "type": "number"
     },
     "second_period_net": {
-      "type": "number",
-      "description": "L\u00edquido 2\u00ba quinzena"
+      "type": "number"
     },
     "status": {
       "type": "string",
@@ -176,8 +157,7 @@
       "default": "open"
     },
     "notes": {
-      "type": "string",
-      "description": "Observa\u00e7\u00f5es gerais"
+      "type": "string"
     }
   },
   "required": [

@@ -13,6 +13,7 @@ import Employees from '@/pages/Employees';
 import Payroll from '@/pages/Payroll';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
+import CashOut from '@/pages/CashOut';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,6 +47,7 @@ const AuthenticatedApp = () => {
         <Route path="/payroll" element={<Payroll />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/cashout" element={<CashOut />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
