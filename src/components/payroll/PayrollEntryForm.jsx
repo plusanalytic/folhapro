@@ -26,6 +26,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     union_contribution_pct: entry?.union_contribution_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     life_insurance: entry?.life_insurance ?? 0,
+    inss_pct: entry?.inss_pct ?? 0,
     pj_retention: entry?.pj_retention ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
     first_period_discount: entry?.first_period_discount ?? 0,
@@ -49,6 +50,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       meal_voucher: calc.meal_voucher,
       union_contribution: calc.union_contribution,
       meal_voucher_discount: calc.meal_voucher_discount,
+      inss_pct: form.inss_pct,
       reference_month: referenceMonth,
     });
   };
@@ -174,25 +176,29 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             {employee.contract_type === 'CLT' && (
               <>
                 <Separator />
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Encargos Calculados (CLT 2026)</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-muted/40 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">INSS</p>
-                    <p className="font-mono font-semibold text-destructive">{formatCurrency(calc.inss)}</p>
-                  </div>
-                  <div className="bg-muted/40 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">FGTS</p>
-                    <p className="font-mono font-semibold text-orange-500">{formatCurrency(calc.fgts)}</p>
-                  </div>
-                  <div className="bg-muted/40 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">IRRF</p>
-                    <p className="font-mono font-semibold text-destructive">{formatCurrency(calc.irrf)}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">INSS</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>INSS % (base: salário + periculosidade)</Label>
+                    <div className="flex gap-2 mt-1 items-center">
+                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="% ou deixe 0 para tabela" value={form.inss_pct} onChange={e => setNum('inss_pct', e.target.value)} />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
                   </div>
                 </div>
               </>
             )}
 
             <Separator />
+            <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
+              <div>
+                <p className="font-bold text-base">Total Bruto</p>
+                <p className="text-xs text-muted-foreground">Antes dos descontos</p>
+              </div>
+              <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
+            </div>
+
             <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
               <div>
                 <p className="font-bold text-base">Total a Receber</p>

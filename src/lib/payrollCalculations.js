@@ -83,7 +83,14 @@ export function calculatePayroll(entry, contractType) {
   let inss = 0, fgts = 0, irrf = 0, pjRetention = 0;
 
   if (contractType === 'CLT') {
-    inss = calculateINSS(salaryAfterAbsence);
+    // Base de cálculo INSS = salário base + periculosidade
+    const inssBase = salaryAfterAbsence + (entry.hazard_pay || 0);
+    if (entry.inss_pct != null && entry.inss_pct > 0) {
+      // INSS manual (% editável pelo usuário)
+      inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
+    } else {
+      inss = calculateINSS(inssBase);
+    }
     fgts = calculateFGTS(salaryAfterAbsence);
     irrf = calculateIRRF(salaryAfterAbsence, inss);
   } else {

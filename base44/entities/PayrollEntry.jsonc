@@ -98,6 +98,11 @@
       "default": 0,
       "description": "Seguro de vida (R$)"
     },
+    "inss_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "INSS % manual (0 = usar tabela progressiva)"
+    },
     "inss": {
       "type": "number",
       "default": 0,
