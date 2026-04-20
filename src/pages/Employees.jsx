@@ -33,12 +33,14 @@ export default function Employees() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = employees.filter(emp => {
-    const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase()) || (emp.cpf_cnpj || '').includes(search);
-    const matchCompany = filterCompany === 'all' || emp.company_id === filterCompany;
-    const matchContract = filterContract === 'all' || emp.contract_type === filterContract;
-    return matchSearch && matchCompany && matchContract;
-  });
+  const filtered = employees
+    .filter(emp => {
+      const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase()) || (emp.cpf_cnpj || '').includes(search);
+      const matchCompany = filterCompany === 'all' || emp.company_id === filterCompany;
+      const matchContract = filterContract === 'all' || emp.contract_type === filterContract;
+      return matchSearch && matchCompany && matchContract;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
