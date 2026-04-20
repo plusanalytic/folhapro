@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Pencil, Building2, Search, Power, RefreshCw, CheckCircle2, AlertCircle, Link2 } from 'lucide-react';
+import { Pencil, Building2, Search, Power, RefreshCw, CheckCircle2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -82,9 +82,7 @@ export default function Companies() {
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Sincronizando...' : 'Sincronizar Tangerino'}
           </Button>
-          <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-2">
-            <Plus className="w-4 h-4" /> Nova Empresa
-          </Button>
+
         </div>
       </div>
 
@@ -207,7 +205,7 @@ export default function Companies() {
             <Building2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="font-medium">Nenhuma empresa encontrada</p>
             <p className="text-sm mt-1">
-              {search ? 'Tente outro termo de busca.' : 'Clique em "Sincronizar Tangerino" ou cadastre manualmente.'}
+            {search ? 'Tente outro termo de busca.' : 'Use o botão "Sincronizar Tangerino" para importar empresas.'}
             </p>
           </div>
         )}
