@@ -15,7 +15,7 @@ export default function AppSidebar() {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40" style={{ backgroundColor: '#8953FF' }}>
+    <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40" style={{ backgroundColor: '#6a3eaf' }}>
       <div className="p-5 flex items-center justify-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
         <img
           src="https://media.base44.com/images/public/69dfcba2fae1c77226b7a4da/324c9c675_LOGOCONTACTA-SEMFUNDO-DEITADO1.png"
