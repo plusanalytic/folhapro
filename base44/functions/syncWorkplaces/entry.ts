@@ -93,8 +93,19 @@ Deno.serve(async (req) => {
           await withRetry(() => base44.asServiceRole.entities.Workplace.update(existing.id, payload));
           updated++;
         } else {
-          await withRetry(() => base44.asServiceRole.entities.Workplace.create(payload));
-          created++;
+          // Verifica novamente no banco antes de criar para evitar duplicidade
+          const check = await base44.asServiceRole.entities.Workplace.filter({ tangerino_id: tid });
+          if (check && check.length > 0) {
+            // Já existe, apenas atualiza e registra no mapa local para próximas iterações
+            localByTangerinoId[tid] = check[0];
+            await withRetry(() => base44.asServiceRole.entities.Workplace.update(check[0].id, payload));
+            updated++;
+          } else {
+            await withRetry(() => base44.asServiceRole.entities.Workplace.create(payload));
+            created++;
+            // Registra no mapa para evitar duplicidade em iterações futuras
+            localByTangerinoId[tid] = { id: '__new__' };
+          }
         }
       } catch (err) {
         console.error(`Falhou para workplace ${tid}:`, err.message);
