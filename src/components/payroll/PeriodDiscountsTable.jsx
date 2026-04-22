@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, CreditCard } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 
-export default function PeriodDiscountsTable({ items = [], onChange, readonly = false, readOnly = false }) {
+export default function PeriodDiscountsTable({ items = [], onChange, readonly = false, readOnly = false, onOpenInstallment }) {
   const [newRow, setNewRow] = useState({ date: '', description: '', amount: '' });
 
   const addRow = () => {
@@ -65,30 +65,37 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
       </div>
 
       {!(readonly || readOnly) && (
-        <div className="flex gap-2 items-center">
-          <Input
-            type="date"
-            className="w-36 font-mono text-xs h-8"
-            value={newRow.date}
-            onChange={e => setNewRow(r => ({ ...r, date: e.target.value }))}
-          />
-          <Input
-            placeholder="Descrição"
-            className="flex-1 h-8 text-xs"
-            value={newRow.description}
-            onChange={e => setNewRow(r => ({ ...r, description: e.target.value }))}
-          />
-          <Input
-            type="number"
-            step="0.01"
-            placeholder="Valor"
-            className="w-28 font-mono h-8 text-xs"
-            value={newRow.amount}
-            onChange={e => setNewRow(r => ({ ...r, amount: e.target.value }))}
-          />
-          <Button size="sm" variant="outline" className="h-8 px-3" onClick={addRow}>
-            <Plus className="w-3 h-3 mr-1" /> Add
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2 items-center">
+            <Input
+              type="date"
+              className="w-36 font-mono text-xs h-8"
+              value={newRow.date}
+              onChange={e => setNewRow(r => ({ ...r, date: e.target.value }))}
+            />
+            <Input
+              placeholder="Descrição"
+              className="flex-1 h-8 text-xs"
+              value={newRow.description}
+              onChange={e => setNewRow(r => ({ ...r, description: e.target.value }))}
+            />
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Valor"
+              className="w-28 font-mono h-8 text-xs"
+              value={newRow.amount}
+              onChange={e => setNewRow(r => ({ ...r, amount: e.target.value }))}
+            />
+            <Button size="sm" variant="outline" className="h-8 px-3" onClick={addRow}>
+              <Plus className="w-3 h-3 mr-1" /> Add
+            </Button>
+          </div>
+          {onOpenInstallment && (
+            <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5 text-primary border-primary/30 hover:bg-primary/5" onClick={onOpenInstallment}>
+              <CreditCard className="w-3 h-3" /> Lançar em Parcelas
+            </Button>
+          )}
         </div>
       )}
     </div>

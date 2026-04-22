@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
+import InstallmentDialog from './InstallmentDialog';
 import { base44 } from '@/api/base44Client';
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
@@ -39,6 +40,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
 
+  // Parcelas
+  const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
+
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
@@ -68,6 +72,35 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   const calcForm = { ...form, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
   const calc = calculatePayroll(calcForm, employee.contract_type);
+
+  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
+    const isFirst = installmentDialog === 'first';
+
+    // 1ª parcela: adiciona ao desconto da quinzena atual
+    const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
+    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
+    else setSecondDiscounts(prev => [...prev, firstEntry]);
+
+    // Parcelas seguintes: cria CashOuts nos meses posteriores
+    for (let i = 1; i < preview.length; i++) {
+      const p = preview[i];
+      const [y, m] = p.month.split('-').map(Number);
+      const day = isFirst ? 15 : 28;
+      const date = `${p.month}-${String(day).padStart(2, '0')}`;
+      await base44.entities.CashOut.create({
+        employee_id: employee.id,
+        company_id: employee.company_id,
+        date,
+        description: `${description} (${i + 1}/${installments})`,
+        amount: installmentValue,
+        reference_month: p.month,
+        period: isFirst ? 'first' : 'second',
+        notes: `Parcela gerada automaticamente`,
+      });
+    }
+
+    setInstallmentDialog(null);
+  };
 
   const handleSave = () => {
     onSave({
@@ -282,7 +315,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                  <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} />
+                  <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
                 </div>
                 <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                   <div>
@@ -301,7 +334,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                  <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} />
+                  <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
                 </div>
                 <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                   <div>
@@ -357,6 +390,16 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         </Tabs>
 
         </div>
+        {installmentDialog && (
+          <InstallmentDialog
+            open={!!installmentDialog}
+            onClose={() => setInstallmentDialog(null)}
+            onConfirm={handleInstallmentConfirm}
+            referenceMonth={referenceMonth}
+            period={installmentDialog}
+          />
+        )}
+
         <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
           {readOnly ? (
             <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
