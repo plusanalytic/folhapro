@@ -53,9 +53,12 @@ Deno.serve(async (req) => {
     let created = 0;
     let updated = 0;
 
-    // Processa em lotes de 20 para não sobrecarregar
-    const BATCH_SIZE = 20;
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Processa em lotes de 5 para respeitar o rate limit
+    const BATCH_SIZE = 5;
     for (let i = 0; i < remoteEmployees.length; i += BATCH_SIZE) {
+      if (i > 0) await sleep(300);
       const batch = remoteEmployees.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.all(batch.map(async (re) => {
         const tangerinoId = String(re.id ?? '');
