@@ -39,12 +39,8 @@ Deno.serve(async (req) => {
         const local = localByTangerinoId[tangerinoId];
         if (!local) { skipped++; return; }
 
-        // Extrai workplace_list com id + name + description
-        const workplaceList = (re.workplaceList ?? []).map(w => ({
-          id: w.id,
-          name: w.name ?? w.description ?? w.nome ?? '',
-          description: w.description ?? w.nome ?? w.name ?? '',
-        }));
+        // Armazena apenas os IDs do Tangerino para de-para com entidade Workplace
+        const workplaceList = (re.workplaceList ?? []).map(w => w.id).filter(Boolean);
 
         await base44.asServiceRole.entities.Employee.update(local.id, { workplace_list: workplaceList });
         updated++;

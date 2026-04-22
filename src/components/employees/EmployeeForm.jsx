@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link2, MapPin } from 'lucide-react';
 
-export default function EmployeeForm({ employee, companies, onSave, onClose }) {
+export default function EmployeeForm({ employee, companies, workplaces = [], onSave, onClose }) {
   const [form, setForm] = useState({
     base_salary: employee?.base_salary || '',
     bank_name: employee?.bank_name || '',
@@ -20,6 +20,15 @@ export default function EmployeeForm({ employee, companies, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
+
+  // De-para: ID Tangerino -> nome do Workplace
+  const workplaceById = {};
+  for (const w of workplaces) {
+    if (w.tangerino_id) workplaceById[String(w.tangerino_id)] = w.name;
+  }
+  const resolvedWorkplaces = (employee?.workplace_list ?? [])
+    .map(id => workplaceById[String(id)])
+    .filter(Boolean);
 
   const readonlyInput = (label, value) => (
     <div>
@@ -68,10 +77,10 @@ export default function EmployeeForm({ employee, companies, onSave, onClose }) {
               <div className="col-span-2">
                 <Label className="text-muted-foreground">Locais de Trabalho</Label>
                 <div className="mt-1 flex flex-wrap gap-2 min-h-9">
-                  {(employee?.workplace_list ?? []).length > 0
-                    ? (employee.workplace_list).map((w, i) => (
+                  {resolvedWorkplaces.length > 0
+                    ? resolvedWorkplaces.map((name, i) => (
                         <Badge key={i} variant="outline" className="gap-1 text-xs text-blue-700 border-blue-200 bg-blue-50">
-                          <MapPin className="w-3 h-3" /> {w.name}
+                          <MapPin className="w-3 h-3" /> {name}
                         </Badge>
                       ))
                     : <span className="text-muted-foreground text-sm">—</span>

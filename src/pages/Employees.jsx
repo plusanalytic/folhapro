@@ -14,6 +14,7 @@ const PAGE_SIZE = 20;
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [workplaces, setWorkplaces] = useState([]);
   const [search, _setSearch] = useState('');
   const [filterCompany, _setFilterCompany] = useState('all');
   const [filterContract, _setFilterContract] = useState('all');
@@ -27,9 +28,14 @@ export default function Employees() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
-    const [e, c] = await Promise.all([base44.entities.Employee.list(), base44.entities.Company.list()]);
+    const [e, c, w] = await Promise.all([
+      base44.entities.Employee.list(),
+      base44.entities.Company.list(),
+      base44.entities.Workplace.list(),
+    ]);
     setEmployees(e);
     setCompanies(c);
+    setWorkplaces(w);
   };
   useEffect(() => { load(); }, []);
 
@@ -46,6 +52,13 @@ export default function Employees() {
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
+
+  // De-para: ID Tangerino -> nome do Workplace local
+  const workplaceById = {};
+  for (const w of workplaces) {
+    if (w.tangerino_id) workplaceById[String(w.tangerino_id)] = w.name;
+  }
+  const getWorkplaceNames = (list) => (list ?? []).map(id => workplaceById[String(id)]).filter(Boolean);
 
   // Stats
   const totalActive = employees.filter(e => e.is_active !== false).length;
@@ -243,17 +256,20 @@ export default function Employees() {
                 </td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-1 max-w-xs">
-                    {(emp.workplace_list ?? []).length > 0
-                      ? (emp.workplace_list).slice(0, 2).map((w, i) => (
+                    {(() => {
+                      const names = getWorkplaceNames(emp.workplace_list);
+                      if (names.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+                      return <>
+                        {names.slice(0, 2).map((name, i) => (
                           <Badge key={i} variant="outline" className="text-xs gap-1 text-blue-700 border-blue-200 bg-blue-50">
-                            <MapPin className="w-2.5 h-2.5" />{w.name || w.description || '—'}
+                            <MapPin className="w-2.5 h-2.5" />{name}
                           </Badge>
-                        ))
-                      : <span className="text-muted-foreground text-xs">—</span>
-                    }
-                    {(emp.workplace_list ?? []).length > 2 && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">+{emp.workplace_list.length - 2}</Badge>
-                    )}
+                        ))}
+                        {names.length > 2 && (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">+{names.length - 2}</Badge>
+                        )}
+                      </>;
+                    })()}
                   </div>
                 </td>
                 <td className="p-4 text-right font-mono font-medium">{formatCurrency(emp.base_salary)}</td>
@@ -299,6 +315,7 @@ export default function Employees() {
         <EmployeeForm
           employee={editing}
           companies={companies}
+          workplaces={workplaces}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); }}
         />

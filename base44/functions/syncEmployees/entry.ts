@@ -64,10 +64,8 @@ Deno.serve(async (req) => {
         const companyTangerinoId = String(re.company?.id ?? '');
         const localCompany = companyByTangerinoId[companyTangerinoId];
 
-        const workplaceList = (re.workplaceList ?? []).map(w => ({
-          id: w.id,
-          name: w.name ?? w.description ?? '',
-        }));
+        // Armazena apenas os IDs do Tangerino para de-para com entidade Workplace
+        const workplaceList = (re.workplaceList ?? []).map(w => w.id).filter(Boolean);
 
         const payload = {
           tangerino_id: tangerinoId,

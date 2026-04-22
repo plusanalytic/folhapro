@@ -82,10 +82,8 @@
     },
     "workplace_list": {
       "type": "array",
-      "description": "Locais de trabalho vinculados (workplaceList do Tangerino)",
-      "items": {
-        "type": "object"
-      },
+      "description": "IDs dos locais de trabalho no Tangerino (de-para com Workplace.tangerino_id)",
+      "items": {},
       "default": []
     },
     "is_active": {
