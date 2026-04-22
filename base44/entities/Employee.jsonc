@@ -80,6 +80,14 @@
       "type": "string",
       "description": "Cargo"
     },
+    "workplace_list": {
+      "type": "array",
+      "description": "Locais de trabalho vinculados (workplaceList do Tangerino)",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
     "is_active": {
       "type": "boolean",
       "default": true

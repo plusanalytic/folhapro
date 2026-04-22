@@ -1,0 +1,41 @@
+{
+  "name": "Workplace",
+  "type": "object",
+  "properties": {
+    "tangerino_id": {
+      "type": "string",
+      "description": "ID do local de trabalho no Tangerino"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nome do local de trabalho"
+    },
+    "code": {
+      "type": "string",
+      "description": "C\u00f3digo"
+    },
+    "address": {
+      "type": "string",
+      "description": "Endere\u00e7o"
+    },
+    "city": {
+      "type": "string",
+      "description": "Cidade"
+    },
+    "state": {
+      "type": "string",
+      "description": "Estado"
+    },
+    "cnpj": {
+      "type": "string",
+      "description": "CNPJ"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

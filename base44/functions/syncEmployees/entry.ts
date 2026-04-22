@@ -64,6 +64,11 @@ Deno.serve(async (req) => {
         const companyTangerinoId = String(re.company?.id ?? '');
         const localCompany = companyByTangerinoId[companyTangerinoId];
 
+        const workplaceList = (re.workplaceList ?? []).map(w => ({
+          id: w.id,
+          name: w.name ?? w.description ?? '',
+        }));
+
         const payload = {
           tangerino_id: tangerinoId,
           name: re.name ?? '',
@@ -79,6 +84,7 @@ Deno.serve(async (req) => {
           is_active: re.fired === false || re.status === 0,
           base_salary: re.salary ?? re.baseSalary ?? 0,
           position: re.jobRoleDTO?.name ?? re.position ?? '',
+          workplace_list: workplaceList,
         };
 
         const existing = localByTangerinoId[tangerinoId];

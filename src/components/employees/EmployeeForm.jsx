@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Link2 } from 'lucide-react';
+import { Link2, MapPin } from 'lucide-react';
 
 export default function EmployeeForm({ employee, companies, onSave, onClose }) {
   const [form, setForm] = useState({
@@ -65,6 +65,19 @@ export default function EmployeeForm({ employee, companies, onSave, onClose }) {
               {readonlyInput('Tipo de Contrato', employee?.contract_type)}
               {readonlyInput('Empresa', getCompanyName(employee?.company_id))}
               {readonlyInput('E-mail', employee?.email)}
+              <div className="col-span-2">
+                <Label className="text-muted-foreground">Locais de Trabalho</Label>
+                <div className="mt-1 flex flex-wrap gap-2 min-h-9">
+                  {(employee?.workplace_list ?? []).length > 0
+                    ? (employee.workplace_list).map((w, i) => (
+                        <Badge key={i} variant="outline" className="gap-1 text-xs text-blue-700 border-blue-200 bg-blue-50">
+                          <MapPin className="w-3 h-3" /> {w.name}
+                        </Badge>
+                      ))
+                    : <span className="text-muted-foreground text-sm">—</span>
+                  }
+                </div>
+              </div>
               <div>
                 <Label className="text-muted-foreground">Salário Base</Label>
                 <Input
