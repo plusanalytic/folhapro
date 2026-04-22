@@ -25,16 +25,29 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Busca lista geral de locais de trabalho para obter os IDs
-    const listRes = await fetch(`https://api.tangerino.com.br/api/employer/workplace/find-all`, {
-      headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
-    });
-    if (!listRes.ok) return Response.json({ error: `Tangerino API error: ${listRes.status}` }, { status: 500 });
+    // 1. Busca todas as páginas de locais de trabalho para obter todos os IDs
+    const workplaceIds = [];
+    let page = 0;
+    const pageSize = 50;
 
-    const raw = await listRes.json();
-    const workplaceIds = (Array.isArray(raw) ? raw : (raw.content || raw.data || []))
-      .map(w => String(w.id ?? ''))
-      .filter(Boolean);
+    while (true) {
+      const listRes = await fetch(
+        `https://api.tangerino.com.br/api/employer/workplace/find-all?page=${page}&size=${pageSize}`,
+        { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
+      );
+      if (!listRes.ok) return Response.json({ error: `Tangerino API error: ${listRes.status}` }, { status: 500 });
+
+      const raw = await listRes.json();
+      const items = Array.isArray(raw) ? raw : (raw.content || raw.data || []);
+      const ids = items.map(w => String(w.id ?? '')).filter(Boolean);
+      workplaceIds.push(...ids);
+
+      // Para se não há mais páginas
+      const totalPages = raw.totalPages ?? (items.length < pageSize ? page + 1 : null);
+      if (items.length < pageSize || (totalPages !== null && page + 1 >= totalPages)) break;
+      page++;
+      await sleep(200);
+    }
 
     // 2. Busca locais locais para comparação
     const localWorkplaces = await base44.asServiceRole.entities.Workplace.list();
