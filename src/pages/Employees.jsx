@@ -19,10 +19,12 @@ export default function Employees() {
   const [search, _setSearch] = useState('');
   const [filterCompany, _setFilterCompany] = useState('all');
   const [filterContract, _setFilterContract] = useState('all');
+  const [filterWorkplace, _setFilterWorkplace] = useState('all');
 
   const setSearch = (v) => { _setSearch(v); setCurrentPage(1); };
   const setFilterCompany = (v) => { _setFilterCompany(v); setCurrentPage(1); };
   const setFilterContract = (v) => { _setFilterContract(v); setCurrentPage(1); };
+  const setFilterWorkplace = (v) => { _setFilterWorkplace(v); setCurrentPage(1); };
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
@@ -45,7 +47,8 @@ export default function Employees() {
       const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase()) || (emp.cpf_cnpj || '').includes(search);
       const matchCompany = filterCompany === 'all' || emp.company_id === filterCompany;
       const matchContract = filterContract === 'all' || emp.contract_type === filterContract;
-      return matchSearch && matchCompany && matchContract;
+      const matchWorkplace = filterWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(filterWorkplace);
+      return matchSearch && matchCompany && matchContract && matchWorkplace;
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -171,6 +174,17 @@ export default function Employees() {
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="CLT">CLT</SelectItem>
             <SelectItem value="PJ">PJ</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterWorkplace} onValueChange={setFilterWorkplace}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Local de Trabalho" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Locais</SelectItem>
+            {workplaces.filter(w => w.tangerino_id).map(w => (
+              <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
