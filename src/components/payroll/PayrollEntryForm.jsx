@@ -381,6 +381,37 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {calc.union_contribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Contribuição Assistencial ({form.union_contribution_pct}%)</span><span className="font-mono text-destructive">- {formatCurrency(calc.union_contribution)}</span></div>}
               {calc.meal_voucher_discount > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Desconto VR ({form.meal_voucher_discount_pct}%)</span><span className="font-mono text-destructive">- {formatCurrency(calc.meal_voucher_discount)}</span></div>}
               {form.life_insurance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Seguro de Vida</span><span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span></div>}
+
+              {/* Descontos Quinzenais */}
+              {(firstDiscounts.length > 0 || form.first_period_advance > 0) && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Descontos 1ª Quinzena</p>
+                  {form.first_period_advance > 0 && (
+                    <div className="flex justify-between py-1 border-b border-border">
+                      <span className="text-destructive text-sm">Adiantamento</span>
+                      <span className="font-mono text-destructive text-sm">- {formatCurrency(form.first_period_advance)}</span>
+                    </div>
+                  )}
+                  {firstDiscounts.map((d, i) => (
+                    <div key={i} className="flex justify-between py-1 border-b border-border">
+                      <span className="text-destructive text-sm">{d.description}</span>
+                      <span className="font-mono text-destructive text-sm">- {formatCurrency(d.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {secondDiscounts.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Descontos 2ª Quinzena</p>
+                  {secondDiscounts.map((d, i) => (
+                    <div key={i} className="flex justify-between py-1 border-b border-border">
+                      <span className="text-destructive text-sm">{d.description}</span>
+                      <span className="font-mono text-destructive text-sm">- {formatCurrency(d.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
                 <span className="font-bold text-lg">Total Líquido</span>
                 <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.net_total)}</span>
