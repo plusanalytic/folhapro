@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
         tangerino_company_id: companyTangerinoId,
         is_active: re.fired === false || re.status === 0,
         base_salary: re.salary ?? re.baseSalary ?? 0,
-        position: re.jobRoleDTO?.name ?? re.position ?? '',
+        position: re.jobRoleDTO?.description ?? re.jobRoleDTO?.name ?? re.position ?? '',
         workplace_list: workplaceList,
       };
 
