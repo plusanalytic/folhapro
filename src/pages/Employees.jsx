@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import EmployeeForm from '@/components/employees/EmployeeForm';
+import SyncProgressDialog from '@/components/employees/SyncProgressDialog';
 
 const PAGE_SIZE = 20;
 
@@ -24,7 +25,7 @@ export default function Employees() {
   const setFilterContract = (v) => { _setFilterContract(v); setCurrentPage(1); };
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [syncing, setSyncing] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
@@ -74,46 +75,7 @@ export default function Employees() {
     load();
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      const { toast } = await import('sonner');
-      const res = await base44.functions.invoke('syncEmployees', {});
-      const data = res.data;
-      if (data.success) {
-        toast.success(`Sincronização concluída! ${data.created} criados, ${data.updated} atualizados.`);
-        load();
-      } else {
-        toast.error(data.error || 'Erro na sincronização.');
-      }
-    } catch (err) {
-      const { toast } = await import('sonner');
-      toast.error('Erro ao conectar com a API do Tangerino.');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
-  const [syncingWP, setSyncingWP] = useState(false);
-  const handleSyncWorkplaces = async () => {
-    setSyncingWP(true);
-    try {
-      const { toast } = await import('sonner');
-      const res = await base44.functions.invoke('syncWorkplaceList', {});
-      const data = res.data;
-      if (data.success) {
-        toast.success(`Locais atualizados! ${data.updated} colaboradores atualizados.`);
-        load();
-      } else {
-        toast.error(data.error || 'Erro ao atualizar locais.');
-      }
-    } catch (err) {
-      const { toast } = await import('sonner');
-      toast.error('Erro ao conectar com a API do Tangerino.');
-    } finally {
-      setSyncingWP(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -122,16 +84,10 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-muted-foreground text-sm mt-1">{employees.length} registros importados</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleSyncWorkplaces} disabled={syncingWP}>
-            <MapPin className={`w-4 h-4 ${syncingWP ? 'animate-spin' : ''}`} />
-            {syncingWP ? 'Atualizando...' : 'Atualizar Locais'}
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
-          </Button>
-        </div>
+        <Button variant="outline" className="gap-2" onClick={() => setShowSyncDialog(true)}>
+          <RefreshCw className="w-4 h-4" />
+          Sincronizar Solides
+        </Button>
       </div>
 
       {/* Cards de resumo */}
@@ -317,9 +273,16 @@ export default function Employees() {
           companies={companies}
           workplaces={workplaces}
           onSave={handleSave}
+          onReload={load}
           onClose={() => { setShowForm(false); setEditing(null); }}
         />
       )}
+
+      <SyncProgressDialog
+        open={showSyncDialog}
+        onClose={() => setShowSyncDialog(false)}
+        onFinished={load}
+      />
     </div>
   );
 }

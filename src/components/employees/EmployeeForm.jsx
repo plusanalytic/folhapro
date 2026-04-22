@@ -5,9 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Link2, MapPin } from 'lucide-react';
+import { Link2, MapPin, RefreshCw } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 
-export default function EmployeeForm({ employee, companies, workplaces = [], onSave, onClose }) {
+export default function EmployeeForm({ employee, companies, workplaces = [], onSave, onClose, onReload }) {
   const [form, setForm] = useState({
     base_salary: employee?.base_salary || '',
     bank_name: employee?.bank_name || '',
@@ -16,6 +18,8 @@ export default function EmployeeForm({ employee, companies, workplaces = [], onS
     bank_beneficiary: employee?.bank_beneficiary || '',
     pix_key: employee?.pix_key || '',
   });
+  const [syncingWP, setSyncingWP] = useState(false);
+  const [localWorkplaceList, setLocalWorkplaceList] = useState(employee?.workplace_list ?? []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -26,9 +30,35 @@ export default function EmployeeForm({ employee, companies, workplaces = [], onS
   for (const w of workplaces) {
     if (w.tangerino_id) workplaceById[String(w.tangerino_id)] = w.name;
   }
-  const resolvedWorkplaces = (employee?.workplace_list ?? [])
-    .map(id => workplaceById[String(id)])
-    .filter(Boolean);
+  const resolvedWorkplaces = localWorkplaceList
+    .map(id => ({ id, name: workplaceById[String(id)] }))
+    .filter(item => item.name);
+
+  const handleSyncWorkplace = async () => {
+    if (!employee?.id || !employee?.tangerino_id) {
+      toast.error('Colaborador não possui ID do Tangerino.');
+      return;
+    }
+    setSyncingWP(true);
+    try {
+      const res = await base44.functions.invoke('syncEmployeeWorkplace', {
+        employee_id: employee.id,
+        tangerino_id: employee.tangerino_id,
+      });
+      const data = res.data;
+      if (data.success) {
+        setLocalWorkplaceList(data.workplace_list ?? []);
+        toast.success(`Locais atualizados! ${data.count} local(is) encontrado(s).`);
+        onReload?.();
+      } else {
+        toast.error(data.error || 'Erro ao atualizar locais.');
+      }
+    } catch (err) {
+      toast.error('Erro ao conectar com a API do Tangerino.');
+    } finally {
+      setSyncingWP(false);
+    }
+  };
 
   const readonlyInput = (label, value) => (
     <div>
@@ -74,19 +104,36 @@ export default function EmployeeForm({ employee, companies, workplaces = [], onS
               {readonlyInput('Tipo de Contrato', employee?.contract_type)}
               {readonlyInput('Empresa', getCompanyName(employee?.company_id))}
               {readonlyInput('E-mail', employee?.email)}
+
+              {/* Locais de Trabalho com botão de atualizar */}
               <div className="col-span-2">
-                <Label className="text-muted-foreground">Locais de Trabalho</Label>
-                <div className="mt-1 flex flex-wrap gap-2 min-h-9">
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-muted-foreground">Locais de Trabalho</Label>
+                  {employee?.tangerino_id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={handleSyncWorkplace}
+                      disabled={syncingWP}
+                    >
+                      <RefreshCw className={`w-3 h-3 ${syncingWP ? 'animate-spin' : ''}`} />
+                      {syncingWP ? 'Atualizando...' : 'Atualizar Locais'}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 min-h-9 rounded-md border border-border bg-muted/30 p-2">
                   {resolvedWorkplaces.length > 0
-                    ? resolvedWorkplaces.map((name, i) => (
+                    ? resolvedWorkplaces.map((item, i) => (
                         <Badge key={i} variant="outline" className="gap-1 text-xs text-blue-700 border-blue-200 bg-blue-50">
-                          <MapPin className="w-3 h-3" /> {name}
+                          <MapPin className="w-3 h-3" /> {item.name}
                         </Badge>
                       ))
                     : <span className="text-muted-foreground text-sm">—</span>
                   }
                 </div>
               </div>
+
               <div>
                 <Label className="text-muted-foreground">Salário Base</Label>
                 <Input
