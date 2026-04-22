@@ -2,20 +2,41 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const TANGERINO_AUTH = "Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=";
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function withRetry(fn, retries = 5, delay = 1000) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is429 = err?.message?.includes('429') || err?.message?.includes('Rate limit');
+      if (is429 && attempt < retries - 1) {
+        await sleep(delay * (attempt + 1));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/workplace/find-all`, {
+    // 1. Busca lista geral de locais de trabalho para obter os IDs
+    const listRes = await fetch(`https://api.tangerino.com.br/api/employer/workplace/find-all`, {
       headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
     });
-    if (!apiRes.ok) return Response.json({ error: `Tangerino API error: ${apiRes.status}` }, { status: 500 });
+    if (!listRes.ok) return Response.json({ error: `Tangerino API error: ${listRes.status}` }, { status: 500 });
 
-    const raw = await apiRes.json();
-    const remoteWorkplaces = Array.isArray(raw) ? raw : (raw.content || raw.data || []);
+    const raw = await listRes.json();
+    const workplaceIds = (Array.isArray(raw) ? raw : (raw.content || raw.data || []))
+      .map(w => String(w.id ?? ''))
+      .filter(Boolean);
 
+    // 2. Busca locais locais para comparação
     const localWorkplaces = await base44.asServiceRole.entities.Workplace.list();
     const localByTangerinoId = {};
     for (const w of localWorkplaces) {
@@ -24,30 +45,51 @@ Deno.serve(async (req) => {
 
     let created = 0;
     let updated = 0;
+    let failed = 0;
 
-    for (const rw of remoteWorkplaces) {
-      const tid = String(rw.id ?? '');
-      if (!tid) continue;
+    // 3. Busca cada workplace individualmente via find?tangerinoId=..., sequencialmente
+    for (const tid of workplaceIds) {
+      try {
+        const detailRes = await withRetry(async () => {
+          const r = await fetch(
+            `https://api.tangerino.com.br/api/employer/workplace/find?tangerinoId=${tid}`,
+            { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
+          );
+          if (r.status === 429) throw new Error('429 Rate limit');
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r;
+        });
 
-      const payload = {
-        tangerino_id: tid,
-        name: rw.name ?? rw.description ?? '',
-        code: rw.code ?? '',
-        address: rw.address ?? rw.street ?? '',
-        city: rw.city ?? rw.municipality ?? '',
-        state: rw.state ?? rw.uf ?? '',
-        cnpj: rw.cnpj ?? rw.document ?? '',
-        is_active: rw.active !== false && rw.status !== 1,
-      };
+        const data = await detailRes.json();
+        const employees = Array.isArray(data) ? data : (data.content ?? [data]);
+        const rw = employees[0] ?? {};
 
-      const existing = localByTangerinoId[tid];
-      if (existing) {
-        await base44.asServiceRole.entities.Workplace.update(existing.id, payload);
-        updated++;
-      } else {
-        await base44.asServiceRole.entities.Workplace.create(payload);
-        created++;
+        const payload = {
+          tangerino_id: tid,
+          name: rw.name ?? rw.description ?? '',
+          code: rw.code ?? '',
+          address: rw.address ?? rw.street ?? '',
+          city: rw.city ?? rw.municipality ?? '',
+          state: rw.state ?? rw.uf ?? '',
+          cnpj: rw.cnpj ?? rw.document ?? '',
+          is_active: rw.active !== false && rw.status !== 1,
+        };
+
+        const existing = localByTangerinoId[tid];
+        if (existing) {
+          await withRetry(() => base44.asServiceRole.entities.Workplace.update(existing.id, payload));
+          updated++;
+        } else {
+          await withRetry(() => base44.asServiceRole.entities.Workplace.create(payload));
+          created++;
+        }
+      } catch (err) {
+        console.error(`Falhou para workplace ${tid}:`, err.message);
+        failed++;
       }
+
+      // Pausa entre cada registro para respeitar o rate limit
+      await sleep(150);
     }
 
     return Response.json({
@@ -55,8 +97,8 @@ Deno.serve(async (req) => {
       synced: created + updated,
       created,
       updated,
-      total_from_api: remoteWorkplaces.length,
-      raw_sample: remoteWorkplaces.slice(0, 2), // para debug
+      failed,
+      total_from_api: workplaceIds.length,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
