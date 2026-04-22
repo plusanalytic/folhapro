@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     // 1. Busca todas as páginas de locais de trabalho para obter todos os IDs
     const workplaceIds = [];
     let page = 0;
-    const pageSize = 50;
+    const pageSize = 100;
 
     while (true) {
       const listRes = await fetch(
