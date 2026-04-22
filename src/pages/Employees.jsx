@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +81,27 @@ export default function Employees() {
     }
   };
 
+  const [syncingWP, setSyncingWP] = useState(false);
+  const handleSyncWorkplaces = async () => {
+    setSyncingWP(true);
+    try {
+      const { toast } = await import('sonner');
+      const res = await base44.functions.invoke('syncWorkplaceList', {});
+      const data = res.data;
+      if (data.success) {
+        toast.success(`Locais atualizados! ${data.updated} colaboradores atualizados.`);
+        load();
+      } else {
+        toast.error(data.error || 'Erro ao atualizar locais.');
+      }
+    } catch (err) {
+      const { toast } = await import('sonner');
+      toast.error('Erro ao conectar com a API do Tangerino.');
+    } finally {
+      setSyncingWP(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -88,10 +109,16 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-muted-foreground text-sm mt-1">{employees.length} registros importados</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleSyncWorkplaces} disabled={syncingWP}>
+            <MapPin className={`w-4 h-4 ${syncingWP ? 'animate-spin' : ''}`} />
+            {syncingWP ? 'Atualizando...' : 'Atualizar Locais'}
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
+          </Button>
+        </div>
       </div>
 
       {/* Cards de resumo */}
@@ -187,6 +214,7 @@ export default function Employees() {
               <th className="text-left p-4 font-medium text-muted-foreground">Empresa</th>
               <th className="text-left p-4 font-medium text-muted-foreground">CPF/CNPJ</th>
               <th className="text-left p-4 font-medium text-muted-foreground">Contrato</th>
+              <th className="text-left p-4 font-medium text-muted-foreground">Locais</th>
               <th className="text-right p-4 font-medium text-muted-foreground">Salário Base</th>
               <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
               <th className="text-right p-4 font-medium text-muted-foreground">Ações</th>
@@ -213,6 +241,21 @@ export default function Employees() {
                     {emp.contract_type}
                   </Badge>
                 </td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-1 max-w-xs">
+                    {(emp.workplace_list ?? []).length > 0
+                      ? (emp.workplace_list).slice(0, 2).map((w, i) => (
+                          <Badge key={i} variant="outline" className="text-xs gap-1 text-blue-700 border-blue-200 bg-blue-50">
+                            <MapPin className="w-2.5 h-2.5" />{w.name || w.description || '—'}
+                          </Badge>
+                        ))
+                      : <span className="text-muted-foreground text-xs">—</span>
+                    }
+                    {(emp.workplace_list ?? []).length > 2 && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">+{emp.workplace_list.length - 2}</Badge>
+                    )}
+                  </div>
+                </td>
                 <td className="p-4 text-right font-mono font-medium">{formatCurrency(emp.base_salary)}</td>
                 <td className="p-4 text-center">
                   <Badge variant={emp.is_active !== false ? 'outline' : 'secondary'} className="text-xs">
@@ -227,7 +270,7 @@ export default function Employees() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhum colaborador encontrado</p>
                 {!search && <p className="text-sm mt-1">Use "Sincronizar Solides" para importar colaboradores.</p>}
