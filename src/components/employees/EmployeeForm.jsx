@@ -9,7 +9,7 @@ import { Link2, MapPin, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
-export default function EmployeeForm({ employee, companies, workplaces = [], onSave, onClose, onReload }) {
+export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload }) {
   const [form, setForm] = useState({
     base_salary: employee?.base_salary || '',
     bank_name: employee?.bank_name || '',
@@ -24,6 +24,14 @@ export default function EmployeeForm({ employee, companies, workplaces = [], onS
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
+
+  const getJobRoleName = () => {
+    if (employee?.job_role_tangerino_id) {
+      const jr = jobRoles.find(r => String(r.tangerino_id) === String(employee.job_role_tangerino_id));
+      return jr?.name || employee?.position || '—';
+    }
+    return employee?.position || '—';
+  };
 
   // De-para: ID Tangerino -> nome do Workplace
   const workplaceById = {};
@@ -100,7 +108,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], onS
               {readonlyInput('Gênero', employee?.gender)}
               {readonlyInput('Data de Nascimento', employee?.birth_date)}
               {readonlyInput('Data de Admissão', employee?.admission_date)}
-              {readonlyInput('Cargo', employee?.position)}
+              {readonlyInput('Cargo', getJobRoleName())}
               {readonlyInput('Tipo de Contrato', employee?.contract_type)}
               {readonlyInput('Empresa', getCompanyName(employee?.company_id))}
               {readonlyInput('E-mail', employee?.email)}

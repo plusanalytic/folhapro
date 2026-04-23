@@ -301,6 +301,7 @@ export default function Employees() {
           employee={editing}
           companies={companies}
           workplaces={workplaces}
+          jobRoles={jobRoles}
           onSave={handleSave}
           onReload={load}
           onClose={() => { setShowForm(false); setEditing(null); }}
