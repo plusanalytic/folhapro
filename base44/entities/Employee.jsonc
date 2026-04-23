@@ -78,7 +78,11 @@
     },
     "position": {
       "type": "string",
-      "description": "Cargo"
+      "description": "Cargo (texto livre / legado)"
+    },
+    "job_role_tangerino_id": {
+      "type": "string",
+      "description": "ID do cargo no Tangerino (refer\u00eancia para JobRole.tangerino_id)"
     },
     "workplace_list": {
       "type": "array",

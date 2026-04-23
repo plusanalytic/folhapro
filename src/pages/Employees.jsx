@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
+  const [jobRoles, setJobRoles] = useState([]);
   const [search, _setSearch] = useState('');
   const [filterCompany, _setFilterCompany] = useState('all');
   const [filterContract, _setFilterContract] = useState('all');
@@ -31,14 +32,16 @@ export default function Employees() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
-    const [e, c, w] = await Promise.all([
+    const [e, c, w, jr] = await Promise.all([
       base44.entities.Employee.list(),
       base44.entities.Company.list(),
       base44.entities.Workplace.list(),
+      base44.entities.JobRole.list(),
     ]);
     setEmployees(e);
     setCompanies(c);
     setWorkplaces(w);
+    setJobRoles(jr);
   };
   useEffect(() => { load(); }, []);
 
@@ -56,6 +59,16 @@ export default function Employees() {
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
+
+  // Mapa: tangerino_id -> nome do cargo
+  const jobRoleByTangerinoId = {};
+  for (const jr of jobRoles) {
+    if (jr.tangerino_id) jobRoleByTangerinoId[String(jr.tangerino_id)] = jr.name;
+  }
+  const getJobRoleName = (emp) => {
+    if (emp.job_role_tangerino_id) return jobRoleByTangerinoId[String(emp.job_role_tangerino_id)] || emp.position || '—';
+    return emp.position || '—';
+  };
 
   // De-para: ID Tangerino -> nome do Workplace local
   const workplaceById = {};
@@ -213,7 +226,9 @@ export default function Employees() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{emp.name}</p>
-                      {emp.position && <p className="text-xs text-muted-foreground">{emp.position}</p>}
+                      {getJobRoleName(emp) !== '—' && (
+                        <p className="text-xs text-muted-foreground">{getJobRoleName(emp)}</p>
+                      )}
                     </div>
                   </div>
                 </td>

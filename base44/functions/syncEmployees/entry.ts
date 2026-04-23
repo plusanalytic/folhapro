@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
         .map(w => String(w.id ?? ''))
         .filter(Boolean);
 
+      const jobRoleTangerinoId = re.jobRoleDTO?.id ? String(re.jobRoleDTO.id) : '';
+
       const payload = {
         tangerino_id: tangerinoId,
         name: re.name ?? '',
@@ -97,6 +99,7 @@ Deno.serve(async (req) => {
         is_active: re.fired === false || re.status === 0,
         base_salary: re.salary ?? re.baseSalary ?? 0,
         position: re.jobRoleDTO?.description ?? re.jobRoleDTO?.name ?? re.position ?? '',
+        job_role_tangerino_id: jobRoleTangerinoId,
         workplace_list: workplaceList,
       };
 
@@ -114,8 +117,8 @@ Deno.serve(async (req) => {
         failed++;
       }
 
-      // Pausa de 150ms entre cada registro para respeitar o rate limit
-      await sleep(150);
+      // Pausa entre cada registro para respeitar o rate limit
+      await sleep(80);
     }
 
     return Response.json({
