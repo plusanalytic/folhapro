@@ -21,11 +21,13 @@ export default function Employees() {
   const [filterCompany, _setFilterCompany] = useState('all');
   const [filterContract, _setFilterContract] = useState('all');
   const [filterWorkplace, _setFilterWorkplace] = useState('all');
+  const [filterJobRole, _setFilterJobRole] = useState('all');
 
   const setSearch = (v) => { _setSearch(v); setCurrentPage(1); };
   const setFilterCompany = (v) => { _setFilterCompany(v); setCurrentPage(1); };
   const setFilterContract = (v) => { _setFilterContract(v); setCurrentPage(1); };
   const setFilterWorkplace = (v) => { _setFilterWorkplace(v); setCurrentPage(1); };
+  const setFilterJobRole = (v) => { _setFilterJobRole(v); setCurrentPage(1); };
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
@@ -51,7 +53,8 @@ export default function Employees() {
       const matchCompany = filterCompany === 'all' || emp.company_id === filterCompany;
       const matchContract = filterContract === 'all' || emp.contract_type === filterContract;
       const matchWorkplace = filterWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(filterWorkplace);
-      return matchSearch && matchCompany && matchContract && matchWorkplace;
+      const matchJobRole = filterJobRole === 'all' || String(emp.job_role_tangerino_id) === filterJobRole;
+      return matchSearch && matchCompany && matchContract && matchWorkplace && matchJobRole;
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -197,6 +200,17 @@ export default function Employees() {
             <SelectItem value="all">Todos os Locais</SelectItem>
             {workplaces.filter(w => w.tangerino_id).map(w => (
               <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterJobRole} onValueChange={setFilterJobRole}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Cargo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Cargos</SelectItem>
+            {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
+              <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
