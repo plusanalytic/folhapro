@@ -15,11 +15,13 @@ export default function Payroll() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
+  const [jobRoles, setJobRoles] = useState([]);
   const [entries, setEntries] = useState([]);
   const [monthCloses, setMonthCloses] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
+  const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -28,16 +30,18 @@ export default function Payroll() {
   const [printReceipt, setPrintReceipt] = useState(null); // { employee, entry, company }
 
   const load = async () => {
-    const [e, c, w, p, m] = await Promise.all([
+    const [e, c, w, jr, p, m] = await Promise.all([
       base44.entities.Employee.list(),
       base44.entities.Company.list(),
       base44.entities.Workplace.list(),
+      base44.entities.JobRole.list(),
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
       base44.entities.MonthClose.filter({ reference_month: selectedMonth }),
     ]);
     setEmployees(e.filter(x => x.is_active !== false));
     setCompanies(c.filter(x => x.is_active !== false));
     setWorkplaces(w);
+    setJobRoles(jr);
     setEntries(p);
     setMonthCloses(m);
   };
@@ -53,7 +57,8 @@ export default function Payroll() {
     const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
-    return matchCompany && matchSearch && matchWorkplace;
+    const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
+    return matchCompany && matchSearch && matchWorkplace && matchJobRole;
   });
 
   const getEntry = (empId) => entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
@@ -140,6 +145,17 @@ export default function Payroll() {
             <SelectItem value="all">Todos os Locais</SelectItem>
             {workplaces.filter(w => w.tangerino_id).map(w => (
               <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedJobRole} onValueChange={setSelectedJobRole}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Cargo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Cargos</SelectItem>
+            {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
+              <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

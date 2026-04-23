@@ -223,7 +223,6 @@ export default function Employees() {
               <th className="text-left p-4 font-medium text-muted-foreground">Colaborador</th>
               <th className="text-left p-4 font-medium text-muted-foreground">Empresa</th>
               <th className="text-left p-4 font-medium text-muted-foreground">CPF/CNPJ</th>
-              <th className="text-left p-4 font-medium text-muted-foreground">Contrato</th>
               <th className="text-left p-4 font-medium text-muted-foreground">Locais</th>
               <th className="text-right p-4 font-medium text-muted-foreground">Salário Base</th>
               <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
@@ -248,11 +247,6 @@ export default function Employees() {
                 </td>
                 <td className="p-4 text-muted-foreground">{getCompanyName(emp.company_id)}</td>
                 <td className="p-4 text-muted-foreground font-mono text-xs">{emp.cpf_cnpj || '—'}</td>
-                <td className="p-4">
-                  <Badge variant={emp.contract_type === 'CLT' ? 'default' : 'secondary'} className="text-xs">
-                    {emp.contract_type}
-                  </Badge>
-                </td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-1 max-w-xs">
                     {(() => {
