@@ -3,6 +3,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const TANGERINO_AUTH = 'Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=';
 const PAGE_SIZE = 100;
 
+function tsToDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
+function tsToISO(ts) {
+  if (!ts) return '';
+  return new Date(ts).toISOString();
+}
+
 async function fetchPage(lastUpdate, page) {
   const url = `https://api.tangerino.com.br/api/employer/adjustment/find-all?lastUpdate=${lastUpdate}&page=${page}&size=${PAGE_SIZE}`;
   const res = await fetch(url, {
@@ -26,7 +36,6 @@ async function fetchAllPages(lastUpdate) {
   while (true) {
     const data = await fetchPage(lastUpdate, page);
 
-    // Tangerino pode retornar { content, totalElements } ou array direto
     let items = [];
     if (Array.isArray(data)) {
       items = data;
@@ -37,7 +46,6 @@ async function fetchAllPages(lastUpdate) {
       items = data.data;
       if (totalFromApi === null) totalFromApi = data.total ?? null;
     } else {
-      // tenta extrair qualquer array no objeto
       const arrKey = Object.keys(data).find(k => Array.isArray(data[k]));
       if (arrKey) {
         items = data[arrKey];
@@ -46,17 +54,44 @@ async function fetchAllPages(lastUpdate) {
     }
 
     if (items.length === 0) break;
-
     allItems.push(...items);
-
-    // Se já buscamos todos
     if (totalFromApi !== null && allItems.length >= totalFromApi) break;
     if (items.length < PAGE_SIZE) break;
-
     page++;
   }
 
   return { items: allItems, total: totalFromApi ?? allItems.length };
+}
+
+function mapRecord(item, employeeByTangerinoId) {
+  const emp = item.employeeDTO || {};
+  const employer = item.employerDTO || {};
+  const reason = item.adjustmentReasonDTO || {};
+
+  const localEmployee = employeeByTangerinoId[String(emp.id)] || null;
+
+  return {
+    tangerino_id: item.id,
+    full_day: item.fullDay ?? false,
+    start_date: tsToDate(item.startDate),
+    end_date: tsToDate(item.endDate),
+    last_update: tsToISO(item.lastUpdate),
+    origem: item.origem ?? '',
+    observation: item.observation ?? '',
+    status: item.status ?? '',
+    save_adjustment: item.saveAdjustment ?? false,
+    employee_tangerino_id: emp.id ?? null,
+    employee_name: emp.name ?? '',
+    employee_email: emp.email ?? '',
+    employer_tangerino_id: employer.id ?? null,
+    adjustment_reason_id: reason.id ?? null,
+    adjustment_reason_description: reason.description ?? '',
+    adjustment_reason_allowance: reason.allowance ?? false,
+    adjustment_reason_count_as_missing: reason.countAsMissing ?? false,
+    adjustment_reason_account_as_absenteeism: reason.accountAsAbsenteeism ?? false,
+    employee_id: localEmployee?.id ?? '',
+    company_id: localEmployee?.company_id ?? '',
+  };
 }
 
 Deno.serve(async (req) => {
@@ -68,29 +103,25 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    // mode: 'full' = histórico completo, 'daily' = apenas dia anterior
     const mode = body.mode || 'full';
 
     let lastUpdate;
     if (mode === 'daily') {
-      // Dia anterior 00:00:00 UTC
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
       lastUpdate = yesterday.getTime();
     } else {
-      // Histórico completo: desde 01/01/2020
       lastUpdate = new Date('2020-01-01T00:00:00Z').getTime();
     }
 
-    // Busca todos os ajustes via paginação
     const { items, total } = await fetchAllPages(lastUpdate);
 
-    // Busca IDs já existentes no banco para evitar duplicatas
+    // Busca IDs já existentes para deduplicação
     const existing = await base44.asServiceRole.entities.PointAdjustment.list();
-    const existingIds = new Set(existing.map(e => String(e.tangerino_id)));
+    const existingIds = new Set(existing.map(e => Number(e.tangerino_id)));
 
-    // Busca colaboradores para fazer de-para
+    // De-para colaboradores locais
     const employees = await base44.asServiceRole.entities.Employee.list();
     const employeeByTangerinoId = {};
     for (const emp of employees) {
@@ -102,37 +133,19 @@ Deno.serve(async (req) => {
     let errors = 0;
 
     for (const item of items) {
-      const tangerinoId = String(item.id ?? item.adjustmentId ?? '');
-      if (!tangerinoId) { errors++; continue; }
+      const tid = Number(item.id);
+      if (!tid) { errors++; continue; }
 
-      if (existingIds.has(tangerinoId)) {
+      if (existingIds.has(tid)) {
         skipped++;
         continue;
       }
 
-      // De-para com colaborador local
-      const empTangerinoId = String(item.employeeId ?? item.employee?.id ?? '');
-      const localEmployee = employeeByTangerinoId[empTangerinoId];
-
-      const record = {
-        tangerino_id: tangerinoId,
-        tangerino_employee_id: empTangerinoId,
-        employee_id: localEmployee?.id ?? '',
-        employee_name: item.employeeName ?? item.employee?.name ?? localEmployee?.name ?? '',
-        tangerino_company_id: String(item.companyId ?? item.company?.id ?? ''),
-        company_id: localEmployee?.company_id ?? '',
-        date: item.date ?? item.adjustmentDate ?? '',
-        time: item.time ?? item.adjustmentTime ?? '',
-        type: item.type ?? item.adjustmentType ?? '',
-        reason: item.reason ?? item.justification ?? '',
-        status: item.status ?? '',
-        approved_by: item.approvedBy ?? item.approver ?? '',
-        raw_data: item,
-      };
+      const record = mapRecord(item, employeeByTangerinoId);
 
       try {
         await base44.asServiceRole.entities.PointAdjustment.create(record);
-        existingIds.add(tangerinoId);
+        existingIds.add(tid);
         created++;
       } catch (e) {
         errors++;

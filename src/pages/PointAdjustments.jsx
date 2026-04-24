@@ -162,48 +162,50 @@ export default function PointAdjustments() {
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-3 font-medium text-muted-foreground">Colaborador</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Data</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Hora</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Tipo</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Início</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Fim</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Motivo</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Observação</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Aprovado Por</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Dia Inteiro</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Origem</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map((r, i) => {
-                    const empName = r.employee_name || employeeMap[r.employee_id]?.name || '—';
+                    const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
                     return (
                       <tr key={r.id} className={`border-b border-border hover:bg-muted/20 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <span className="font-medium text-foreground">{empName}</span>
+                            <div>
+                              <p className="font-medium text-foreground text-sm">{r.employee_name || '—'}</p>
+                              <p className="text-xs text-muted-foreground">{r.employee_email || ''}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="p-3 text-muted-foreground font-mono text-xs">
-                          {r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                        </td>
-                        <td className="p-3 text-muted-foreground font-mono text-xs">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {r.time || '—'}
-                          </div>
-                        </td>
+                        <td className="p-3 text-muted-foreground font-mono text-xs">{fmtDate(r.start_date)}</td>
+                        <td className="p-3 text-muted-foreground font-mono text-xs">{fmtDate(r.end_date)}</td>
                         <td className="p-3">
-                          <Badge variant="outline" className="text-xs font-normal">
-                            {r.type || '—'}
+                          <Badge variant="outline" className="text-xs font-normal max-w-[160px] truncate" title={r.adjustment_reason_description}>
+                            {r.adjustment_reason_description || '—'}
                           </Badge>
                         </td>
-                        <td className="p-3 text-muted-foreground max-w-xs truncate" title={r.reason}>
-                          {r.reason || '—'}
+                        <td className="p-3 text-muted-foreground text-xs max-w-[180px] truncate" title={r.observation}>
+                          {r.observation || '—'}
                         </td>
                         <td className="p-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>
                             {r.status || '—'}
                           </span>
                         </td>
-                        <td className="p-3 text-muted-foreground text-xs">{r.approved_by || '—'}</td>
+                        <td className="p-3 text-center">
+                          {r.full_day
+                            ? <span className="text-xs text-green-700 font-semibold">Sim</span>
+                            : <span className="text-xs text-muted-foreground">Não</span>}
+                        </td>
+                        <td className="p-3 text-muted-foreground text-xs">{r.origem || '—'}</td>
                       </tr>
                     );
                   })}

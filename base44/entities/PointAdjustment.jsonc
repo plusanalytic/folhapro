@@ -3,57 +3,86 @@
   "type": "object",
   "properties": {
     "tangerino_id": {
-      "type": "string",
-      "description": "ID \u00fanico do ajuste no Tangerino (usado para evitar duplicatas)"
+      "type": "number",
+      "description": "ID \u00fanico do ajuste no Tangerino (campo 'id')"
     },
-    "employee_id": {
-      "type": "string",
-      "description": "ID do colaborador local"
+    "full_day": {
+      "type": "boolean",
+      "description": "Ajuste de dia inteiro (fullDay)"
     },
-    "tangerino_employee_id": {
-      "type": "string",
-      "description": "ID do colaborador no Tangerino"
-    },
-    "employee_name": {
-      "type": "string",
-      "description": "Nome do colaborador"
-    },
-    "company_id": {
-      "type": "string",
-      "description": "ID da empresa local"
-    },
-    "tangerino_company_id": {
-      "type": "string",
-      "description": "ID da empresa no Tangerino"
-    },
-    "date": {
+    "start_date": {
       "type": "string",
       "format": "date",
-      "description": "Data do ajuste"
+      "description": "Data de in\u00edcio (startDate convertido de timestamp)"
     },
-    "time": {
+    "end_date": {
       "type": "string",
-      "description": "Hora do ajuste (HH:MM)"
+      "format": "date",
+      "description": "Data de fim (endDate convertido de timestamp)"
     },
-    "type": {
+    "last_update": {
       "type": "string",
-      "description": "Tipo do ajuste"
+      "description": "\u00daltima atualiza\u00e7\u00e3o no Tangerino (lastUpdate como ISO string)"
     },
-    "reason": {
+    "origem": {
       "type": "string",
-      "description": "Motivo do ajuste"
+      "description": "Origem do ajuste"
+    },
+    "observation": {
+      "type": "string",
+      "description": "Observa\u00e7\u00e3o do ajuste"
     },
     "status": {
       "type": "string",
-      "description": "Status do ajuste"
+      "description": "Status do ajuste (ex: APROVADO)"
     },
-    "approved_by": {
+    "save_adjustment": {
+      "type": "boolean",
+      "description": "saveAdjustment"
+    },
+    "employee_tangerino_id": {
+      "type": "number",
+      "description": "ID do colaborador no Tangerino (employeeDTO.id)"
+    },
+    "employee_name": {
       "type": "string",
-      "description": "Aprovado por"
+      "description": "Nome do colaborador (employeeDTO.name)"
     },
-    "raw_data": {
-      "type": "object",
-      "description": "Dados brutos da API do Tangerino"
+    "employee_email": {
+      "type": "string",
+      "description": "E-mail do colaborador (employeeDTO.email)"
+    },
+    "employer_tangerino_id": {
+      "type": "number",
+      "description": "ID do empregador no Tangerino (employerDTO.id)"
+    },
+    "adjustment_reason_id": {
+      "type": "number",
+      "description": "ID do motivo do ajuste (adjustmentReasonDTO.id)"
+    },
+    "adjustment_reason_description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do motivo (adjustmentReasonDTO.description)"
+    },
+    "adjustment_reason_allowance": {
+      "type": "boolean",
+      "description": "adjustmentReasonDTO.allowance"
+    },
+    "adjustment_reason_count_as_missing": {
+      "type": "boolean",
+      "description": "adjustmentReasonDTO.countAsMissing"
+    },
+    "adjustment_reason_account_as_absenteeism": {
+      "type": "boolean",
+      "description": "adjustmentReasonDTO.accountAsAbsenteeism"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID local do colaborador (de-para com Employee)"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "ID local da empresa (de-para com Company)"
     }
   },
   "required": [
