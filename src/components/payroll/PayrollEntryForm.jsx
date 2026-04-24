@@ -184,7 +184,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <TabsTrigger value="proventos">Proventos</TabsTrigger>
             <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
             <TabsTrigger value="faltas">
-              Faltas {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
+              Ajuste de Ponto {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
           </TabsList>
