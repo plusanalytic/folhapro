@@ -128,27 +128,28 @@ Deno.serve(async (req) => {
       if (emp.tangerino_id) employeeByTangerinoId[String(emp.tangerino_id)] = emp;
     }
 
-    let created = 0;
     let skipped = 0;
     let errors = 0;
 
+    // Filtra apenas registros novos
+    const toCreate = [];
     for (const item of items) {
       const tid = Number(item.id);
       if (!tid) { errors++; continue; }
+      if (existingIds.has(tid)) { skipped++; continue; }
+      toCreate.push(mapRecord(item, employeeByTangerinoId));
+    }
 
-      if (existingIds.has(tid)) {
-        skipped++;
-        continue;
-      }
-
-      const record = mapRecord(item, employeeByTangerinoId);
-
+    // Insere em lotes de 50 para não estourar timeout
+    const BATCH = 50;
+    let created = 0;
+    for (let i = 0; i < toCreate.length; i += BATCH) {
+      const batch = toCreate.slice(i, i + BATCH);
       try {
-        await base44.asServiceRole.entities.PointAdjustment.create(record);
-        existingIds.add(tid);
-        created++;
+        await base44.asServiceRole.entities.PointAdjustment.bulkCreate(batch);
+        created += batch.length;
       } catch (e) {
-        errors++;
+        errors += batch.length;
       }
     }
 
