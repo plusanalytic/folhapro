@@ -262,9 +262,13 @@ export default function Payroll() {
                           <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(totalDiscounts) : '—'}</td>
                           <td className="p-3 text-right font-mono font-semibold text-primary">{entry ? formatCurrency(entry.net_total) : '—'}</td>
                           <td className="p-3 text-center">
-                            <Badge variant={entry ? 'default' : 'outline'} className="text-xs">
-                              {entry ? 'Lançado' : 'Pendente'}
-                            </Badge>
+                            {(() => {
+                              const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                              if (!empJobRole?.payroll_type) {
+                                return <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300 bg-yellow-50">Sem modelo</Badge>;
+                              }
+                              return <Badge variant={entry ? 'default' : 'outline'} className="text-xs">{entry ? 'Lançado' : 'Pendente'}</Badge>;
+                            })()}
                           </td>
                           <td className="p-3 pr-6 text-right">
                             <div className="flex gap-1.5 justify-end">
@@ -288,14 +292,21 @@ export default function Payroll() {
                                  </Button>
                                </>
                              )}
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               disabled={closed}
-                               onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
-                             >
-                               {entry ? 'Editar' : 'Lançar'}
-                             </Button>
+                             {(() => {
+                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                               const hasPayrollType = !!empJobRole?.payroll_type;
+                               return (
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   disabled={closed || !hasPayrollType}
+                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : undefined}
+                                   onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
+                                 >
+                                   {entry ? 'Editar' : 'Lançar'}
+                                 </Button>
+                               );
+                             })()}
                             </div>
                           </td>
                         </tr>
