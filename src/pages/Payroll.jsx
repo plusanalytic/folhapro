@@ -257,7 +257,7 @@ export default function Payroll() {
                           <td className="p-3">
                             <Badge variant={emp.contract_type === 'CLT' ? 'default' : 'secondary'} className="text-xs">{emp.contract_type}</Badge>
                           </td>
-                          <td className="p-3 text-right font-mono">{formatCurrency(emp.base_salary)}</td>
+                          <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.base_salary) : '—'}</td>
                           <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.gross_total) : '—'}</td>
                           <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(totalDiscounts) : '—'}</td>
                           <td className="p-3 text-right font-mono font-semibold text-primary">{entry ? formatCurrency(entry.net_total) : '—'}</td>

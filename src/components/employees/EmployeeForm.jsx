@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 
 export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload }) {
   const [form, setForm] = useState({
-    base_salary: employee?.base_salary || '',
     bank_name: employee?.bank_name || '',
     bank_agency: employee?.bank_agency || '',
     bank_account: employee?.bank_account || '',
@@ -142,17 +141,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
                 </div>
               </div>
 
-              <div>
-                <Label className="text-muted-foreground">Salário Base</Label>
-                <Input
-                  className="mt-1"
-                  type="number"
-                  step="0.01"
-                  value={form.base_salary}
-                  onChange={e => set('base_salary', parseFloat(e.target.value) || '')}
-                  placeholder="0,00"
-                />
-              </div>
+
             </div>
           </TabsContent>
 

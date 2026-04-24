@@ -45,7 +45,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   const [form, setForm] = useState({
     company_id: employee.company_id,
-    base_salary: entry?.base_salary ?? employee.base_salary ?? 0,
+    base_salary: entry?.base_salary ?? 0,
     absences_days: entry?.absences_days ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
