@@ -72,6 +72,22 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // Parcelas
   const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
 
+  // Ajustes de ponto (faltas) do colaborador no mês
+  const [pointAdjustments, setPointAdjustments] = useState([]);
+
+  useEffect(() => {
+    if (!employee.tangerino_id) return;
+    // Busca ajustes cujo start_date cai dentro do mês de referência
+    const [year, month] = referenceMonth.split('-').map(Number);
+    const start = `${referenceMonth}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
+    base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
+      const inMonth = all.filter(a => a.start_date >= start && a.start_date <= end);
+      setPointAdjustments(inMonth);
+    });
+  }, [employee.tangerino_id, referenceMonth]);
+
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
@@ -164,9 +180,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         </DialogHeader>
 
         <Tabs defaultValue="proventos">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="proventos">Proventos</TabsTrigger>
             <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
+            <TabsTrigger value="faltas">
+              Faltas {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
+            </TabsTrigger>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
           </TabsList>
 
@@ -379,6 +398,65 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="faltas" className="mt-4">
+            {pointAdjustments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+                <p className="text-sm">Nenhum ajuste de ponto registrado para este colaborador neste mês.</p>
+                {!employee.tangerino_id && (
+                  <p className="text-xs text-destructive">Colaborador sem vínculo com Tangerino.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{pointAdjustments.length} ajuste(s) de ponto encontrado(s)</span>
+                  <Badge variant="destructive" className="text-xs">{pointAdjustments.filter(a => a.adjustment_reason_count_as_missing).length} falta(s)</Badge>
+                </div>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-border">
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Data Início</th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Data Fim</th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Motivo</th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Observação</th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Status</th>
+                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">Dia Inteiro</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pointAdjustments.map((a, i) => {
+                        const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+                        return (
+                          <tr key={a.id} className={`border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                            <td className="px-4 py-2.5 font-mono text-xs">{fmtDate(a.start_date)}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs">{fmtDate(a.end_date)}</td>
+                            <td className="px-4 py-2.5">
+                              <Badge variant={a.adjustment_reason_count_as_missing ? 'destructive' : 'outline'} className="text-xs font-normal">
+                                {a.adjustment_reason_description || '—'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate" title={a.observation}>
+                              {a.observation || '—'}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-xs font-medium ${a.status === 'APROVADO' ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {a.status || '—'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center text-xs">
+                              {a.full_day ? <span className="text-destructive font-semibold">Sim</span> : <span className="text-muted-foreground">Não</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="resumo" className="mt-4">
