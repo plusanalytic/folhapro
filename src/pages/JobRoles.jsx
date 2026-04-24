@@ -19,6 +19,10 @@ const PAYROLL_TYPE_COLORS = {
   SOCIO: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
+// Modelos disponíveis (outros ainda em desenvolvimento)
+const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT'];
+const COMING_SOON_TYPES = ['MOTOCICLISTA_MEI', 'ESCRITORIO', 'SOCIO'];
+
 export default function JobRoles() {
   const [jobRoles, setJobRoles] = useState([]);
   const [saving, setSaving] = useState({});
@@ -59,10 +63,15 @@ export default function JobRoles() {
       </div>
 
       {/* Legenda dos modelos */}
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(PAYROLL_TYPE_LABELS).map(([key, label]) => (
+      <div className="flex flex-wrap gap-2 items-center">
+        {AVAILABLE_TYPES.map(key => (
           <span key={key} className={`px-3 py-1 rounded-full text-xs font-semibold border ${PAYROLL_TYPE_COLORS[key]}`}>
-            {label}
+            {PAYROLL_TYPE_LABELS[key]}
+          </span>
+        ))}
+        {COMING_SOON_TYPES.map(key => (
+          <span key={key} className="px-3 py-1 rounded-full text-xs font-semibold border border-dashed border-muted-foreground/30 text-muted-foreground/50">
+            {PAYROLL_TYPE_LABELS[key]} (em breve)
           </span>
         ))}
       </div>
@@ -111,8 +120,11 @@ export default function JobRoles() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">— Sem modelo —</SelectItem>
-                        {Object.entries(PAYROLL_TYPE_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                        {AVAILABLE_TYPES.map(key => (
+                          <SelectItem key={key} value={key}>{PAYROLL_TYPE_LABELS[key]}</SelectItem>
+                        ))}
+                        {COMING_SOON_TYPES.map(key => (
+                          <SelectItem key={key} value={key} disabled>{PAYROLL_TYPE_LABELS[key]} (em breve)</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
