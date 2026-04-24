@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Lock, Unlock, Search, FileText, Eye, Printer } from 'lucide-react';
+import { Plus, Lock, Unlock, Search, FileText, Eye, Printer, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,6 +28,7 @@ export default function Payroll() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
   const [printReceipt, setPrintReceipt] = useState(null); // { employee, entry, company }
+  const [cloning, setCloning] = useState(false);
 
   const load = async () => {
     const [e, c, w, jr, p, m] = await Promise.all([
@@ -108,6 +109,24 @@ export default function Payroll() {
 
   const companiesInView = selectedCompany === 'all' ? companies : companies.filter(c => c.id === selectedCompany);
 
+  const handleCloneFromPrevious = async () => {
+    setCloning(true);
+    try {
+      const res = await base44.functions.invoke('clonePayrollFromPreviousMonth', { target_month: selectedMonth });
+      const data = res.data;
+      if (data.cloned === 0 && data.skipped === 0) {
+        toast.info(data.message || 'Nenhum lançamento encontrado no mês anterior.');
+      } else {
+        toast.success(data.message || `${data.cloned} lançamentos clonados!`);
+        load();
+      }
+    } catch (err) {
+      toast.error('Erro ao clonar: ' + err.message);
+    } finally {
+      setCloning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -115,6 +134,15 @@ export default function Payroll() {
           <h1 className="text-2xl font-bold text-foreground">Folha de Pagamento</h1>
           <p className="text-muted-foreground text-sm mt-1">Lançamentos mensais</p>
         </div>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={handleCloneFromPrevious}
+          disabled={cloning}
+        >
+          {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+          Clonar do Mês Anterior
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-3">
