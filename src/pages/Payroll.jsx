@@ -328,6 +328,7 @@ export default function Payroll() {
           readOnly={viewOnly}
           onSave={handleSaveEntry}
           onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
+          jobRole={jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null}
         />
       )}
     </div>

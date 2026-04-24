@@ -11,8 +11,37 @@ import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import { base44 } from '@/api/base44Client';
 
-export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
+// Regras de visibilidade de campos por modelo de folha
+const PAYROLL_TYPE_FIELDS = {
+  MOTOCICLISTA_CLT: {
+    show: ['meal_voucher', 'transport_voucher', 'km_bonus', 'motorcycle_rental', 'hazard_pay', 'bonus', 'other_benefits', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
+    hide: ['pj_retention'],
+  },
+  MOTOCICLISTA_MEI: {
+    show: ['km_bonus', 'motorcycle_rental', 'bonus', 'other_benefits', 'pj_retention'],
+    hide: ['meal_voucher', 'transport_voucher', 'hazard_pay', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
+  },
+  ESCRITORIO: {
+    show: ['meal_voucher', 'transport_voucher', 'bonus', 'other_benefits', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
+    hide: ['km_bonus', 'motorcycle_rental', 'hazard_pay', 'pj_retention'],
+  },
+  SOCIO: {
+    show: ['bonus', 'other_benefits', 'pj_retention'],
+    hide: ['meal_voucher', 'transport_voucher', 'km_bonus', 'motorcycle_rental', 'hazard_pay', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
+  },
+};
+
+function isFieldVisible(payrollType, field) {
+  if (!payrollType || !PAYROLL_TYPE_FIELDS[payrollType]) return true;
+  const rules = PAYROLL_TYPE_FIELDS[payrollType];
+  if (rules.hide?.includes(field)) return false;
+  return true;
+}
+
+export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
+  const payrollType = jobRole?.payroll_type || null;
+  const show = (field) => isFieldVisible(payrollType, field);
 
   const [form, setForm] = useState({
     company_id: employee.company_id,
@@ -161,9 +190,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
             <Separator />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Benefícios</p>
+            {payrollType && (
+              <div className="text-xs px-3 py-1.5 rounded-md bg-accent text-accent-foreground font-medium w-fit">
+                Modelo: {{'MOTOCICLISTA_CLT':'Motociclista CLT','MOTOCICLISTA_MEI':'Motociclista MEI','ESCRITORIO':'Escritório','SOCIO':'Sócio'}[payrollType]}
+              </div>
+            )}
 
             {/* Vale Refeição com valor dia + dias */}
-            <div>
+            {show('meal_voucher') && <div>
               <Label>Vale Refeição</Label>
               <div className="flex gap-2 mt-1 items-center">
                 <div className="flex-1">
@@ -181,25 +215,25 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
-            </div>
+            </div>}
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              {show('transport_voucher') && <div>
                 <Label>Vale Transporte</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
-              </div>
-              <div>
+              </div>}
+              {show('km_bonus') && <div>
                 <Label>Adicional KM</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.km_bonus} onChange={e => setNum('km_bonus', e.target.value)} disabled={readOnly} />
-              </div>
-              <div>
+              </div>}
+              {show('motorcycle_rental') && <div>
                 <Label>Aluguel da Motocicleta</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.motorcycle_rental} onChange={e => setNum('motorcycle_rental', e.target.value)} disabled={readOnly} />
-              </div>
-              <div>
+              </div>}
+              {show('hazard_pay') && <div>
                 <Label>Periculosidade</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.hazard_pay} onChange={e => setNum('hazard_pay', e.target.value)} disabled={readOnly} />
-              </div>
+              </div>}
               <div>
                 <Label>Bonificação / Prêmio</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.bonus} onChange={e => setNum('bonus', e.target.value)} disabled={readOnly} />
@@ -213,27 +247,27 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <Separator />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              {show('union_contribution_pct') && <div>
                 <Label>Contribuição Assistencial (% sobre piso salarial)</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.union_contribution_pct} onChange={e => setNum('union_contribution_pct', e.target.value)} disabled={readOnly} />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.union_contribution)}</span>
                 </div>
-              </div>
-              <div>
+              </div>}
+              {show('meal_voucher_discount_pct') && <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.meal_voucher_discount_pct} onChange={e => setNum('meal_voucher_discount_pct', e.target.value)} disabled={readOnly} />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                 </div>
-              </div>
-              <div>
+              </div>}
+              {show('life_insurance') && <div>
                 <Label>Seguro de Vida (R$)</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.life_insurance} onChange={e => setNum('life_insurance', e.target.value)} disabled={readOnly} />
-              </div>
+              </div>}
             </div>
 
-            {employee.contract_type === 'PJ' && (
+            {(employee.contract_type === 'PJ' || show('pj_retention')) && !['MOTOCICLISTA_CLT','ESCRITORIO'].includes(payrollType) && (
               <>
                 <Separator />
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Retenções PJ</p>
@@ -246,7 +280,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </>
             )}
 
-            {employee.contract_type === 'CLT' && (
+            {employee.contract_type === 'CLT' && show('inss') && (
               <>
                 <Separator />
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">INSS</p>
