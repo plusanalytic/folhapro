@@ -25,9 +25,12 @@ Deno.serve(async (req) => {
     const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month });
     const existingEmployeeIds = new Set(existingEntries.map(e => e.employee_id));
 
-    // Fields to carry over (exclude computed/meta fields)
+    // Fields to carry over (exclude computed/meta fields and period discount arrays — rebuilt from CashOut)
     const EXCLUDE_FIELDS = ['id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
-      'first_discounts', 'second_discounts', 'notes'];
+      'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes'];
+
+    // Fetch all CashOuts for target month at once
+    const targetCashOuts = await base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month });
 
     let cloned = 0;
     let skipped = 0;
@@ -39,11 +42,25 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Build first/second discount arrays from CashOut records of the target month for this employee
+      const empCashOuts = targetCashOuts.filter(c => c.employee_id === prev.employee_id);
+      const first_discounts = empCashOuts
+        .filter(c => c.period === 'first')
+        .map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      const second_discounts = empCashOuts
+        .filter(c => c.period === 'second')
+        .map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+
+      const first_period_discount = first_discounts.reduce((s, d) => s + (d.amount || 0), 0);
+      const second_period_discount = second_discounts.reduce((s, d) => s + (d.amount || 0), 0);
+
       const newEntry = {
         reference_month: target_month,
         status: 'open',
-        first_discounts: [],
-        second_discounts: [],
+        first_discounts,
+        second_discounts,
+        first_period_discount,
+        second_period_discount,
       };
 
       for (const [key, value] of Object.entries(prev)) {
