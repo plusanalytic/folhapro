@@ -1,0 +1,62 @@
+{
+  "name": "PointAdjustment",
+  "type": "object",
+  "properties": {
+    "tangerino_id": {
+      "type": "string",
+      "description": "ID \u00fanico do ajuste no Tangerino (usado para evitar duplicatas)"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID do colaborador local"
+    },
+    "tangerino_employee_id": {
+      "type": "string",
+      "description": "ID do colaborador no Tangerino"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Nome do colaborador"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa local"
+    },
+    "tangerino_company_id": {
+      "type": "string",
+      "description": "ID da empresa no Tangerino"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do ajuste"
+    },
+    "time": {
+      "type": "string",
+      "description": "Hora do ajuste (HH:MM)"
+    },
+    "type": {
+      "type": "string",
+      "description": "Tipo do ajuste"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Motivo do ajuste"
+    },
+    "status": {
+      "type": "string",
+      "description": "Status do ajuste"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Aprovado por"
+    },
+    "raw_data": {
+      "type": "object",
+      "description": "Dados brutos da API do Tangerino"
+    }
+  },
+  "required": [
+    "tangerino_id"
+  ]
+}

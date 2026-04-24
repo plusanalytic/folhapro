@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { path: '/job-roles', icon: Briefcase, label: 'Cargos / Folha' },
   { path: '/payroll', icon: Banknote, label: 'Folha de Pagamento' },
   { path: '/cashout', icon: ArrowDownCircle, label: 'Saída de Caixa' },
+  { path: '/point-adjustments', icon: ClipboardCheck, label: 'Ajustes de Ponto' },
   { path: '/reports', icon: FileText, label: 'Relatórios' },
 ];
 
