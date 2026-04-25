@@ -148,9 +148,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
           </DialogHeader>
 
           <Tabs defaultValue="convencao">
-            <TabsList className="grid grid-cols-5 w-full mt-4">
-              <TabsTrigger value="convencao">Convenção Coletiva</TabsTrigger>
-              <TabsTrigger value="beneficios">Outros Benefícios</TabsTrigger>
+            <TabsList className="grid grid-cols-4 w-full mt-4">
+              <TabsTrigger value="convencao">Proventos</TabsTrigger>
               <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
               <TabsTrigger value="ajuste_ponto">
                 Ajuste de Ponto {pointAdjustments.length > 0 && (
@@ -198,6 +197,24 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
 
               <Separator />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Row label="Seguro Odontológico">
+                  <Input className="font-mono" type="number" step="0.01" value={form.dental_plan} onChange={e => setNum('dental_plan', e.target.value)} disabled={readOnly} />
+                </Row>
+                <Row label="Vale Transporte">
+                  <Input className="font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
+                </Row>
+                <Row label="Vale Alimentação">
+                  <Input className="font-mono" type="number" step="0.01" value={form.food_voucher} onChange={e => setNum('food_voucher', e.target.value)} disabled={readOnly} />
+                </Row>
+                <Row label="Bonificação de Aniversário">
+                  <Input className="font-mono" type="number" step="0.01" value={form.birthday_bonus} onChange={e => setNum('birthday_bonus', e.target.value)} disabled={readOnly} />
+                </Row>
+              </div>
+              <CalcRow label="Total Outros Benefícios" value={calc.total_outros_beneficios} />
+
+              <Separator />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos Convenção</p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -229,28 +246,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </div>
                 <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.liquido_convencao)}</p>
               </div>
-            </TabsContent>
-
-            {/* ── ABA: Outros Benefícios ── */}
-            <TabsContent value="beneficios" className="space-y-4 mt-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">🎁 Outros Benefícios</p>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Row label="Seguro Odontológico" hint="Modalidade de pagamento (ex: CARTÃO, BOLETO)">
-                  <Input className="font-mono" type="number" step="0.01" value={form.dental_plan} onChange={e => setNum('dental_plan', e.target.value)} disabled={readOnly} />
-                </Row>
-                <Row label="Vale Transporte" hint="Valor mensal do vale transporte fornecido">
-                  <Input className="font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
-                </Row>
-                <Row label="Vale Alimentação" hint="Valor mensal do vale alimentação fornecido">
-                  <Input className="font-mono" type="number" step="0.01" value={form.food_voucher} onChange={e => setNum('food_voucher', e.target.value)} disabled={readOnly} />
-                </Row>
-                <Row label="Bonificação de Aniversário" hint="Valor da bonificação no mês de aniversário (0 se não aplicável)">
-                  <Input className="font-mono" type="number" step="0.01" value={form.birthday_bonus} onChange={e => setNum('birthday_bonus', e.target.value)} disabled={readOnly} />
-                </Row>
-              </div>
-
-              <CalcRow label="Total Outros Benefícios" value={calc.total_outros_beneficios} />
 
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
                 <div>
