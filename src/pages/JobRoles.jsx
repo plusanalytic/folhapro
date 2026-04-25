@@ -20,8 +20,8 @@ const PAYROLL_TYPE_COLORS = {
 };
 
 // Modelos disponíveis (outros ainda em desenvolvimento)
-const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT'];
-const COMING_SOON_TYPES = ['MOTOCICLISTA_MEI', 'ESCRITORIO', 'SOCIO'];
+const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT', 'ESCRITORIO'];
+const COMING_SOON_TYPES = ['MOTOCICLISTA_MEI', 'SOCIO'];
 
 export default function JobRoles() {
   const [jobRoles, setJobRoles] = useState([]);
