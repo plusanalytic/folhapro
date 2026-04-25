@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
+import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 import { toast } from 'sonner';
 
@@ -286,7 +287,10 @@ export default function Payroll() {
                                    variant="ghost"
                                    size="sm"
                                    title="Imprimir Recibo"
-                                   onClick={() => setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id) })}
+                                   onClick={() => {
+                                    const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: jr?.payroll_type });
+                                  }}
                                  >
                                    <Printer className="w-3.5 h-3.5" />
                                  </Button>
@@ -327,21 +331,27 @@ export default function Payroll() {
           company={printReceipt.company}
           referenceMonth={selectedMonth}
           receiptType="holerite"
+          payrollType={printReceipt.payrollType}
           onClose={() => setPrintReceipt(null)}
         />
       )}
 
-      {showForm && editingEmployee && (
-        <PayrollEntryForm
-          employee={editingEmployee}
-          entry={editingEntry}
-          referenceMonth={selectedMonth}
-          readOnly={viewOnly}
-          onSave={handleSaveEntry}
-          onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
-          jobRole={jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null}
-        />
-      )}
+      {showForm && editingEmployee && (() => {
+        const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
+        const isEscritorio = empJobRole?.payroll_type === 'ESCRITORIO';
+        const FormComponent = isEscritorio ? EscritorioPayrollForm : PayrollEntryForm;
+        return (
+          <FormComponent
+            employee={editingEmployee}
+            entry={editingEntry}
+            referenceMonth={selectedMonth}
+            readOnly={viewOnly}
+            onSave={handleSaveEntry}
+            onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
+            jobRole={empJobRole}
+          />
+        );
+      })()}
     </div>
   );
 }

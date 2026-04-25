@@ -75,6 +75,69 @@ export function calculateAbsenceDiscount(salary, absenceDays, workingDaysInMonth
   return Math.round(dailyRate * absenceDays * 100) / 100;
 }
 
+// Calcula folha modelo ESCRITORIO (convenção coletiva CLT)
+export function calculateEscritorioPayroll(entry) {
+  const piso = entry.base_salary || 0;
+  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+
+  // Custo total convenção coletiva
+  const totalConvencao = piso + mealVoucher;
+
+  // Descontos convenção
+  const inssBase = piso;
+  let inss = 0;
+  if (entry.inss_pct != null && entry.inss_pct > 0) {
+    inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
+  } else {
+    inss = calculateINSS(inssBase);
+  }
+
+  const transportVoucherDiscount = Math.round(mealVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+
+  const totalDescConvencao = inss + transportVoucherDiscount + mealVoucherDiscount;
+  const liquidoConvencao = totalConvencao - totalDescConvencao;
+
+  // Outros benefícios
+  const dental = entry.dental_plan || 0;
+  const transportVoucher = entry.transport_voucher || 0;
+  const foodVoucher = entry.food_voucher || 0;
+  const birthdayBonus = entry.birthday_bonus || 0;
+  const totalOutrosBeneficios = dental + transportVoucher + foodVoucher + birthdayBonus;
+
+  const grossTotal = totalConvencao + totalOutrosBeneficios;
+  const netTotal = liquidoConvencao + totalOutrosBeneficios;
+
+  // FGTS informativo
+  const fgts = calculateFGTS(piso);
+  const irrf = calculateIRRF(piso, inss);
+
+  // Quinzenal
+  const firstPeriodAdvance = entry.first_period_advance || 0;
+  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
+
+  return {
+    meal_voucher: mealVoucher,
+    total_convencao: Math.round(totalConvencao * 100) / 100,
+    inss,
+    inss_net: inss,
+    transport_voucher_discount: transportVoucherDiscount,
+    meal_voucher_discount: mealVoucherDiscount,
+    total_desc_convencao: Math.round(totalDescConvencao * 100) / 100,
+    liquido_convencao: Math.round(liquidoConvencao * 100) / 100,
+    total_outros_beneficios: Math.round(totalOutrosBeneficios * 100) / 100,
+    gross_total: Math.round(grossTotal * 100) / 100,
+    net_total: Math.round(netTotal * 100) / 100,
+    fgts,
+    irrf,
+    absence_discount: 0,
+    union_contribution: 0,
+    first_period_net: Math.round(firstPeriodNet * 100) / 100,
+    second_period_net: Math.round(secondPeriodNet * 100) / 100,
+  };
+}
+
 export function calculatePayroll(entry, contractType) {
   const salary = entry.base_salary || 0;
   const absenceDiscount = calculateAbsenceDiscount(salary, entry.absences_days || 0);

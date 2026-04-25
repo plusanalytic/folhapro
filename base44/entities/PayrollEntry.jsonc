@@ -16,7 +16,7 @@
     },
     "base_salary": {
       "type": "number",
-      "description": "Sal\u00e1rio base"
+      "description": "Sal\u00e1rio base / Piso salarial"
     },
     "absences_days": {
       "type": "number",
@@ -158,6 +158,26 @@
     },
     "notes": {
       "type": "string"
+    },
+    "transport_voucher_discount_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "% desconto VT (Escrit\u00f3rio)"
+    },
+    "dental_plan": {
+      "type": "number",
+      "default": 0,
+      "description": "Seguro odontol\u00f3gico (Escrit\u00f3rio)"
+    },
+    "food_voucher": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale alimenta\u00e7\u00e3o (Escrit\u00f3rio)"
+    },
+    "birthday_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Bonifica\u00e7\u00e3o anivers\u00e1rio (Escrit\u00f3rio)"
     }
   },
   "required": [
