@@ -54,14 +54,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
     
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
-      // Filtra ajustes que se sobrepõem ao mês (end_date >= primeiro dia do mês E start_date <= último dia do mês)
+      // Filtra ajustes que se sobrepõem ao mês OU ao mês anterior/próximo
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0);
+      
+      // Expande intervalo para incluir mês anterior e próximo (para capturar faltas que impactam múltiplos períodos)
+      const prevMonthStart = new Date(year, month - 2, 1);
+      const nextMonthEnd = new Date(year, month + 1, 0);
       
       const overlapping = all.filter(a => {
         const adjStart = new Date(a.start_date);
         const adjEnd = new Date(a.end_date);
-        return adjEnd >= monthStart && adjStart <= monthEnd;
+        return adjEnd >= prevMonthStart && adjStart <= nextMonthEnd;
       });
       
       // Expande cada ajuste para cada dia do seu período
