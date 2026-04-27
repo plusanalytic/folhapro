@@ -24,7 +24,13 @@
     },
     "absence_discount": {
       "type": "number",
-      "default": 0
+      "default": 0,
+      "description": "Total desconto faltas (R$)"
+    },
+    "absence_discounts": {
+      "type": "object",
+      "description": "Mapa de descontos por ajuste de ponto { [tangerino_id]: valor }",
+      "default": {}
     },
     "meal_voucher_day_value": {
       "type": "number",

@@ -103,9 +103,12 @@ export function calculateEscritorioPayroll(entry) {
   const birthdayBonus = entry.birthday_bonus || 0;
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + birthdayBonus;
 
+  // Desconto de faltas (vindo dos ajustes de ponto)
+  const absenceDiscount = entry.absence_discount || 0;
+
   // gross_total e net_total refletem apenas a Convenção Coletiva (piso + VR)
   const grossTotal = totalConvencao;
-  const netTotal = totalConvencao - totalDescConvencao;
+  const netTotal = totalConvencao - totalDescConvencao - absenceDiscount;
 
   // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;
@@ -136,7 +139,7 @@ export function calculateEscritorioPayroll(entry) {
     total_pagar: Math.round(totalPagar * 100) / 100,
     fgts,
     irrf,
-    absence_discount: 0,
+    absence_discount: absenceDiscount,
     union_contribution: 0,
     first_period_net: Math.round(firstPeriodNet * 100) / 100,
     second_period_net: Math.round(secondPeriodNet * 100) / 100,
@@ -145,7 +148,10 @@ export function calculateEscritorioPayroll(entry) {
 
 export function calculatePayroll(entry, contractType) {
   const salary = entry.base_salary || 0;
-  const absenceDiscount = calculateAbsenceDiscount(salary, entry.absences_days || 0);
+  // Se houver absence_discount direto (vindo dos ajustes de ponto), usa ele; senão calcula por dias
+  const absenceDiscount = (entry.absence_discount != null && entry.absence_discount > 0)
+    ? entry.absence_discount
+    : calculateAbsenceDiscount(salary, entry.absences_days || 0);
   const salaryAfterAbsence = salary - absenceDiscount;
 
   let inss = 0, fgts = 0, irrf = 0, pjRetention = 0;
