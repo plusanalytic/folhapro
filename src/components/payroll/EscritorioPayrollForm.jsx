@@ -141,7 +141,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       fgts: calc.fgts,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
-      net_total: calc.net_total,
+      net_total: calc.total_pagar,
       first_period_discount: firstDiscountTotal,
       second_period_discount: secondDiscountTotal,
       first_discounts: firstDiscounts,
@@ -296,18 +296,34 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
                 <div>
-                  <p className="font-bold text-base">Total Bruto</p>
-                  <p className="text-xs text-muted-foreground">Convenção + Outros Benefícios</p>
+                  <p className="font-bold text-base">Total Bruto Convenção</p>
+                  <p className="text-xs text-muted-foreground">Piso salarial + Vale Refeição</p>
                 </div>
                 <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
               </div>
 
+              <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
+                <div>
+                  <p className="font-bold text-base">Líquido Convenção</p>
+                  <p className="text-xs text-muted-foreground">Bruto convenção − descontos convenção</p>
+                </div>
+                <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.net_total)}</p>
+              </div>
+
+              <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-4 py-3">
+                <div>
+                  <p className="font-bold text-base">Total Outros Benefícios</p>
+                  <p className="text-xs text-muted-foreground">VT + Odontológico + VA + Aniversário</p>
+                </div>
+                <p className="font-mono font-bold text-secondary text-xl">{formatCurrency(calc.total_outros_beneficios)}</p>
+              </div>
+
               <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
                 <div>
-                  <p className="font-bold text-base">Total a Receber</p>
-                  <p className="text-xs text-muted-foreground">Total bruto − todos os descontos convenção</p>
+                  <p className="font-bold text-base">Total a Pagar</p>
+                  <p className="text-xs text-muted-foreground">Líquido convenção + Outros benefícios</p>
                 </div>
-                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.net_total)}</p>
+                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.total_pagar)}</p>
               </div>
             </TabsContent>
 
@@ -316,11 +332,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                   <p className="text-xs text-muted-foreground">Base 1ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.total_pagar / 2)}</p>
                 </div>
                 <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                   <p className="text-xs text-muted-foreground">Base 2ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.total_pagar / 2)}</p>
                 </div>
               </div>
 
@@ -328,7 +344,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.total_pagar / 2)}</span>
                   </div>
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
@@ -350,7 +366,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.total_pagar / 2)}</span>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
@@ -511,9 +527,14 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   </div>
                 )}
 
+                <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
+                  <span>Total Outros Benefícios</span>
+                  <span className="font-mono text-secondary">{formatCurrency(calc.total_outros_beneficios)}</span>
+                </div>
+
                 <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
-                  <span className="font-bold text-lg">Total Líquido</span>
-                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.net_total)}</span>
+                  <span className="font-bold text-lg">Total a Pagar</span>
+                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.total_pagar)}</span>
                 </div>
 
                 <div className="border border-border rounded-lg px-4 py-2 flex justify-between items-center text-sm">

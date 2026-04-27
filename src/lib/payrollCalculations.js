@@ -103,17 +103,21 @@ export function calculateEscritorioPayroll(entry) {
   const birthdayBonus = entry.birthday_bonus || 0;
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + birthdayBonus;
 
-  const grossTotal = totalConvencao + totalOutrosBeneficios;
-  const netTotal = grossTotal - totalDescConvencao;
+  // gross_total e net_total refletem apenas a Convenção Coletiva (piso + VR)
+  const grossTotal = totalConvencao;
+  const netTotal = totalConvencao - totalDescConvencao;
+
+  // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
+  const totalPagar = netTotal + totalOutrosBeneficios;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal
+  // Quinzenal baseado no total a pagar (líquido conv. + benefícios)
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
+  const firstPeriodNet = (totalPagar / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const secondPeriodNet = (totalPagar / 2) - (entry.second_period_discount || 0);
 
   return {
     meal_voucher: mealVoucher,
@@ -129,6 +133,7 @@ export function calculateEscritorioPayroll(entry) {
     total_outros_beneficios: Math.round(totalOutrosBeneficios * 100) / 100,
     gross_total: Math.round(grossTotal * 100) / 100,
     net_total: Math.round(netTotal * 100) / 100,
+    total_pagar: Math.round(totalPagar * 100) / 100,
     fgts,
     irrf,
     absence_discount: 0,
