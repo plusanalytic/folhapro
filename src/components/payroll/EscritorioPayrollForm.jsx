@@ -48,7 +48,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     const lastDay = new Date(year, month, 0).getDate();
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
-      setPointAdjustments(all.filter(a => a.start_date >= start && a.start_date <= end));
+      const inMonth = all.filter(a => a.start_date >= start && a.start_date <= end);
+      inMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
+      setPointAdjustments(inMonth);
     });
   }, [employee.tangerino_id, referenceMonth]);
 

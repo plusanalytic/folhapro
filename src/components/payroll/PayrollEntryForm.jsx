@@ -84,6 +84,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
       const inMonth = all.filter(a => a.start_date >= start && a.start_date <= end);
+      inMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
       setPointAdjustments(inMonth);
     });
   }, [employee.tangerino_id, referenceMonth]);
