@@ -117,12 +117,19 @@ Deno.serve(async (req) => {
 
     const { items, total } = await fetchAllPages(lastUpdate);
 
-    // Busca IDs já existentes para deduplicação
-    const existing = await base44.asServiceRole.entities.PointAdjustment.list();
-    const existingIds = new Set(existing.map(e => Number(e.tangerino_id)));
+    // Busca IDs já existentes para deduplicação (sem limite, paginando)
+    const existingIds = new Set();
+    let paPage = 1;
+    const PA_SIZE = 1000;
+    while (true) {
+      const chunk = await base44.asServiceRole.entities.PointAdjustment.list('tangerino_id', PA_SIZE, (paPage - 1) * PA_SIZE);
+      for (const e of chunk) existingIds.add(Number(e.tangerino_id));
+      if (chunk.length < PA_SIZE) break;
+      paPage++;
+    }
 
     // De-para colaboradores locais
-    const employees = await base44.asServiceRole.entities.Employee.list();
+    const employees = await base44.asServiceRole.entities.Employee.list('created_date', 5000);
     const employeeByTangerinoId = {};
     for (const emp of employees) {
       if (emp.tangerino_id) employeeByTangerinoId[String(emp.tangerino_id)] = emp;
