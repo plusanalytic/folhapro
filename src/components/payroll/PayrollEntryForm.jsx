@@ -221,7 +221,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <span className="text-xs text-muted-foreground whitespace-nowrap">via Ajuste de Ponto</span>
                   </div>
                 ) : (
-                  <Input className="mt-1 font-mono" type="number" step="0.01" min="0" placeholder="0,00" value={form.absence_discount ?? 0} onChange={e => setNum('absence_discount', e.target.value)} disabled={readOnly} />
+                  <p className="mt-1 text-xs text-muted-foreground">Preencha os descontos na aba Ajuste de Ponto</p>
                 )}
               </div>
             </div>
