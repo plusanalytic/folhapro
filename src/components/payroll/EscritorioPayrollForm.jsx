@@ -20,8 +20,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
-    inss_pct: entry?.inss_pct ?? 0,
-    inss_deduction: entry?.inss_deduction ?? 0,
     transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     // Outros Benefícios
@@ -133,9 +131,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       // campos calculados
       meal_voucher: calc.meal_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
-      inss: calc.inss,
-      inss_pct: form.inss_pct,
-      inss_deduction: form.inss_deduction,
+      inss: 0,
+      inss_pct: 0,
+      inss_deduction: 0,
       fgts: calc.fgts,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
@@ -249,18 +247,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos Convenção</p>
 
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Desconto INSS (%)" hint="Deixe 0 para usar tabela progressiva INSS 2026">
-                  <div className="flex gap-2 items-center">
-                    <NumInput field="inss_pct" min="0" placeholder="0 = tabela INSS" />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
-                  </div>
-                </Row>
-                <Row label="Dedução INSS (R$)" hint="Valor a subtrair do total bruto">
-                  <div className="flex gap-2 items-center">
-                    <NumInput field="inss_deduction" min="0" placeholder="0,00" />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">- {formatCurrency(calc.inss_deduction)}</span>
-                  </div>
-                </Row>
                 <Row label="Desconto Vale Transporte (%)" hint="% sobre o valor do vale transporte">
                   <div className="flex gap-2 items-center">
                     <NumInput field="transport_voucher_discount_pct" min="0" placeholder="%" />
@@ -434,18 +420,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <span>Total Custos Convenção</span>
                   <span className="font-mono">{formatCurrency(calc.total_convencao)}</span>
                 </div>
-                {calc.inss > 0 && (
-                  <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-destructive">Desconto INSS{form.inss_pct > 0 ? ` (${form.inss_pct}%)` : ' (tabela progressiva)'}</span>
-                    <span className="font-mono text-destructive">- {formatCurrency(calc.inss)}</span>
-                  </div>
-                )}
-                {calc.inss_deduction > 0 && (
-                  <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-destructive">Dedução INSS</span>
-                    <span className="font-mono text-destructive">- {formatCurrency(calc.inss_deduction)}</span>
-                  </div>
-                )}
                 {calc.transport_voucher_discount > 0 && (
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-destructive">Desconto VT ({form.transport_voucher_discount_pct}%)</span>

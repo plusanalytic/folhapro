@@ -84,21 +84,11 @@ export function calculateEscritorioPayroll(entry) {
   const totalConvencao = piso + mealVoucher;
 
   // Descontos convenção
-  const inssBase = piso;
-  let inss = 0;
-  if (entry.inss_pct != null && entry.inss_pct > 0) {
-    inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
-  } else {
-    inss = calculateINSS(inssBase);
-  }
-
   const transportVoucher = entry.transport_voucher || 0;
   const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
   const mealVoucherDiscount = Math.round(transportVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
 
-  const inssDeduction = entry.inss_deduction || 0;
-
-  const totalDescConvencao = inss + transportVoucherDiscount + mealVoucherDiscount;
+  const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount;
   const liquidoConvencao = totalConvencao - totalDescConvencao;
 
   // Outros benefícios
@@ -108,11 +98,11 @@ export function calculateEscritorioPayroll(entry) {
   const totalOutrosBeneficios = dental + transportVoucher + foodVoucher + birthdayBonus;
 
   const grossTotal = totalConvencao + totalOutrosBeneficios;
-  const netTotal = liquidoConvencao + totalOutrosBeneficios - inssDeduction;
+  const netTotal = liquidoConvencao + totalOutrosBeneficios;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
-  const irrf = calculateIRRF(piso, inss);
+  const irrf = 0;
 
   // Quinzenal
   const firstPeriodAdvance = entry.first_period_advance || 0;
@@ -122,9 +112,9 @@ export function calculateEscritorioPayroll(entry) {
   return {
     meal_voucher: mealVoucher,
     total_convencao: Math.round(totalConvencao * 100) / 100,
-    inss,
-    inss_net: inss,
-    inss_deduction: inssDeduction,
+    inss: 0,
+    inss_net: 0,
+    inss_deduction: 0,
     transport_voucher_discount: transportVoucherDiscount,
     meal_voucher_discount: mealVoucherDiscount,
     total_desc_convencao: Math.round(totalDescConvencao * 100) / 100,
