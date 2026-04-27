@@ -105,8 +105,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     );
   };
 
-  const firstDiscountTotal = firstDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
-  const secondDiscountTotal = secondDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
+  // crédito reduz o total de desconto, débito aumenta
+  const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
+  const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
 
   const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
@@ -500,19 +501,19 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     )}
                     {firstDiscounts.map((d, i) => (
                       <div key={i} className="flex justify-between py-1 border-b border-border">
-                        <span className="text-destructive text-sm">{d.description}</span>
-                        <span className="font-mono text-destructive text-sm">- {formatCurrency(d.amount)}</span>
+                        <span className={`text-sm ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.description}</span>
+                        <span className={`font-mono text-sm ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.type === 'credit' ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {secondDiscounts.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Descontos 2ª Quinzena</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Lançamentos 2ª Quinzena</p>
                     {secondDiscounts.map((d, i) => (
                       <div key={i} className="flex justify-between py-1 border-b border-border">
-                        <span className="text-destructive text-sm">{d.description}</span>
-                        <span className="font-mono text-destructive text-sm">- {formatCurrency(d.amount)}</span>
+                        <span className={`text-sm ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.description}</span>
+                        <span className={`font-mono text-sm ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.type === 'credit' ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                       </div>
                     ))}
                   </div>
