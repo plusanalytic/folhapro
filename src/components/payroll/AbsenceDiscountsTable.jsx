@@ -8,6 +8,25 @@ import { formatCurrency } from '@/lib/payrollCalculations';
 // IDs de motivos de ajuste considerados FALTA (geram desconto)
 export const ABSENCE_REASON_IDS = new Set([5, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
 
+// Campos a calcular por motivo (null = nenhum desconto)
+// 'half' = metade de cada valor
+const REASON_COLS = {
+  5:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  8:       { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
+  16:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
+  18:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
+  19:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
+  23:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  24:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  27:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
+  2154902: { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true, half: true },
+  2157106: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
+  2160971: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
+  2169310: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
+  2170370: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  2173794: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+};
+
 // Retorna o total de uma linha de descontos
 export function rowTotal(disc) {
   if (!disc || typeof disc !== 'object') return 0;
@@ -19,46 +38,49 @@ export function totalAbsenceDiscount(absenceDiscounts) {
   return Object.values(absenceDiscounts || {}).reduce((s, v) => s + rowTotal(v), 0);
 }
 
-// Calcula valores automáticos para uma linha de falta com base no formulário
-function calcAutoValues(payrollForm) {
+// Calcula valores base por dia com base no formulário
+function calcBaseValues(payrollForm) {
   const baseSalary = parseFloat(payrollForm?.base_salary) || 0;
   const vrPerDay = parseFloat(payrollForm?.meal_voucher_day_value) || 0;
   const vrDays = parseFloat(payrollForm?.meal_voucher_days) || 1;
-  // VT por dia: suporte a ambos os modelos (motociclista usa transport_voucher, escritório usa transport_voucher_day_value)
   const vtPerDay = parseFloat(payrollForm?.transport_voucher_day_value) || 0;
   const vtTotal = parseFloat(payrollForm?.transport_voucher) || 0;
-  const vtDays = parseFloat(payrollForm?.transport_voucher_days) || vrDays;
   const motoRental = parseFloat(payrollForm?.motorcycle_rental) || 0;
   const hazardPay = parseFloat(payrollForm?.hazard_pay) || 0;
 
-  // Diário: salário base / 30
   const daily = baseSalary > 0 ? Math.round((baseSalary / 30) * 100) / 100 : 0;
-
-  // DSR: mesmo valor que diário
   const dsr = daily;
-
-  // VR por dia (já vem direto do campo)
   const vr = vrPerDay;
-
-  // VT por dia: escritório tem day_value direto; motociclista usa total/dias (transport_voucher/dias úteis VR)
   const vt = vtPerDay > 0
     ? vtPerDay
     : (vtTotal > 0 && vrDays > 0 ? Math.round((vtTotal / vrDays) * 100) / 100 : 0);
-
-  // Loc. Moto: aluguel moto / dias úteis VR
   const moto = motoRental > 0 && vrDays > 0 ? Math.round((motoRental / vrDays) * 100) / 100 : 0;
-
-  // Periculosidade: periculosidade / dias úteis VR
   const hazard = hazardPay > 0 && vrDays > 0 ? Math.round((hazardPay / vrDays) * 100) / 100 : 0;
 
   return { daily, vt, vr, dsr, moto, hazard };
+}
+
+// Aplica as regras do motivo ao valor base
+function calcAutoForReason(reasonId, payrollForm, isMotocyclist) {
+  const base = calcBaseValues(payrollForm);
+  const rules = REASON_COLS[Number(reasonId)];
+  if (!rules) return { daily: 0, vt: 0, vr: 0, dsr: 0, moto: 0, hazard: 0 };
+
+  const factor = rules.half ? 0.5 : 1;
+  return {
+    daily:  rules.daily  ? Math.round(base.daily  * factor * 100) / 100 : 0,
+    vt:     rules.vt     ? Math.round(base.vt     * factor * 100) / 100 : 0,
+    vr:     rules.vr     ? Math.round(base.vr     * factor * 100) / 100 : 0,
+    dsr:    rules.dsr    ? Math.round(base.dsr    * factor * 100) / 100 : 0,
+    moto:   (rules.moto   && isMotocyclist) ? Math.round(base.moto   * factor * 100) / 100 : 0,
+    hazard: (rules.hazard && isMotocyclist) ? Math.round(base.hazard * factor * 100) / 100 : 0,
+  };
 }
 
 export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscounts, setAbsenceDiscounts, readOnly, isMotocyclist, payrollForm }) {
   // Ao montar ou quando os ajustes mudam, pré-preenche automaticamente linhas ainda zeradas
   useEffect(() => {
     if (readOnly || !payrollForm) return;
-    const auto = calcAutoValues(payrollForm);
     const absenceRows = pointAdjustments.filter(a => ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id)));
     if (absenceRows.length === 0) return;
 
@@ -67,17 +89,9 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
       absenceRows.forEach(a => {
         const key = String(a.tangerino_id || a.id);
         const existing = prev[key];
-        // Só preenche se a linha estiver completamente zerada/vazia
         const isBlank = !existing || rowTotal(existing) === 0;
         if (isBlank) {
-          next[key] = {
-            daily: auto.daily,
-            vr: auto.vr,
-            vt: auto.vt,
-            dsr: auto.dsr,
-            moto: isMotocyclist ? auto.moto : 0,
-            hazard: isMotocyclist ? auto.hazard : 0,
-          };
+          next[key] = calcAutoForReason(a.adjustment_reason_id, payrollForm, isMotocyclist);
         }
       });
       return next;
@@ -103,19 +117,11 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
   };
 
   // Recalcula automaticamente uma linha específica com os valores atuais do form
-  const recalcRow = (key) => {
+  const recalcRow = (key, reasonId) => {
     if (readOnly || !payrollForm) return;
-    const auto = calcAutoValues(payrollForm);
     setAbsenceDiscounts(prev => ({
       ...prev,
-      [key]: {
-        daily: auto.daily,
-        vr: auto.vr,
-        vt: auto.vt,
-        dsr: auto.dsr,
-        moto: isMotocyclist ? auto.moto : 0,
-        hazard: isMotocyclist ? auto.hazard : 0,
-      },
+      [key]: calcAutoForReason(reasonId, payrollForm, isMotocyclist),
     }));
   };
 
@@ -218,7 +224,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                             size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-primary"
                             title="Recalcular automaticamente"
-                            onClick={() => recalcRow(key)}
+                            onClick={() => recalcRow(key, a.adjustment_reason_id)}
                           >
                             <Wand2 className="w-3.5 h-3.5" />
                           </Button>
