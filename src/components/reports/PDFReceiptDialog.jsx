@@ -485,31 +485,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         </div>
       </div>
 
-      {/* FGTS */}
-      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>FGTS (8%) — informativo</span>
-        <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#239BB6', fontFamily: 'monospace' }}>{formatCurrency(calc.fgts)}</span>
-      </div>
 
-      {/* Resumo financeiro final */}
-      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fafaff', fontSize: '11px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span style={{ color: '#555' }}>Líquido Convenção</span>
-          <span style={{ fontFamily: 'monospace' }}>{formatCurrency(calc.liquido_convencao)}</span>
-        </div>
-        {calc.total_outros_beneficios > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#0e7490' }}>+ Outros Benefícios</span>
-            <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(calc.total_outros_beneficios)}</span>
-          </div>
-        )}
-        {quinzenalLiquido !== 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: quinzenalLiquido >= 0 ? '#16a34a' : '#dc2626' }}>{quinzenalLiquido >= 0 ? '+ Créditos Quinzenais' : '− Débitos/Adiantamentos Quinzenais'}</span>
-            <span style={{ fontFamily: 'monospace', color: quinzenalLiquido >= 0 ? '#16a34a' : '#dc2626' }}>{quinzenalLiquido >= 0 ? '+' : '-'} {formatCurrency(Math.abs(quinzenalLiquido))}</span>
-          </div>
-        )}
-      </div>
 
       {/* Líquido Total */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
