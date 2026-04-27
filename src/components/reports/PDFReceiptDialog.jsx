@@ -514,10 +514,10 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
       {/* Líquido Total */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A PAGAR (Conv. + Benefícios)</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(totalPagar)}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A PAGAR (1ª + 2ª Quinzena)</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(firstNet + secondNet)}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(totalPagar)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
       </div>
 
       {/* Dados bancários */}
