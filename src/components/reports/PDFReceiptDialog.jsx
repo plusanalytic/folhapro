@@ -304,15 +304,12 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
   });
 
   const baseQuinzenal = (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
+  const totalPagar = calc.total_pagar;    // líquido conv. + outros benefícios
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
-  // TOTAL A PAGAR = soma do que é efetivamente recebido nas quinzenas + benefícios externos (VT, odonto)
-  const firstDiscountNet = (entry?.first_discounts ?? []).reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
-  const secondDiscountNet = (entry?.second_discounts ?? []).reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
-  const firstAdv = entry?.first_period_advance ?? 0;
-  const totalPagar = Math.round((firstNet + secondNet + calc.transport_voucher + (entry?.dental_plan ?? 0)) * 100) / 100;
   const firstDiscounts = entry?.first_discounts ?? [];
   const secondDiscounts = entry?.second_discounts ?? [];
+  const firstAdv = entry?.first_period_advance ?? 0;
   const monthName = getMonthName(month);
 
   // ── Proventos Convenção
@@ -447,9 +444,9 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
             {firstDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: d.type === 'credit' ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
                 <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>{d.type === 'credit' ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
               </div>
             ))}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
@@ -463,9 +460,9 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
             {secondDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: d.type === 'credit' ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
                 <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>{d.type === 'credit' ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
               </div>
             ))}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
@@ -476,26 +473,22 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         </div>
       </div>
 
+      {/* FGTS */}
+      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>FGTS (8%) — informativo</span>
+        <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#239BB6', fontFamily: 'monospace' }}>{formatCurrency(calc.fgts)}</span>
+      </div>
+
       {/* Resumo financeiro final */}
       <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fafaff', fontSize: '11px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span style={{ color: '#555' }}>1ª Quinzena (a receber)</span>
-          <span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstNet)}</span>
+          <span style={{ color: '#555' }}>Líquido Convenção</span>
+          <span style={{ fontFamily: 'monospace' }}>{formatCurrency(calc.liquido_convencao)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span style={{ color: '#555' }}>2ª Quinzena (a receber)</span>
-          <span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondNet)}</span>
-        </div>
-        {calc.transport_voucher > 0 && (
+        {calc.total_outros_beneficios > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#0e7490' }}>+ Vale Transporte</span>
-            <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(calc.transport_voucher)}</span>
-          </div>
-        )}
-        {(entry?.dental_plan ?? 0) > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#0e7490' }}>+ Seguro Odontológico</span>
-            <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(entry?.dental_plan)}</span>
+            <span style={{ color: '#0e7490' }}>+ Outros Benefícios</span>
+            <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(calc.total_outros_beneficios)}</span>
           </div>
         )}
       </div>
@@ -642,19 +635,14 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
       const firstDiscounts  = [...savedFirst,  ...firstFromCash];
       const secondDiscounts = [...savedSecond, ...secondFromCash];
 
-      // crédito reduz o desconto, débito aumenta (respeita type)
-      const firstTotal  = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
-      const secondTotal = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+      const firstTotal  = firstDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
+      const secondTotal = secondDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
 
       // Recalcula net quinzenal com os descontos atualizados
       const netTotal = entry?.net_total ?? 0;
-      const bonus = entry?.bonus ?? 0;
-      const birthdayBonus = entry?.birthday_bonus ?? 0;
-      const foodVoucher = entry?.food_voucher ?? 0;
-      const baseQ = (netTotal + bonus + birthdayBonus) / 2;
       const firstAdv = entry?.first_period_advance ?? 0;
-      const firstNet  = Math.round((baseQ + foodVoucher - firstAdv - firstTotal) * 100) / 100;
-      const secondNet = Math.round((baseQ - secondTotal) * 100) / 100;
+      const firstNet  = Math.round(((netTotal / 2) - firstAdv  - firstTotal)  * 100) / 100;
+      const secondNet = Math.round(((netTotal / 2)             - secondTotal) * 100) / 100;
 
       setMergedEntry({
         ...entry,
