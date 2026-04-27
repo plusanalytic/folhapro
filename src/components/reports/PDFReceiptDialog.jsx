@@ -288,11 +288,13 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? 0,
-    inss_pct: entry?.inss_pct ?? 0,
-    transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+    transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
+    transport_voucher_days: entry?.transport_voucher_days ?? 0,
+    transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
+    inss_pct: entry?.inss_pct ?? 0,
+    inss_deduction: entry?.inss_deduction ?? 0,
     dental_plan: entry?.dental_plan ?? 0,
-    transport_voucher: entry?.transport_voucher ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
     first_period_advance: 0,
@@ -300,7 +302,8 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     second_period_discount: 0,
   });
 
-  const netTotal = calc.net_total;
+  const netTotal = calc.net_total;        // líquido convenção (base quinzenal)
+  const totalPagar = calc.total_pagar;    // líquido conv. + outros benefícios
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
   const firstDiscounts = entry?.first_discounts ?? [];
@@ -308,23 +311,33 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
   const firstAdv = entry?.first_period_advance ?? 0;
   const monthName = getMonthName(month);
 
-  const proventos = [
+  // ── Proventos Convenção
+  const proventosConv = [
     { label: 'Piso Salarial', value: entry?.base_salary ?? 0, show: true },
     { label: `Vale Refeição (${entry?.meal_voucher_days ?? 0}d × ${formatCurrency(entry?.meal_voucher_day_value ?? 0)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
+  ].filter(x => x.show);
+
+  // ── Descontos Convenção
+  const descontosConv = [
+    { label: `Desconto VT (${entry?.transport_voucher_discount_pct ?? 0}%)`, value: calc.transport_voucher_discount, show: calc.transport_voucher_discount > 0 },
+    { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
+    {
+      label: `INSS (${entry?.inss_pct ?? 0}%${(entry?.inss_deduction ?? 0) > 0 ? ` − ded. ${formatCurrency(entry?.inss_deduction ?? 0)}` : ''})`,
+      value: calc.inss_net,
+      show: calc.inss_net > 0,
+    },
+  ].filter(x => x.show);
+
+  const totalDescontosConv = descontosConv.reduce((s, d) => s + d.value, 0);
+  const maxRowsConv = Math.max(proventosConv.length, descontosConv.length, 1);
+
+  // ── Outros Benefícios
+  const outrosBeneficios = [
+    { label: `Vale Transporte (${entry?.transport_voucher_days ?? 0}d × ${formatCurrency(entry?.transport_voucher_day_value ?? 0)})`, value: calc.transport_voucher, show: calc.transport_voucher > 0 },
     { label: 'Seguro Odontológico', value: entry?.dental_plan ?? 0, show: (entry?.dental_plan ?? 0) > 0 },
-    { label: 'Vale Transporte', value: entry?.transport_voucher ?? 0, show: (entry?.transport_voucher ?? 0) > 0 },
     { label: 'Vale Alimentação', value: entry?.food_voucher ?? 0, show: (entry?.food_voucher ?? 0) > 0 },
     { label: 'Bonificação Aniversário', value: entry?.birthday_bonus ?? 0, show: (entry?.birthday_bonus ?? 0) > 0 },
   ].filter(x => x.show);
-
-  const descontos = [
-    { label: 'INSS', value: calc.inss, show: calc.inss > 0 },
-    { label: `Desconto VT (${entry?.transport_voucher_discount_pct ?? 0}%)`, value: calc.transport_voucher_discount, show: calc.transport_voucher_discount > 0 },
-    { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
-  ].filter(x => x.show);
-
-  const totalDescontos = descontos.reduce((s, d) => s + d.value, 0);
-  const maxRows = Math.max(proventos.length, descontos.length);
 
   return (
     <div style={{ width: '210mm', minHeight: '297mm', padding: '12mm', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#1a1a2e', backgroundColor: '#fff', boxSizing: 'border-box' }}>
@@ -356,30 +369,21 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         {employee.pis && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>PIS</div><div style={{ fontWeight: 'bold' }}>{employee.pis}</div></div>}
       </div>
 
-      {/* Bloco convenção coletiva */}
-      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', background: '#fafaff' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#6a3eaf', textTransform: 'uppercase', marginBottom: '8px' }}>Convenção Coletiva</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#555' }}>Total Custos Conv.</span><span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{formatCurrency(calc.total_convencao)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#dc2626' }}>Total Descontos</span><span style={{ fontFamily: 'monospace', color: '#dc2626' }}>- {formatCurrency(calc.total_desc_convencao)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6a3eaf', fontWeight: 'bold' }}>A Receber Líquido Conv.</span><span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#6a3eaf' }}>{formatCurrency(calc.liquido_convencao)}</span></div>
-        </div>
-      </div>
-
-      {/* Tabela Proventos e Descontos */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
+      {/* Tabela Convenção Coletiva */}
+      <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#6a3eaf', textTransform: 'uppercase', marginBottom: '4px' }}>Convenção Coletiva</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '11px' }}>
         <thead>
           <tr>
-            <th style={{ background: '#6a3eaf', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '48%' }}>Proventos</th>
-            <th style={{ background: '#6a3eaf', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '14%' }}>Valor (R$)</th>
-            <th style={{ background: '#444', color: '#fff', padding: '7px 10px', textAlign: 'left', width: '24%' }}>Descontos Conv.</th>
-            <th style={{ background: '#444', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '14%' }}>Valor (R$)</th>
+            <th style={{ background: '#6a3eaf', color: '#fff', padding: '6px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '48%' }}>Proventos Conv.</th>
+            <th style={{ background: '#6a3eaf', color: '#fff', padding: '6px 10px', textAlign: 'right', width: '14%' }}>Valor (R$)</th>
+            <th style={{ background: '#444', color: '#fff', padding: '6px 10px', textAlign: 'left', width: '24%' }}>Descontos Conv.</th>
+            <th style={{ background: '#444', color: '#fff', padding: '6px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '14%' }}>Valor (R$)</th>
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: maxRows }).map((_, i) => {
-            const p = proventos[i];
-            const d = descontos[i];
+          {Array.from({ length: maxRowsConv }).map((_, i) => {
+            const p = proventosConv[i];
+            const d = descontosConv[i];
             return (
               <tr key={i} style={{ background: i % 2 === 0 ? '#faf9ff' : '#fff' }}>
                 <td style={{ padding: '5px 10px', borderBottom: '1px solid #e8e4f5' }}>{p ? p.label : ''}</td>
@@ -390,20 +394,52 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
             );
           })}
           <tr>
-            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf' }}>TOTAL BRUTO</td>
-            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf', color: '#2563eb', fontFamily: 'monospace' }}>{formatCurrency(calc.gross_total)}</td>
-            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', borderLeft: '1px solid #e8e4f5' }}>TOTAL DESCONTOS</td>
-            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', color: '#dc2626', fontFamily: 'monospace' }}>{formatCurrency(totalDescontos)}</td>
+            <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf' }}>TOTAL BRUTO CONV.</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf', color: '#2563eb', fontFamily: 'monospace' }}>{formatCurrency(calc.gross_total)}</td>
+            <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', borderLeft: '1px solid #e8e4f5' }}>TOTAL DESCONTOS</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', color: '#dc2626', fontFamily: 'monospace' }}>{formatCurrency(totalDescontosConv)}</td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={{ padding: '6px 10px', background: '#f0ecff', borderTop: '1px solid #c4b5fd' }}></td>
+            <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#f0ecff', borderTop: '1px solid #c4b5fd', borderLeft: '1px solid #e8e4f5', color: '#6a3eaf' }}>LÍQUIDO CONVENÇÃO</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#f0ecff', borderTop: '1px solid #c4b5fd', color: '#6a3eaf', fontFamily: 'monospace' }}>{formatCurrency(calc.liquido_convencao)}</td>
           </tr>
         </tbody>
       </table>
+
+      {/* Tabela Outros Benefícios */}
+      {outrosBeneficios.length > 0 && (
+        <>
+          <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#239BB6', textTransform: 'uppercase', marginBottom: '4px' }}>Outros Benefícios</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '11px' }}>
+            <thead>
+              <tr>
+                <th style={{ background: '#239BB6', color: '#fff', padding: '6px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '62%' }}>Benefício</th>
+                <th style={{ background: '#239BB6', color: '#fff', padding: '6px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '38%' }}>Valor (R$)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outrosBeneficios.map((b, i) => (
+                <tr key={i} style={{ background: i % 2 === 0 ? '#f0fbff' : '#fff' }}>
+                  <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0f2f7' }}>{b.label}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(b.value)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL OUTROS BENEFÍCIOS</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(calc.total_outros_beneficios)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
 
       {/* Quinzenal */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15)</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líq. conv.)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
             {firstDiscounts.map((d, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
@@ -420,7 +456,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líq. conv.)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
             {secondDiscounts.map((d, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
                 <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
@@ -436,18 +472,32 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
       </div>
 
       {/* FGTS */}
-      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>FGTS (8%) — informativo</span>
         <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#239BB6', fontFamily: 'monospace' }}>{formatCurrency(calc.fgts)}</span>
+      </div>
+
+      {/* Resumo financeiro final */}
+      <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fafaff', fontSize: '11px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span style={{ color: '#555' }}>Líquido Convenção</span>
+          <span style={{ fontFamily: 'monospace' }}>{formatCurrency(calc.liquido_convencao)}</span>
+        </div>
+        {calc.total_outros_beneficios > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ color: '#0e7490' }}>+ Outros Benefícios</span>
+            <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(calc.total_outros_beneficios)}</span>
+          </div>
+        )}
       </div>
 
       {/* Líquido Total */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>VALOR LÍQUIDO TOTAL</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(netTotal)}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A PAGAR (Conv. + Benefícios)</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(totalPagar)}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(netTotal)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(totalPagar)}</div>
       </div>
 
       {/* Dados bancários */}
