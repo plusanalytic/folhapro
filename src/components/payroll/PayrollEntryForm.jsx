@@ -15,7 +15,7 @@ import { base44 } from '@/api/base44Client';
 // Regras de visibilidade de campos por modelo de folha
 const PAYROLL_TYPE_FIELDS = {
   MOTOCICLISTA_CLT: {
-    show: ['meal_voucher', 'transport_voucher', 'km_bonus', 'motorcycle_rental', 'hazard_pay', 'bonus', 'other_benefits', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
+    show: ['meal_voucher', 'food_voucher', 'transport_voucher', 'km_bonus', 'motorcycle_rental', 'hazard_pay', 'bonus', 'other_benefits', 'union_contribution_pct', 'meal_voucher_discount_pct', 'life_insurance', 'inss', 'fgts', 'irrf'],
     hide: ['pj_retention'],
   },
   MOTOCICLISTA_MEI: {
@@ -50,6 +50,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     absences_days: entry?.absences_days ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
+    food_voucher: entry?.food_voucher ?? 0,
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus: entry?.km_bonus ?? 0,
     motorcycle_rental: entry?.motorcycle_rental ?? 0,
@@ -195,6 +196,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       meal_voucher_day_value: form.meal_voucher_day_value,
       meal_voucher_days: form.meal_voucher_days,
       meal_voucher: calc.meal_voucher,
+      food_voucher: form.food_voucher,
       union_contribution: calc.union_contribution,
       meal_voucher_discount: calc.meal_voucher_discount,
       inss_pct: form.inss_pct,
@@ -287,6 +289,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
               </div>
             </div>}
+
+            {show('food_voucher') && (
+              <div>
+                <Label>Vale Alimentação</Label>
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.food_voucher} onChange={e => setNum('food_voucher', e.target.value)} disabled={readOnly} />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               {show('transport_voucher') && <div>
@@ -414,12 +423,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
-                {form.food_voucher > 0 && (
-                  <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                    <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
-                    <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
-                  </div>
-                )}
+                {show('food_voucher') && form.food_voucher > 0 && (
+                   <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                     <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
+                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                   </div>
+                 )}
                 <div>
                   <Label className="text-xs">Adiantamento</Label>
                   <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} disabled={readOnly} />
@@ -491,6 +500,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
               )}
               {calc.meal_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Refeição ({form.meal_voucher_days}d × {formatCurrency(form.meal_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.meal_voucher)}</span></div>}
+              {show('food_voucher') && form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
               {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
               {form.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Adicional KM</span><span className="font-mono">{formatCurrency(form.km_bonus)}</span></div>}
               {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
