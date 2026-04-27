@@ -440,6 +440,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 setAbsenceDiscounts={setAbsenceDiscounts}
                 readOnly={readOnly}
                 isMotocyclist={payrollType === 'MOTOCICLISTA_CLT'}
+                payrollForm={form}
               />
             )}
           </TabsContent>

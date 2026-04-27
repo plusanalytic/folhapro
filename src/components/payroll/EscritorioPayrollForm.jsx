@@ -434,6 +434,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   setAbsenceDiscounts={setAbsenceDiscounts}
                   readOnly={readOnly}
                   isMotocyclist={false}
+                  payrollForm={form}
                 />
               )}
             </TabsContent>
