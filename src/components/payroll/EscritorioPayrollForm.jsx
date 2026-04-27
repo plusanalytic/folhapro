@@ -45,17 +45,46 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const [pointAdjustments, setPointAdjustments] = useState([]);
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
 
-  // Carregar ajustes de ponto
+  // Carregar ajustes de ponto expandidos por dia
   useEffect(() => {
     if (!employee.tangerino_id) return;
     const [year, month] = referenceMonth.split('-').map(Number);
     const start = `${referenceMonth}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
+    
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
-      const inMonth = all.filter(a => a.start_date >= start && a.start_date <= end);
-      inMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
-      setPointAdjustments(inMonth);
+      // Filtra ajustes que se sobrepõem ao mês (end_date >= primeiro dia do mês E start_date <= último dia do mês)
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0);
+      
+      const overlapping = all.filter(a => {
+        const adjStart = new Date(a.start_date);
+        const adjEnd = new Date(a.end_date);
+        return adjEnd >= monthStart && adjStart <= monthEnd;
+      });
+      
+      // Expande cada ajuste para cada dia do seu período
+      const expanded = [];
+      for (const adj of overlapping) {
+        const adjStart = new Date(adj.start_date);
+        const adjEnd = new Date(adj.end_date);
+        let current = new Date(adjStart);
+        
+        while (current <= adjEnd) {
+          expanded.push({
+            ...adj,
+            date: current.toISOString().split('T')[0],
+          });
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      
+      // Filtra apenas dias do mês de referência
+      const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
+      forMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
+      
+      setPointAdjustments(forMonth);
     });
   }, [employee.tangerino_id, referenceMonth]);
 
