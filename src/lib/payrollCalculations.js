@@ -97,32 +97,33 @@ export function calculateEscritorioPayroll(entry) {
   const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount + inssNet;
   const liquidoConvencao = totalConvencao - totalDescConvencao;
 
-  // Outros benefícios (inclui VT)
+  // Outros benefícios
   const dental = entry.dental_plan || 0;
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
   const bonus = entry.bonus || 0;
-  // VT + odontológico ficam fora do líquido; bonificações entram no líquido (diluídas nas quinzenas)
-  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher;
+  // Todos os benefícios extras exibidos na seção "Outros Benefícios"
+  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + birthdayBonus;
 
   // Desconto de faltas (vindo dos ajustes de ponto)
   const absenceDiscount = entry.absence_discount || 0;
 
-  // gross_total e net_total incluem bonificação e bonificação de aniversário (ambas diluídas 50/50)
-  const grossTotal = totalConvencao + bonus + birthdayBonus;
-  const netTotal = totalConvencao + bonus + birthdayBonus - totalDescConvencao - absenceDiscount;
+  // gross_total e net_total baseados na convenção coletiva
+  const grossTotal = totalConvencao;
+  const netTotal = liquidoConvencao - absenceDiscount;
 
-  // Total final a pagar ao colaborador (líquido + outros benefícios)
+  // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal: líquido (convenção + bonificação) dividido 50/50 + Vale Alimentação na 1ª quinzena
+  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) / 2, Vale Alimentação na 1ª quinzena
+  const baseQuinzenal = (netTotal + bonus + birthdayBonus) / 2;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (netTotal / 2) + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
+  const firstPeriodNet = baseQuinzenal + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const secondPeriodNet = baseQuinzenal - (entry.second_period_discount || 0);
 
   return {
     meal_voucher: mealVoucher,

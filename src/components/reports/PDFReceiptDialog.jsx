@@ -303,7 +303,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     second_period_discount: 0,
   });
 
-  const netTotal = calc.net_total;        // líquido convenção (base quinzenal)
+  const baseQuinzenal = (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
   const totalPagar = calc.total_pagar;    // líquido conv. + outros benefícios
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
@@ -441,7 +441,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15)</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líq. conv.)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
             {firstDiscounts.map((d, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
@@ -458,7 +458,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líq. conv.)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
             {secondDiscounts.map((d, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
                 <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
