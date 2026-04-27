@@ -114,9 +114,9 @@ export function calculateEscritorioPayroll(entry) {
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal baseado no líquido da convenção
+  // Quinzenal baseado no líquido da convenção + Vale Alimentação na 1ª quinzena
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const firstPeriodNet = (netTotal / 2) + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0);
   const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
 
   return {
@@ -188,9 +188,10 @@ export function calculatePayroll(entry, contractType) {
   const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance;
   const netTotal = grossTotal - totalDiscounts;
 
-  // Quinzenal split — descontos quinzenais NÃO afetam o net_total, apenas o valor de cada quinzena
+  // Quinzenal split — Vale Alimentação somado na 1ª quinzena, demais 50/50
+  const foodVoucherVal = entry.food_voucher || 0;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0);
   const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
 
   return {

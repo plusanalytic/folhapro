@@ -340,6 +340,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                   </div>
+                  {form.food_voucher > 0 && (
+                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
+                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
                     <NumInput field="first_period_advance" className="mt-1 h-8 text-sm" />
