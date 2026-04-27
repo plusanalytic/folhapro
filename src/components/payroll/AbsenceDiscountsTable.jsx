@@ -87,7 +87,8 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
     setAbsenceDiscounts(prev => {
       const next = { ...prev };
       absenceRows.forEach(a => {
-        const key = String(a.tangerino_id || a.id);
+        // Usa a data expandida se disponível, para garantir chaves únicas por dia
+        const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
         const existing = prev[key];
         const isBlank = !existing || rowTotal(existing) === 0;
         if (isBlank) {
@@ -188,12 +189,13 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           </thead>
           <tbody>
             {allRows.map((a, i) => {
-              const isAbsence = ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id));
-              const key = String(a.tangerino_id || a.id);
-              const total = rowTotal(absenceDiscounts[key]);
+               const isAbsence = ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id));
+               // Usa a data expandida se disponível, para chave única por dia
+               const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
+               const total = rowTotal(absenceDiscounts[key]);
               return (
-                <tr key={a.id} className={`border-b border-border last:border-0 ${isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
-                  <td className="px-3 py-2 font-mono whitespace-nowrap">{fmtDate(a.start_date)}</td>
+                <tr key={`${a.id}-${a.date || a.start_date}`} className={`border-b border-border last:border-0 ${isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
+                  <td className="px-3 py-2 font-mono whitespace-nowrap">{fmtDate(a.date || a.start_date)}</td>
                   <td className="px-3 py-2">
                     <Badge variant={isAbsence ? 'destructive' : 'outline'} className="text-xs font-normal whitespace-nowrap">
                       {a.adjustment_reason_description || '—'}
