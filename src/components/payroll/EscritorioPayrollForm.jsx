@@ -28,6 +28,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     inss_pct: entry?.inss_pct ?? 0,
     inss_deduction: entry?.inss_deduction ?? 0,
+    // Bonificação
+    bonus: entry?.bonus ?? 0,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
@@ -138,6 +140,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     onSave({
       ...form,
       // campos calculados
+      bonus: form.bonus,
       meal_voucher: calc.meal_voucher,
       transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
@@ -249,6 +252,14 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               </div>
 
               <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
+
+              <Separator />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificação</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Row label="Bonificação / Prêmio" hint="Somado ao líquido e dividido nas quinzenas (50/50)">
+                  <NumInput field="bonus" />
+                </Row>
+              </div>
 
               <Separator />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
@@ -468,6 +479,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 {form.dental_plan > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Seguro Odontológico</span><span className="font-mono">{formatCurrency(form.dental_plan)}</span></div>}
                 {calc.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte ({form.transport_voucher_days}d × {formatCurrency(form.transport_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.transport_voucher)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
+                {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
                 {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono">{formatCurrency(form.birthday_bonus)}</span></div>}
                 {calc.total_outros_beneficios > 0 && (
                   <div className="flex justify-between items-center py-2 border-b border-border font-semibold">

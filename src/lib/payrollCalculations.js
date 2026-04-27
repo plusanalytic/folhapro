@@ -101,23 +101,24 @@ export function calculateEscritorioPayroll(entry) {
   const dental = entry.dental_plan || 0;
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
+  const bonus = entry.bonus || 0;
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + birthdayBonus;
 
   // Desconto de faltas (vindo dos ajustes de ponto)
   const absenceDiscount = entry.absence_discount || 0;
 
-  // gross_total e net_total refletem apenas a Convenção Coletiva (piso + VR)
-  const grossTotal = totalConvencao;
-  const netTotal = totalConvencao - totalDescConvencao - absenceDiscount;
+  // gross_total e net_total incluem a bonificação
+  const grossTotal = totalConvencao + bonus;
+  const netTotal = totalConvencao + bonus - totalDescConvencao - absenceDiscount;
 
-  // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
+  // Total final a pagar ao colaborador (líquido + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal baseado no líquido da convenção + Vale Alimentação na 1ª quinzena
+  // Quinzenal: líquido (convenção + bonificação) dividido 50/50 + Vale Alimentação na 1ª quinzena
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = (netTotal / 2) + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0);
   const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
