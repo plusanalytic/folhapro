@@ -114,10 +114,10 @@ export function calculateEscritorioPayroll(entry) {
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal baseado no total a pagar (líquido conv. + benefícios)
+  // Quinzenal baseado no líquido da convenção
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (totalPagar / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = (totalPagar / 2) - (entry.second_period_discount || 0);
+  const firstPeriodNet = (netTotal / 2) - firstPeriodAdvance - (entry.first_period_discount || 0);
+  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
 
   return {
     meal_voucher: mealVoucher,

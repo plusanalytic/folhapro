@@ -141,7 +141,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       fgts: calc.fgts,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
-      net_total: calc.total_pagar,
+      net_total: calc.net_total,
       first_period_discount: firstDiscountTotal,
       second_period_discount: secondDiscountTotal,
       first_discounts: firstDiscounts,
@@ -317,14 +317,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </div>
                 <p className="font-mono font-bold text-secondary text-xl">{formatCurrency(calc.total_outros_beneficios)}</p>
               </div>
-
-              <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
-                <div>
-                  <p className="font-bold text-base">Total a Pagar</p>
-                  <p className="text-xs text-muted-foreground">Líquido convenção + Outros benefícios</p>
-                </div>
-                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.total_pagar)}</p>
-              </div>
             </TabsContent>
 
             {/* ── ABA: Quinzenal ── */}
@@ -332,11 +324,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                   <p className="text-xs text-muted-foreground">Base 1ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.total_pagar / 2)}</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
                 </div>
                 <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
                   <p className="text-xs text-muted-foreground">Base 2ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.total_pagar / 2)}</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
                 </div>
               </div>
 
@@ -344,7 +336,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.total_pagar / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                   </div>
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
@@ -366,7 +358,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.total_pagar / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
