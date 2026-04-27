@@ -24,6 +24,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     transport_voucher_days: entry?.transport_voucher_days ?? workingDays,
     transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+    inss_pct: entry?.inss_pct ?? 0,
+    inss_deduction: entry?.inss_deduction ?? 0,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
@@ -133,9 +135,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       meal_voucher: calc.meal_voucher,
       transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
-      inss: 0,
-      inss_pct: 0,
-      inss_deduction: 0,
+      inss: calc.inss,
+      inss_pct: form.inss_pct,
+      inss_deduction: form.inss_deduction,
       fgts: calc.fgts,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
@@ -272,20 +274,24 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.transport_voucher_discount)}</span>
                   </div>
                 </Row>
-                <Row label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale transporte">
+                <Row label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale refeição">
                   <div className="flex gap-2 items-center">
                     <NumInput field="meal_voucher_discount_pct" min="0" placeholder="%" />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                   </div>
                 </Row>
-              </div>
-
-              <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
-                <div>
-                  <p className="font-bold text-base">A Receber (líquido conv.)</p>
-                  <p className="text-xs text-muted-foreground">Total custos menos todos os descontos da convenção</p>
-                </div>
-                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.liquido_convencao)}</p>
+                <Row label="Desconto INSS (%)" hint="% calculado sobre o piso salarial">
+                  <div className="flex gap-2 items-center">
+                    <NumInput field="inss_pct" min="0" placeholder="%" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
+                  </div>
+                </Row>
+                <Row label="Dedução INSS (R$)" hint="Valor a subtrair do desconto INSS bruto">
+                  <div className="flex gap-2 items-center">
+                    <NumInput field="inss_deduction" min="0" placeholder="R$" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">líq. {formatCurrency(calc.inss_net)}</span>
+                  </div>
+                </Row>
               </div>
 
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
@@ -299,7 +305,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
                 <div>
                   <p className="font-bold text-base">Total a Receber</p>
-                  <p className="text-xs text-muted-foreground">Líquido conv. + Outros benefícios</p>
+                  <p className="text-xs text-muted-foreground">Total bruto − todos os descontos convenção</p>
                 </div>
                 <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.net_total)}</p>
               </div>
@@ -449,6 +455,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-destructive">Desconto VR ({form.meal_voucher_discount_pct}%)</span>
                     <span className="font-mono text-destructive">- {formatCurrency(calc.meal_voucher_discount)}</span>
+                  </div>
+                )}
+                {calc.inss_net > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-destructive">INSS ({form.inss_pct}%{form.inss_deduction > 0 ? ` − ded. ${formatCurrency(form.inss_deduction)}` : ''})</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(calc.inss_net)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center py-2 border-b border-border font-semibold text-primary">
