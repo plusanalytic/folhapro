@@ -81,21 +81,21 @@ export function calculateEscritorioPayroll(entry) {
   const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
   const transportVoucher = Math.round((entry.transport_voucher_day_value || 0) * (entry.transport_voucher_days || 0) * 100) / 100;
 
-  // Custo total convenção coletiva
-  const totalConvencao = piso + mealVoucher + transportVoucher;
+  // Custo total convenção coletiva (apenas piso + VR)
+  const totalConvencao = piso + mealVoucher;
 
   // Descontos convenção
   const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
-  const mealVoucherDiscount = Math.round(transportVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
 
   const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount;
   const liquidoConvencao = totalConvencao - totalDescConvencao;
 
-  // Outros benefícios
+  // Outros benefícios (inclui VT)
   const dental = entry.dental_plan || 0;
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
-  const totalOutrosBeneficios = dental + foodVoucher + birthdayBonus;
+  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + birthdayBonus;
 
   const grossTotal = totalConvencao + totalOutrosBeneficios;
   const netTotal = liquidoConvencao + totalOutrosBeneficios;
