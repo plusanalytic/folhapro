@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// IDs de motivos de ajuste considerados FALTA (geram desconto)
-const ABSENCE_REASON_IDS = new Set([5, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { calculateEscritorioPayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
+import AbsenceDiscountsTable, { totalAbsenceDiscount } from './AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
 export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
@@ -106,9 +105,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
-  const totalAbsenceDiscount = Object.values(absenceDiscounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalAbsenceDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
+  const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
   const calc = calculateEscritorioPayroll(calcForm);
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
@@ -149,7 +148,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
       net_total: calc.net_total,
-      absence_discount: totalAbsenceDiscount,
+      absence_discount: totalDiscount,
       absence_discounts: absenceDiscounts,
       first_period_discount: firstDiscountTotal,
       second_period_discount: secondDiscountTotal,
@@ -216,10 +215,10 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </Row>
                 <div>
                   <Label>Desconto de Faltas (R$)</Label>
-                  {totalAbsenceDiscount > 0 ? (
+                  {totalDiscount > 0 ? (
                     <div className="mt-1 flex items-center gap-2">
                       <div className="flex-1 bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2 font-mono text-sm font-semibold text-destructive">
-                        {formatCurrency(totalAbsenceDiscount)}
+                        {formatCurrency(totalDiscount)}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">via Ajuste de Ponto</span>
                     </div>
@@ -413,82 +412,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{pointAdjustments.length} ajuste(s) encontrado(s)</span>
-                      <Badge variant="destructive" className="text-xs">{pointAdjustments.filter(a => ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id))).length} falta(s) com desconto</Badge>
-                    </div>
-                    {totalAbsenceDiscount > 0 && (
-                      <div className="bg-destructive/10 rounded-lg px-3 py-1.5 flex items-center gap-2">
-                        <span className="text-xs text-destructive font-medium">Total desconto faltas:</span>
-                        <span className="font-mono font-bold text-destructive">{formatCurrency(totalAbsenceDiscount)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/40 border-b border-border">
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Data Início</th>
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Motivo</th>
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Observação</th>
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Status</th>
-                          <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">Dia Inteiro</th>
-                          <th className="text-right px-4 py-2.5 font-medium text-destructive">Desconto (R$)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pointAdjustments.map((a, i) => {
-                          const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
-                          const isAbsence = ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id));
-                          const key = String(a.tangerino_id || a.id);
-                          return (
-                            <tr key={a.id} className={`border-b border-border last:border-0 ${isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
-                              <td className="px-4 py-2.5 font-mono text-xs">{fmtDate(a.start_date)}</td>
-                              <td className="px-4 py-2.5">
-                                <Badge variant={isAbsence ? 'destructive' : 'outline'} className="text-xs font-normal">
-                                  {a.adjustment_reason_description || '—'}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[180px] truncate" title={a.observation}>
-                                {a.observation || '—'}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <span className={`text-xs font-medium ${a.status === 'APROVADO' ? 'text-green-600' : 'text-yellow-600'}`}>
-                                  {a.status || '—'}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-center text-xs">
-                                {a.full_day ? <span className="text-destructive font-semibold">Sim</span> : <span className="text-muted-foreground">Não</span>}
-                              </td>
-                              <td className="px-4 py-2 text-right">
-                                {isAbsence ? (
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    disabled={readOnly}
-                                    className="h-7 w-28 font-mono text-xs text-right ml-auto border-destructive/40 focus:border-destructive"
-                                    placeholder="0,00"
-                                    value={absenceDiscounts[key] ?? ''}
-                                    onChange={e => setAbsenceDiscounts(prev => ({ ...prev, [key]: e.target.value }))}
-                                    onBlur={e => setAbsenceDiscounts(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
-                                  />
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {totalAbsenceDiscount > 0 && (
-                    <p className="text-xs text-muted-foreground">* O total de desconto de faltas ({formatCurrency(totalAbsenceDiscount)}) é refletido automaticamente no campo <strong>Faltas</strong> na aba Proventos.</p>
-                  )}
-                </div>
+                <AbsenceDiscountsTable
+                  pointAdjustments={pointAdjustments}
+                  absenceDiscounts={absenceDiscounts}
+                  setAbsenceDiscounts={setAbsenceDiscounts}
+                  readOnly={readOnly}
+                  isMotocyclist={false}
+                />
               )}
             </TabsContent>
 

@@ -25,11 +25,11 @@
     "absence_discount": {
       "type": "number",
       "default": 0,
-      "description": "Total desconto faltas (R$)"
+      "description": "Total desconto faltas (R$) \u2014 soma de todas as colunas de todos os ajustes"
     },
     "absence_discounts": {
       "type": "object",
-      "description": "Mapa de descontos por ajuste de ponto { [tangerino_id]: valor }",
+      "description": "Mapa de descontos por ajuste de ponto { [tangerino_id]: { daily, vt, vr, dsr, moto, hazard } }",
       "default": {}
     },
     "meal_voucher_day_value": {
