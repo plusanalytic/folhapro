@@ -303,13 +303,19 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     second_period_discount: 0,
   });
 
-  const baseQuinzenal = (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
-  const totalPagar = calc.total_pagar;    // líquido conv. + outros benefícios
+  const baseQuinzenal = calc.first_period_net !== undefined
+    ? (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2
+    : (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
+  // Usa total_a_pagar calculado com créditos/débitos quinzenais se disponível
+  const firstAdv = entry?.first_period_advance ?? 0;
+  const firstDiscountTotal = (entry?.first_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const secondDiscountTotal = (entry?.second_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const quinzenalLiquido = -firstDiscountTotal - secondDiscountTotal - firstAdv;
+  const totalPagar = entry?._total_a_pagar ?? Math.round((calc.liquido_convencao + calc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
   const firstDiscounts = entry?.first_discounts ?? [];
   const secondDiscounts = entry?.second_discounts ?? [];
-  const firstAdv = entry?.first_period_advance ?? 0;
   const monthName = getMonthName(month);
 
   // ── Proventos Convenção
@@ -443,12 +449,15 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
-            {firstDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
-                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
-              </div>
-            ))}
+            {firstDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
               <span style={{ color: '#6a3eaf' }}>A Receber</span>
               <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
@@ -459,12 +468,15 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
-            {secondDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
-                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
-              </div>
-            ))}
+            {secondDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
               <span style={{ color: '#6a3eaf' }}>A Receber</span>
               <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
@@ -489,6 +501,12 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
             <span style={{ color: '#0e7490' }}>+ Outros Benefícios</span>
             <span style={{ fontFamily: 'monospace', color: '#0e7490' }}>{formatCurrency(calc.total_outros_beneficios)}</span>
+          </div>
+        )}
+        {quinzenalLiquido !== 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ color: quinzenalLiquido >= 0 ? '#16a34a' : '#dc2626' }}>{quinzenalLiquido >= 0 ? '+ Créditos Quinzenais' : '− Débitos/Adiantamentos Quinzenais'}</span>
+            <span style={{ fontFamily: 'monospace', color: quinzenalLiquido >= 0 ? '#16a34a' : '#dc2626' }}>{quinzenalLiquido >= 0 ? '+' : '-'} {formatCurrency(Math.abs(quinzenalLiquido))}</span>
           </div>
         )}
       </div>
@@ -635,14 +653,34 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
       const firstDiscounts  = [...savedFirst,  ...firstFromCash];
       const secondDiscounts = [...savedSecond, ...secondFromCash];
 
-      const firstTotal  = firstDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
-      const secondTotal = secondDiscounts.reduce((s, x) => s + (x.amount || 0), 0);
+      // crédito reduz o total de desconto, débito aumenta — igual ao formulário
+      const firstTotal  = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+      const secondTotal = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
 
-      // Recalcula net quinzenal com os descontos atualizados
-      const netTotal = entry?.net_total ?? 0;
+      // Recalcula net quinzenal com os descontos atualizados (mesmo cálculo do EscritorioPayrollForm)
+      const calcEsc = calculateEscritorioPayroll({
+        base_salary: entry?.base_salary ?? 0,
+        meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+        meal_voucher_days: entry?.meal_voucher_days ?? 0,
+        meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+        transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
+        transport_voucher_days: entry?.transport_voucher_days ?? 0,
+        transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
+        inss_pct: entry?.inss_pct ?? 0,
+        inss_deduction: entry?.inss_deduction ?? 0,
+        dental_plan: entry?.dental_plan ?? 0,
+        food_voucher: entry?.food_voucher ?? 0,
+        bonus: entry?.bonus ?? 0,
+        birthday_bonus: entry?.birthday_bonus ?? 0,
+        absence_discount: entry?.absence_discount ?? 0,
+        first_period_advance: entry?.first_period_advance ?? 0,
+        first_period_discount: firstTotal,
+        second_period_discount: secondTotal,
+      });
       const firstAdv = entry?.first_period_advance ?? 0;
-      const firstNet  = Math.round(((netTotal / 2) - firstAdv  - firstTotal)  * 100) / 100;
-      const secondNet = Math.round(((netTotal / 2)             - secondTotal) * 100) / 100;
+      // Total a Pagar = líquido conv + outros benefícios + créditos - débitos - adiantamento
+      const quinzenalLiquido = -firstTotal - secondTotal - firstAdv;
+      const totalAPagar = Math.round((calcEsc.liquido_convencao + calcEsc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
 
       setMergedEntry({
         ...entry,
@@ -650,8 +688,9 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
         second_discounts:   secondDiscounts,
         first_period_discount:  firstTotal,
         second_period_discount: secondTotal,
-        first_period_net:   firstNet,
-        second_period_net:  secondNet,
+        first_period_net:   calcEsc.first_period_net,
+        second_period_net:  calcEsc.second_period_net,
+        _total_a_pagar:     totalAPagar,
       });
     });
   }, [employee.id, referenceMonth]);
