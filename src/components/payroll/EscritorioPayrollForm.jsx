@@ -113,6 +113,10 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
   const calc = calculateEscritorioPayroll(calcForm);
 
+  // Total a Pagar = Líquido Convenção + Outros Benefícios + líquido quinzenal (créditos - débitos - adiantamento)
+  const quinzenalLiquido = -firstDiscountTotal - secondDiscountTotal - (form.first_period_advance || 0);
+  const totalAPagar = calc.liquido_convencao + calc.total_outros_beneficios + quinzenalLiquido;
+
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
     const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
@@ -526,7 +530,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
                 <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
                   <span className="font-bold text-lg">Total a Pagar</span>
-                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.total_pagar)}</span>
+                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(totalAPagar)}</span>
                 </div>
 
                 <div className="border border-border rounded-lg px-4 py-2 flex justify-between items-center text-sm">
