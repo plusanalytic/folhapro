@@ -225,6 +225,22 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </div>
               </div>
 
+              <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
+
+              <Separator />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Row label="Seguro Odontológico">
+                  <NumInput field="dental_plan" />
+                </Row>
+                <Row label="Vale Alimentação">
+                  <NumInput field="food_voucher" />
+                </Row>
+                <Row label="Bonificação de Aniversário">
+                  <NumInput field="birthday_bonus" />
+                </Row>
+              </div>
+
               <div>
                 <Label>Vale Transporte</Label>
                 <div className="flex gap-2 mt-1 items-center">
@@ -243,22 +259,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="text-xs text-muted-foreground">Total VT</p>
                   </div>
                 </div>
-              </div>
-
-              <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
-
-              <Separator />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
-              <div className="grid grid-cols-2 gap-4">
-                <Row label="Seguro Odontológico">
-                  <NumInput field="dental_plan" />
-                </Row>
-                <Row label="Vale Alimentação">
-                  <NumInput field="food_voucher" />
-                </Row>
-                <Row label="Bonificação de Aniversário">
-                  <NumInput field="birthday_bonus" />
-                </Row>
               </div>
               <CalcRow label="Total Outros Benefícios" value={calc.total_outros_beneficios} />
 
