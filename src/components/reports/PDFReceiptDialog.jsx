@@ -296,6 +296,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     inss_deduction: entry?.inss_deduction ?? 0,
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
+    bonus: entry?.bonus ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
     first_period_advance: 0,
     first_period_discount: 0,
@@ -336,6 +337,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     { label: `Vale Transporte (${entry?.transport_voucher_days ?? 0}d × ${formatCurrency(entry?.transport_voucher_day_value ?? 0)})`, value: calc.transport_voucher, show: calc.transport_voucher > 0 },
     { label: 'Seguro Odontológico', value: entry?.dental_plan ?? 0, show: (entry?.dental_plan ?? 0) > 0 },
     { label: 'Vale Alimentação', value: entry?.food_voucher ?? 0, show: (entry?.food_voucher ?? 0) > 0 },
+    { label: 'Bonificação / Prêmio', value: entry?.bonus ?? 0, show: (entry?.bonus ?? 0) > 0 },
     { label: 'Bonificação Aniversário', value: entry?.birthday_bonus ?? 0, show: (entry?.birthday_bonus ?? 0) > 0 },
   ].filter(x => x.show);
 
