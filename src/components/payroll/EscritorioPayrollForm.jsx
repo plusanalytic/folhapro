@@ -20,11 +20,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
+    transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
+    transport_voucher_days: entry?.transport_voucher_days ?? workingDays,
     transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
-    transport_voucher: entry?.transport_voucher ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
     // Geral
@@ -130,6 +131,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       ...form,
       // campos calculados
       meal_voucher: calc.meal_voucher,
+      transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
       inss: 0,
       inss_pct: 0,
@@ -223,6 +225,26 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </div>
               </div>
 
+              <div>
+                <Label>Vale Transporte</Label>
+                <div className="flex gap-2 mt-1 items-center">
+                  <div className="flex-1">
+                    <NumInput field="transport_voucher_day_value" placeholder="Valor/dia" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor por dia trabalhado</p>
+                  </div>
+                  <span className="text-muted-foreground font-bold text-lg">×</span>
+                  <div className="w-24">
+                    <NumInput field="transport_voucher_days" step="1" min="0" className="text-center" />
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
+                  </div>
+                  <span className="text-muted-foreground">=</span>
+                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(calc.transport_voucher)}</p>
+                    <p className="text-xs text-muted-foreground">Total VT</p>
+                  </div>
+                </div>
+              </div>
+
               <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
 
               <Separator />
@@ -230,9 +252,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="grid grid-cols-2 gap-4">
                 <Row label="Seguro Odontológico">
                   <NumInput field="dental_plan" />
-                </Row>
-                <Row label="Vale Transporte">
-                  <NumInput field="transport_voucher" />
                 </Row>
                 <Row label="Vale Alimentação">
                   <NumInput field="food_voucher" />
@@ -440,7 +459,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <Separator className="my-2" />
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
                 {form.dental_plan > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Seguro Odontológico</span><span className="font-mono">{formatCurrency(form.dental_plan)}</span></div>}
-                {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
+                {calc.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte ({form.transport_voucher_days}d × {formatCurrency(form.transport_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.transport_voucher)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
                 {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono">{formatCurrency(form.birthday_bonus)}</span></div>}
                 {calc.total_outros_beneficios > 0 && (
