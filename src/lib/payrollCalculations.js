@@ -92,21 +92,23 @@ export function calculateEscritorioPayroll(entry) {
     inss = calculateINSS(inssBase);
   }
 
-  const transportVoucherDiscount = Math.round(mealVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
-  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const transportVoucher = entry.transport_voucher || 0;
+  const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const mealVoucherDiscount = Math.round(transportVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+
+  const inssDeduction = entry.inss_deduction || 0;
 
   const totalDescConvencao = inss + transportVoucherDiscount + mealVoucherDiscount;
   const liquidoConvencao = totalConvencao - totalDescConvencao;
 
   // Outros benefícios
   const dental = entry.dental_plan || 0;
-  const transportVoucher = entry.transport_voucher || 0;
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
   const totalOutrosBeneficios = dental + transportVoucher + foodVoucher + birthdayBonus;
 
   const grossTotal = totalConvencao + totalOutrosBeneficios;
-  const netTotal = liquidoConvencao + totalOutrosBeneficios;
+  const netTotal = liquidoConvencao + totalOutrosBeneficios - inssDeduction;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
@@ -122,6 +124,7 @@ export function calculateEscritorioPayroll(entry) {
     total_convencao: Math.round(totalConvencao * 100) / 100,
     inss,
     inss_net: inss,
+    inss_deduction: inssDeduction,
     transport_voucher_discount: transportVoucherDiscount,
     meal_voucher_discount: mealVoucherDiscount,
     total_desc_convencao: Math.round(totalDescConvencao * 100) / 100,

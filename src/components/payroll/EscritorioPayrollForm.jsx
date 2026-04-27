@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
     inss_pct: entry?.inss_pct ?? 0,
+    inss_deduction: entry?.inss_deduction ?? 0,
     transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     // Outros Benefícios
@@ -67,6 +68,35 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
+  // Input numérico que não perde foco e permite apagar o zero
+  const NumInput = ({ field, className = '', step = '0.01', min, placeholder }) => {
+    const [local, setLocal] = useState(String(form[field] ?? ''));
+    // Sincroniza quando form muda externamente
+    const formVal = String(form[field] ?? '');
+    useEffect(() => {
+      setLocal(formVal);
+    }, [formVal]);
+    return (
+      <Input
+        className={`font-mono ${className}`}
+        type="number"
+        step={step}
+        min={min}
+        placeholder={placeholder}
+        value={local}
+        disabled={readOnly}
+        onFocus={e => e.target.select()}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={e => {
+          const parsed = parseFloat(e.target.value);
+          const val = isNaN(parsed) ? 0 : parsed;
+          setLocal(String(val));
+          set(field, val);
+        }}
+      />
+    );
+  };
+
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => s + (r.amount || 0), 0);
 
@@ -105,6 +135,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       meal_voucher_discount: calc.meal_voucher_discount,
       inss: calc.inss,
       inss_pct: form.inss_pct,
+      inss_deduction: form.inss_deduction,
       fgts: calc.fgts,
       irrf: calc.irrf,
       gross_total: calc.gross_total,
@@ -170,7 +201,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
               <div className="grid grid-cols-2 gap-4">
                 <Row label="Piso Salarial" hint="Valor bruto do salário base">
-                  <Input className="font-mono" type="number" step="0.01" value={form.base_salary} onChange={e => setNum('base_salary', e.target.value)} disabled={readOnly} />
+                  <NumInput field="base_salary" />
                 </Row>
               </div>
 
@@ -178,12 +209,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <Label>Vale Refeição</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <Input className="font-mono" type="number" step="0.01" placeholder="Valor/dia" value={form.meal_voucher_day_value} onChange={e => setNum('meal_voucher_day_value', e.target.value)} disabled={readOnly} />
+                    <NumInput field="meal_voucher_day_value" placeholder="Valor/dia" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por dia trabalhado</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="w-24">
-                    <Input className="font-mono text-center" type="number" step="1" min="0" value={form.meal_voucher_days} onChange={e => setNum('meal_voucher_days', e.target.value)} disabled={readOnly} />
+                    <NumInput field="meal_voucher_days" step="1" min="0" className="text-center" />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -200,16 +231,16 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
               <div className="grid grid-cols-2 gap-4">
                 <Row label="Seguro Odontológico">
-                  <Input className="font-mono" type="number" step="0.01" value={form.dental_plan} onChange={e => setNum('dental_plan', e.target.value)} disabled={readOnly} />
+                  <NumInput field="dental_plan" />
                 </Row>
                 <Row label="Vale Transporte">
-                  <Input className="font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
+                  <NumInput field="transport_voucher" />
                 </Row>
                 <Row label="Vale Alimentação">
-                  <Input className="font-mono" type="number" step="0.01" value={form.food_voucher} onChange={e => setNum('food_voucher', e.target.value)} disabled={readOnly} />
+                  <NumInput field="food_voucher" />
                 </Row>
                 <Row label="Bonificação de Aniversário">
-                  <Input className="font-mono" type="number" step="0.01" value={form.birthday_bonus} onChange={e => setNum('birthday_bonus', e.target.value)} disabled={readOnly} />
+                  <NumInput field="birthday_bonus" />
                 </Row>
               </div>
               <CalcRow label="Total Outros Benefícios" value={calc.total_outros_beneficios} />
@@ -218,22 +249,27 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos Convenção</p>
 
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Desconto INSS (%)" hint="Resultado automático: % sobre o piso salarial">
+                <Row label="Desconto INSS (%)" hint="Deixe 0 para usar tabela progressiva INSS 2026">
                   <div className="flex gap-2 items-center">
-                    <Input className="font-mono" type="number" step="0.01" min="0" placeholder="0 = tabela INSS" value={form.inss_pct} onChange={e => setNum('inss_pct', e.target.value)} disabled={readOnly} />
+                    <NumInput field="inss_pct" min="0" placeholder="0 = tabela INSS" />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
                 </Row>
-                <Row label="Desconto Vale Transporte (%)" hint="Resultado automático: % sobre o valor do vale transporte">
+                <Row label="Dedução INSS (R$)" hint="Valor a subtrair do total bruto">
                   <div className="flex gap-2 items-center">
-                    <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.transport_voucher_discount_pct} onChange={e => setNum('transport_voucher_discount_pct', e.target.value)} disabled={readOnly} />
+                    <NumInput field="inss_deduction" min="0" placeholder="0,00" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">- {formatCurrency(calc.inss_deduction)}</span>
+                  </div>
+                </Row>
+                <Row label="Desconto Vale Transporte (%)" hint="% sobre o valor do vale transporte">
+                  <div className="flex gap-2 items-center">
+                    <NumInput field="transport_voucher_discount_pct" min="0" placeholder="%" />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.transport_voucher_discount)}</span>
                   </div>
                 </Row>
-                <Row label="Desconto Vale Refeição (%)" hint="Resultado automático: % sobre o total do vale refeição">
+                <Row label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale transporte">
                   <div className="flex gap-2 items-center">
-                    <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.meal_voucher_discount_pct} onChange={e => setNum('meal_voucher_discount_pct', e.target.value)} disabled={readOnly} />
+                    <NumInput field="meal_voucher_discount_pct" min="0" placeholder="%" />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                   </div>
                 </Row>
@@ -285,7 +321,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   </div>
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
-                    <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} disabled={readOnly} />
+                    <NumInput field="first_period_advance" className="mt-1 h-8 text-sm" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
@@ -402,6 +438,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-destructive">Desconto INSS{form.inss_pct > 0 ? ` (${form.inss_pct}%)` : ' (tabela progressiva)'}</span>
                     <span className="font-mono text-destructive">- {formatCurrency(calc.inss)}</span>
+                  </div>
+                )}
+                {calc.inss_deduction > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-destructive">Dedução INSS</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(calc.inss_deduction)}</span>
                   </div>
                 )}
                 {calc.transport_voucher_discount > 0 && (

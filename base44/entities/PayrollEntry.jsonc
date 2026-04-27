@@ -90,6 +90,11 @@
       "type": "number",
       "default": 0
     },
+    "inss_deduction": {
+      "type": "number",
+      "default": 0,
+      "description": "Dedu\u00e7\u00e3o INSS \u2014 valor subtra\u00eddo do total bruto (Escrit\u00f3rio)"
+    },
     "inss": {
       "type": "number",
       "default": 0
