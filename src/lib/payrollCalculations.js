@@ -102,14 +102,15 @@ export function calculateEscritorioPayroll(entry) {
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
   const bonus = entry.bonus || 0;
-  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + birthdayBonus;
+  // VT + odontológico ficam fora do líquido; bonificações entram no líquido (diluídas nas quinzenas)
+  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher;
 
   // Desconto de faltas (vindo dos ajustes de ponto)
   const absenceDiscount = entry.absence_discount || 0;
 
-  // gross_total e net_total incluem a bonificação
-  const grossTotal = totalConvencao + bonus;
-  const netTotal = totalConvencao + bonus - totalDescConvencao - absenceDiscount;
+  // gross_total e net_total incluem bonificação e bonificação de aniversário (ambas diluídas 50/50)
+  const grossTotal = totalConvencao + bonus + birthdayBonus;
+  const netTotal = totalConvencao + bonus + birthdayBonus - totalDescConvencao - absenceDiscount;
 
   // Total final a pagar ao colaborador (líquido + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;

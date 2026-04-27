@@ -254,14 +254,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <CalcRow label="Total Custos Convenção Coletiva" value={calc.total_convencao} />
 
               <Separator />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificação</p>
-              <div className="grid grid-cols-2 gap-4">
-                <Row label="Bonificação / Prêmio" hint="Somado ao líquido e dividido nas quinzenas (50/50)">
-                  <NumInput field="bonus" />
-                </Row>
-              </div>
-
-              <Separator />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
               <div className="grid grid-cols-2 gap-4">
                 <Row label="Seguro Odontológico">
@@ -270,7 +262,15 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <Row label="Vale Alimentação">
                   <NumInput field="food_voucher" />
                 </Row>
-                <Row label="Bonificação de Aniversário">
+              </div>
+
+              <Separator />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (diluídas nas quinzenas)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Row label="Bonificação / Prêmio" hint="Somado ao líquido e dividido 50/50">
+                  <NumInput field="bonus" />
+                </Row>
+                <Row label="Bonificação de Aniversário" hint="Somado ao líquido e dividido 50/50">
                   <NumInput field="birthday_bonus" />
                 </Row>
               </div>
@@ -480,7 +480,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 {calc.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte ({form.transport_voucher_days}d × {formatCurrency(form.transport_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.transport_voucher)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
                 {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
-                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono">{formatCurrency(form.birthday_bonus)}</span></div>}
+                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono text-green-600">{formatCurrency(form.birthday_bonus)}</span></div>}
                 {calc.total_outros_beneficios > 0 && (
                   <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
                     <span>Total Outros Benefícios</span>
