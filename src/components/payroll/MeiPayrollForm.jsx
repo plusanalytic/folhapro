@@ -6,21 +6,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
+import { formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import { base44 } from '@/api/base44Client';
+
+// Calcula dias úteis da 1ª quinzena (dias 1–15) e 2ª quinzena (dias 16–fim)
+function getWorkingDaysByPeriod(yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  let first = 0, second = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (nationalHolidays.includes(mmdd)) continue;
+    if (d <= 15) first++; else second++;
+  }
+  return { first, second };
+}
 
 // Cálculo MEI:
 // - remuneracao = (valor_base / dias_uteis_mes) * dias_uteis_trabalhados
 // - Gross = remuneracao + KM + Ajuda de Custo + Moto + Bônus + Outros
 // - Net = Gross - Seguro de Vida
-// - Quinzenal = net rateado pelo split (padrão 50/50), 2ª + KM + AjudaCusto
+// - Quinzenal = net rateado pelos dias úteis de cada quinzena
 function calculateMeiPayroll(entry) {
   const valorBase = entry.base_salary || 0;
   const diasMes = entry.working_days_month || 1;
   const diasTrabalhados = entry.working_days_worked || diasMes;
-  // Remuneração proporcional aos dias trabalhados
   const remuneracao = Math.round((valorBase / diasMes) * diasTrabalhados * 100) / 100;
 
   const kmBonus = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
@@ -34,8 +50,13 @@ function calculateMeiPayroll(entry) {
   const grossTotal = remuneracao + kmBonus + costAllowance + motoRental + bonus + otherBenefits;
   const netTotal = grossTotal - lifeInsurance;
 
-  const splitFirst = entry.first_period_split != null ? entry.first_period_split : 0.5;
-  const splitSecond = 1 - splitFirst;
+  // Rateio por dias úteis de cada quinzena
+  const diasQ1 = entry.working_days_first || 0;
+  const diasQ2 = entry.working_days_second || 0;
+  const totalQDias = diasQ1 + diasQ2 || 1;
+  const splitFirst = diasQ1 / totalQDias;
+  const splitSecond = diasQ2 / totalQDias;
+
   const firstBase = Math.round(netTotal * splitFirst * 100) / 100;
   const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
 
@@ -53,6 +74,8 @@ function calculateMeiPayroll(entry) {
     net_total: Math.round(netTotal * 100) / 100,
     first_period_base: firstBase,
     second_period_base: secondBase,
+    split_first: splitFirst,
+    split_second: splitSecond,
     first_period_net: Math.round(firstPeriodNet * 100) / 100,
     second_period_net: Math.round(secondPeriodNet * 100) / 100,
   };
@@ -60,12 +83,15 @@ function calculateMeiPayroll(entry) {
 
 export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
+  const defaultPeriods = getWorkingDaysByPeriod(referenceMonth);
 
   const [form, setForm] = useState({
     company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
     working_days_month: entry?.working_days_month ?? workingDays,
     working_days_worked: entry?.working_days_worked ?? workingDays,
+    working_days_first: entry?.working_days_first ?? defaultPeriods.first,
+    working_days_second: entry?.working_days_second ?? defaultPeriods.second,
     food_voucher: entry?.food_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 0,
@@ -80,7 +106,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
-  const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
   const [installmentDialog, setInstallmentDialog] = useState(null);
 
   // Carregar CashOuts do colaborador no mês
@@ -121,10 +146,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     ...form,
     first_period_discount: firstDiscountTotal,
     second_period_discount: secondDiscountTotal,
-    first_period_split: firstPeriodSplit,
   };
   const calc = calculateMeiPayroll(calcForm);
-  // Alias para exibição
   const remuneracao = calc.remuneracao;
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
@@ -154,15 +177,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const handleSave = () => {
     onSave({
       ...form,
-      base_salary: form.base_salary,
-      working_days_month: form.working_days_month,
-      working_days_worked: form.working_days_worked,
-      km_bonus_qty: form.km_bonus_qty,
-      km_bonus_value: form.km_bonus_value,
       km_bonus: calc.km_bonus,
-      cost_allowance: form.cost_allowance,
-      life_insurance: form.life_insurance,
-      food_voucher: form.food_voucher,
       gross_total: calc.gross_total,
       net_total: calc.net_total,
       first_period_discount: firstDiscountTotal,
@@ -171,9 +186,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       second_discounts: secondDiscounts,
       first_period_net: calc.first_period_net,
       second_period_net: calc.second_period_net,
-      first_period_split: firstPeriodSplit,
+      first_period_split: calc.split_first,
       reference_month: referenceMonth,
-      // MEI não tem faltas/INSS/IRRF/PJ
       pj_retention: 0,
       absence_discount: 0,
       absence_discounts: {},
@@ -233,8 +247,14 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       type="number" step="1" min="1" disabled={readOnly}
                       className="mt-1 font-mono"
                       value={form.working_days_month === 0 ? '' : String(form.working_days_month)}
-                      onChange={e => set('working_days_month', e.target.value)}
-                      onBlur={e => setNum('working_days_month', e.target.value)}
+                      onChange={e => {
+                        const total = parseInt(e.target.value) || 0;
+                        const periods = getWorkingDaysByPeriod(referenceMonth);
+                        const ratio = periods.first + periods.second > 0 ? periods.first / (periods.first + periods.second) : 0.5;
+                        set('working_days_month', total);
+                        set('working_days_first', Math.round(total * ratio));
+                        set('working_days_second', total - Math.round(total * ratio));
+                      }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                   </div>
@@ -346,55 +366,60 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
             {/* ── ABA: Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
-              {/* Rateio editável */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted/30 rounded-lg px-4 py-3">
-                  <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-                  {readOnly ? (
-                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base)}</p>
-                  ) : (
+              {/* Rateio por dias úteis */}
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Dias Úteis por Quinzena — Rateio da Remuneração
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      className="font-mono font-bold text-lg h-9"
-                      value={calc.first_period_base}
+                      type="number" step="1" min="0" disabled={readOnly}
+                      className="mt-1 font-mono"
+                      value={form.working_days_first === 0 ? '' : String(form.working_days_first)}
                       onChange={e => {
-                        const v = parseFloat(e.target.value) || 0;
-                        const split = calc.net_total > 0 ? Math.min(1, Math.max(0, v / calc.net_total)) : 0.5;
-                        setFirstPeriodSplit(split);
+                        const v = parseInt(e.target.value) || 0;
+                        const total = form.working_days_month || (v + form.working_days_second);
+                        set('working_days_first', v);
+                        set('working_days_second', Math.max(0, total - v));
                       }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
+                  </div>
+                  <div>
+                    <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
+                    <Input
+                      type="number" step="1" min="0" disabled={readOnly}
+                      className="mt-1 font-mono"
+                      value={form.working_days_second === 0 ? '' : String(form.working_days_second)}
+                      onChange={e => {
+                        const v = parseInt(e.target.value) || 0;
+                        const total = form.working_days_month || (form.working_days_first + v);
+                        set('working_days_second', v);
+                        set('working_days_first', Math.max(0, total - v));
+                      }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  </div>
                 </div>
-                <div className="bg-muted/30 rounded-lg px-4 py-3">
-                  <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-                  {readOnly ? (
-                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base)}</p>
-                  ) : (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="font-mono font-bold text-lg h-9"
-                      value={calc.second_period_base}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value) || 0;
-                        const split = calc.net_total > 0 ? Math.min(1, Math.max(0, 1 - v / calc.net_total)) : 0.5;
-                        setFirstPeriodSplit(split);
-                      }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Base 1ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{form.working_days_first} / {form.working_days_first + form.working_days_second} dias ({Math.round(calc.split_first * 100)}%)</p>
+                    </div>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.first_period_base)}</p>
+                  </div>
+                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Base 2ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{form.working_days_second} / {form.working_days_first + form.working_days_second} dias ({Math.round(calc.split_second * 100)}%)</p>
+                    </div>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.second_period_base)}</p>
+                  </div>
                 </div>
               </div>
-              {firstPeriodSplit !== 0.5 && (
-                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
-                  {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
-                </div>
-              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1ª Quinzena */}
