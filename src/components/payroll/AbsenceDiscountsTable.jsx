@@ -78,7 +78,7 @@ function calcAutoForReason(reasonId, payrollForm, isMotocyclist) {
 }
 
 export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscounts, setAbsenceDiscounts, readOnly, isMotocyclist, payrollForm }) {
-  // Ao montar ou quando os ajustes mudam, pré-preenche automaticamente linhas ainda zeradas
+  // Ao montar ou quando os ajustes mudam, pré-preenche automaticamente linhas ainda zeradas E não editadas manualmente
   useEffect(() => {
     if (readOnly || !payrollForm) return;
     const absenceRows = pointAdjustments.filter(a => ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id)));
@@ -87,11 +87,12 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
     setAbsenceDiscounts(prev => {
       const next = { ...prev };
       absenceRows.forEach(a => {
-        // Usa a data expandida se disponível, para garantir chaves únicas por dia
         const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
         const existing = prev[key];
+        // Só auto-preenche se: nunca preenchido OU totalmente zerado E não foi editado manualmente
         const isBlank = !existing || rowTotal(existing) === 0;
-        if (isBlank) {
+        const wasManuallyEdited = existing?._manual === true;
+        if (isBlank && !wasManuallyEdited) {
           next[key] = calcAutoForReason(a.adjustment_reason_id, payrollForm, isMotocyclist);
         }
       });
@@ -101,11 +102,12 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pointAdjustments]);
 
+  // Edição manual: marca a linha como editada manualmente para não ser sobrescrita pelo auto
   const setCell = (key, col, val) => {
     if (readOnly) return;
     setAbsenceDiscounts(prev => ({
       ...prev,
-      [key]: { ...(prev[key] || {}), [col]: val },
+      [key]: { ...(prev[key] || {}), [col]: val, _manual: true },
     }));
   };
 
@@ -113,16 +115,16 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
     if (readOnly) return;
     setAbsenceDiscounts(prev => ({
       ...prev,
-      [key]: { ...(prev[key] || {}), [col]: parseFloat(val) || 0 },
+      [key]: { ...(prev[key] || {}), [col]: parseFloat(val) || 0, _manual: true },
     }));
   };
 
-  // Recalcula automaticamente uma linha específica com os valores atuais do form
+  // Recalcula automaticamente uma linha específica (reseta flag manual)
   const recalcRow = (key, reasonId) => {
     if (readOnly || !payrollForm) return;
     setAbsenceDiscounts(prev => ({
       ...prev,
-      [key]: calcAutoForReason(reasonId, payrollForm, isMotocyclist),
+      [key]: { ...calcAutoForReason(reasonId, payrollForm, isMotocyclist), _manual: false },
     }));
   };
 
@@ -139,7 +141,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
         value={val}
         onChange={e => setCell(rowKey, col, e.target.value)}
         onBlur={e => blurCell(rowKey, col, e.target.value)}
-        onFocus={e => e.target.select()}
+        onFocus={e => { e.target.select(); }}
       />
     );
   };
@@ -190,9 +192,9 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           <tbody>
             {allRows.map((a, i) => {
                const isAbsence = ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id));
-               // Usa a data expandida se disponível, para chave única por dia
                const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
                const total = rowTotal(absenceDiscounts[key]);
+               const isManual = absenceDiscounts[key]?._manual === true;
               return (
                 <tr key={`${a.id}-${a.date || a.start_date}`} className={`border-b border-border last:border-0 ${isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
                   <td className="px-3 py-2 font-mono whitespace-nowrap">{fmtDate(a.date || a.start_date)}</td>
@@ -224,8 +226,8 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-primary"
-                            title="Recalcular automaticamente"
+                            className={`h-7 w-7 ${isManual ? 'text-amber-500 hover:text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                            title={isManual ? 'Editado manualmente — clique para recalcular automaticamente' : 'Recalcular automaticamente'}
                             onClick={() => recalcRow(key, a.adjustment_reason_id)}
                           >
                             <Wand2 className="w-3.5 h-3.5" />
@@ -272,6 +274,9 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
       {grandTotal > 0 && (
         <p className="text-xs text-muted-foreground">
           * O total de desconto de faltas (<strong>{formatCurrency(grandTotal)}</strong>) é refletido automaticamente no campo <strong>Faltas</strong> na aba Proventos.
+          {Object.values(absenceDiscounts).some(v => v?._manual) && (
+            <span className="ml-2 text-amber-600 font-medium">⚠ Algumas linhas foram editadas manualmente (ícone laranja). Clique no ícone <Wand2 className="inline w-3 h-3" /> para recalcular.</span>
+          )}
         </p>
       )}
     </div>

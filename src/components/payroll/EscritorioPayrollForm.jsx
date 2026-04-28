@@ -109,14 +109,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
-  // Input numérico que não perde foco e permite apagar o zero
+  // Input numérico que não perde foco, permite apagar o zero para redigitar
   const NumInput = ({ field, className = '', step = '0.01', min, placeholder }) => {
-    const [local, setLocal] = useState(String(form[field] ?? ''));
-    // Sincroniza quando form muda externamente
-    const formVal = String(form[field] ?? '');
-    useEffect(() => {
-      setLocal(formVal);
-    }, [formVal]);
+    const [local, setLocal] = useState(null); // null = não está sendo editado
+    const externalVal = form[field] ?? 0;
+    const displayVal = local !== null ? local : (externalVal === 0 ? '' : String(externalVal));
     return (
       <Input
         className={`font-mono ${className}`}
@@ -124,15 +121,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
         step={step}
         min={min}
         placeholder={placeholder}
-        value={local}
+        value={displayVal}
         disabled={readOnly}
-        onFocus={e => e.target.select()}
+        onFocus={e => {
+          setLocal(externalVal === 0 ? '' : String(externalVal));
+          setTimeout(() => e.target.select(), 0);
+        }}
         onChange={e => setLocal(e.target.value)}
         onBlur={e => {
           const parsed = parseFloat(e.target.value);
           const val = isNaN(parsed) ? 0 : parsed;
-          setLocal(String(val));
           set(field, val);
+          setLocal(null);
         }}
       />
     );

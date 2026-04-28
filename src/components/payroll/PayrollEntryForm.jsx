@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -152,6 +152,24 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
+  // Helper para criar props de input numérico com UX melhorada:
+  // - Não sai do campo ao digitar (usa set() em vez de setNum() no onChange)
+  // - Converte para número só no blur
+  // - Permite zerar (mostra "" quando o valor é 0)
+  const numericField = useCallback((key) => {
+    const externalVal = form[key] ?? 0;
+    return {
+      type: 'number',
+      step: 'any',
+      disabled: readOnly,
+      className: 'mt-1 font-mono',
+      value: externalVal === 0 ? '' : String(externalVal),
+      onChange: (e) => set(key, e.target.value),
+      onBlur: (e) => setNum(key, e.target.value),
+      onFocus: (e) => setTimeout(() => e.target.select(), 0),
+    };
+  }, [form, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // crédito reduz o total de desconto, débito aumenta
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
@@ -251,7 +269,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Salário Base / Valor Fixo</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.base_salary} onChange={e => setNum('base_salary', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('base_salary')} />
               </div>
               <div>
                 <Label>Desconto de Faltas (R$)</Label>
@@ -281,12 +299,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <Label>Vale Refeição</Label>
               <div className="flex gap-2 mt-1 items-center">
                 <div className="flex-1">
-                  <Input className="font-mono" type="number" step="0.01" placeholder="Valor/dia" value={form.meal_voucher_day_value} onChange={e => setNum('meal_voucher_day_value', e.target.value)} disabled={readOnly} />
+                  <Input {...numericField('meal_voucher_day_value')} className="font-mono" placeholder="Valor/dia" />
                   <p className="text-xs text-muted-foreground mt-0.5">Valor por dia</p>
                 </div>
                 <span className="text-muted-foreground font-bold text-lg">×</span>
                 <div className="w-24">
-                  <Input className="font-mono text-center" type="number" step="1" min="0" value={form.meal_voucher_days} onChange={e => setNum('meal_voucher_days', e.target.value)} disabled={readOnly} />
+                  <Input {...numericField('meal_voucher_days')} className="font-mono text-center" />
                   <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
                 </div>
                 <span className="text-muted-foreground">=</span>
@@ -300,25 +318,25 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             {show('food_voucher') && (
               <div>
                 <Label>Vale Alimentação</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.food_voucher} onChange={e => setNum('food_voucher', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('food_voucher')} />
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
               {show('transport_voucher') && <div>
                 <Label>Vale Transporte</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('transport_voucher')} />
               </div>}
               {show('km_bonus') && <div className="col-span-2">
                 <Label>KM Adicional</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <Input className="font-mono" type="number" step="1" min="0" placeholder="Qtd. KM" value={form.km_bonus_qty} onChange={e => setNum('km_bonus_qty', e.target.value)} disabled={readOnly} />
+                    <Input {...numericField('km_bonus_qty')} className="font-mono" placeholder="Qtd. KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Quantidade de KM</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="flex-1">
-                    <Input className="font-mono" type="number" step="0.01" min="0" placeholder="R$/KM" value={form.km_bonus_value} onChange={e => setNum('km_bonus_value', e.target.value)} disabled={readOnly} />
+                    <Input {...numericField('km_bonus_value')} className="font-mono" placeholder="R$/KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por KM (R$)</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -330,23 +348,23 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </div>}
               {show('km_bonus') && <div>
                 <Label>Ajuda de Custo</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.cost_allowance} onChange={e => setNum('cost_allowance', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('cost_allowance')} />
               </div>}
               {show('motorcycle_rental') && <div>
                 <Label>Aluguel da Motocicleta</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.motorcycle_rental} onChange={e => setNum('motorcycle_rental', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('motorcycle_rental')} />
               </div>}
               {show('hazard_pay') && <div>
                 <Label>Periculosidade</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.hazard_pay} onChange={e => setNum('hazard_pay', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('hazard_pay')} />
               </div>}
               <div>
                 <Label>Bonificação / Prêmio</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.bonus} onChange={e => setNum('bonus', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('bonus')} />
               </div>
               <div>
                 <Label>Outros Benefícios</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.other_benefits} onChange={e => setNum('other_benefits', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('other_benefits')} />
               </div>
             </div>
 
@@ -355,18 +373,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               {show('union_contribution_pct') && <div>
                 <Label>Contribuição Assistencial (R$)</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" min="0" value={form.union_contribution_value} onChange={e => setNum('union_contribution_value', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('union_contribution_value')} />
               </div>}
               {show('meal_voucher_discount_pct') && <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
                 <div className="flex gap-2 mt-1 items-center">
-                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.meal_voucher_discount_pct} onChange={e => setNum('meal_voucher_discount_pct', e.target.value)} disabled={readOnly} />
+                  <Input {...numericField('meal_voucher_discount_pct')} className="font-mono" placeholder="%" />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                 </div>
               </div>}
               {show('life_insurance') && <div>
                 <Label>Seguro de Vida (R$)</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.life_insurance} onChange={e => setNum('life_insurance', e.target.value)} disabled={readOnly} />
+                <Input {...numericField('life_insurance')} />
               </div>}
             </div>
 
@@ -377,7 +395,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Retenção PJ</Label>
-                    <Input className="mt-1 font-mono" type="number" step="0.01" value={form.pj_retention} onChange={e => setNum('pj_retention', e.target.value)} disabled={readOnly} />
+                    <Input {...numericField('pj_retention')} />
                   </div>
                 </div>
               </>
@@ -391,7 +409,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div>
                     <Label>INSS % (base: salário + periculosidade)</Label>
                     <div className="flex gap-2 mt-1 items-center">
-                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="% ou deixe 0 para tabela" value={form.inss_pct} onChange={e => setNum('inss_pct', e.target.value)} disabled={readOnly} />
+                      <Input {...numericField('inss_pct')} className="font-mono" placeholder="% ou deixe 0 para tabela" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
@@ -399,7 +417,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div>
                     <Label>Desconto INSS (R$)</Label>
                     <div className="flex gap-2 mt-1 items-center">
-                      <Input className="font-mono" type="number" step="0.01" min="0" placeholder="Valor a descontar do INSS" value={form.inss_discount} onChange={e => setNum('inss_discount', e.target.value)} disabled={readOnly} />
+                      <Input {...numericField('inss_discount')} className="font-mono" placeholder="Valor a descontar do INSS" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">INSS líquido: {formatCurrency(calc.inss_net)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Reduz o INSS calculado no total a receber</p>
@@ -454,7 +472,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                  )}
                 <div>
                   <Label className="text-xs">Adiantamento</Label>
-                  <Input className="mt-1 font-mono h-8 text-sm" type="number" step="0.01" value={form.first_period_advance} onChange={e => setNum('first_period_advance', e.target.value)} disabled={readOnly} />
+                  <Input {...numericField('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
