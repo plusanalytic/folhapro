@@ -177,14 +177,18 @@ export function calculatePayroll(entry, contractType) {
   // Vale Refeição = valor dia * dias
   const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
 
+  // KM adicional = quantidade × valor unitário
+  const kmBonus = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+  const costAllowance = entry.cost_allowance || 0;
+
   const totalBenefits = mealVoucher + (entry.transport_voucher || 0) +
-    (entry.km_bonus || 0) + (entry.motorcycle_rental || 0) + (entry.hazard_pay || 0) +
-    (entry.bonus || 0) + (entry.other_benefits || 0);
+    kmBonus + (entry.motorcycle_rental || 0) + (entry.hazard_pay || 0) +
+    (entry.bonus || 0) + (entry.other_benefits || 0) + costAllowance;
 
   const grossTotal = salaryAfterAbsence + totalBenefits;
 
-  // Contribuição Assistencial (%) sobre piso salarial (base_salary)
-  const unionContribution = Math.round(salary * ((entry.union_contribution_pct || 0) / 100) * 100) / 100;
+  // Contribuição Assistencial — valor fixo em R$
+  const unionContribution = entry.union_contribution_value != null ? (entry.union_contribution_value || 0) : 35;
   // Desconto VR (%) sobre total do VR
   const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
   // Seguro de vida
@@ -197,11 +201,13 @@ export function calculatePayroll(entry, contractType) {
   const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance;
   const netTotal = grossTotal - totalDiscounts;
 
-  // Quinzenal split — Vale Alimentação somado na 1ª quinzena, demais 50/50
+  // Quinzenal split:
+  // Vale Alimentação → 1ª quinzena
+  // KM Adicional + Ajuda de Custo → 2ª quinzena
   const foodVoucherVal = entry.food_voucher || 0;
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = (netTotal / 2) - (entry.second_period_discount || 0);
+  const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0);
 
   return {
     absence_discount: absenceDiscount,
@@ -210,6 +216,7 @@ export function calculatePayroll(entry, contractType) {
     fgts,
     irrf,
     meal_voucher: mealVoucher,
+    km_bonus: kmBonus,
     union_contribution: unionContribution,
     meal_voucher_discount: mealVoucherDiscount,
     gross_total: Math.round(grossTotal * 100) / 100,

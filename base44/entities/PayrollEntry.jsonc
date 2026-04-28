@@ -25,11 +25,11 @@
     "absence_discount": {
       "type": "number",
       "default": 0,
-      "description": "Total desconto faltas (R$) \u2014 soma de todas as colunas de todos os ajustes"
+      "description": "Total desconto faltas (R$)"
     },
     "absence_discounts": {
       "type": "object",
-      "description": "Mapa de descontos por ajuste de ponto { [tangerino_id]: { daily, vt, vr, dsr, moto, hazard } }",
+      "description": "Mapa de descontos por ajuste de ponto",
       "default": {}
     },
     "meal_voucher_day_value": {
@@ -44,23 +44,42 @@
       "type": "number",
       "default": 0
     },
+    "food_voucher": {
+      "type": "number",
+      "default": 0,
+      "description": "Vale alimenta\u00e7\u00e3o (pago na 1\u00aa quinzena)"
+    },
     "transport_voucher": {
       "type": "number",
       "default": 0
     },
     "transport_voucher_day_value": {
       "type": "number",
-      "default": 0,
-      "description": "Valor por dia do vale transporte (Escrit\u00f3rio)"
+      "default": 0
     },
     "transport_voucher_days": {
       "type": "number",
+      "default": 0
+    },
+    "km_bonus_qty": {
+      "type": "number",
       "default": 0,
-      "description": "Quantidade de dias \u00fateis do vale transporte (Escrit\u00f3rio)"
+      "description": "Quantidade de KM adicional"
+    },
+    "km_bonus_value": {
+      "type": "number",
+      "default": 0,
+      "description": "Valor por KM (R$)"
     },
     "km_bonus": {
       "type": "number",
-      "default": 0
+      "default": 0,
+      "description": "Total KM adicional (qty \u00d7 value)"
+    },
+    "cost_allowance": {
+      "type": "number",
+      "default": 0,
+      "description": "Ajuda de custo (paga na 2\u00aa quinzena)"
     },
     "motorcycle_rental": {
       "type": "number",
@@ -78,9 +97,15 @@
       "type": "number",
       "default": 0
     },
+    "union_contribution_value": {
+      "type": "number",
+      "default": 35,
+      "description": "Contribui\u00e7\u00e3o Assistencial (R$ fixo)"
+    },
     "union_contribution_pct": {
       "type": "number",
-      "default": 0
+      "default": 0,
+      "description": "Legado \u2014 % contribui\u00e7\u00e3o (n\u00e3o usado no novo modelo)"
     },
     "union_contribution": {
       "type": "number",
@@ -108,8 +133,7 @@
     },
     "inss_deduction": {
       "type": "number",
-      "default": 0,
-      "description": "Dedu\u00e7\u00e3o INSS \u2014 valor subtra\u00eddo do total bruto (Escrit\u00f3rio)"
+      "default": 0
     },
     "inss": {
       "type": "number",
@@ -133,12 +157,10 @@
     },
     "first_period_discount": {
       "type": "number",
-      "default": 0,
-      "description": "Total descontos 1\u00aa quinzena"
+      "default": 0
     },
     "first_discounts": {
       "type": "array",
-      "description": "Lista de descontos da 1\u00aa quinzena [{date, description, amount}]",
       "items": {
         "type": "object"
       },
@@ -146,12 +168,10 @@
     },
     "second_period_discount": {
       "type": "number",
-      "default": 0,
-      "description": "Total descontos 2\u00aa quinzena"
+      "default": 0
     },
     "second_discounts": {
       "type": "array",
-      "description": "Lista de descontos da 2\u00aa quinzena [{date, description, amount}]",
       "items": {
         "type": "object"
       },
@@ -182,23 +202,15 @@
     },
     "transport_voucher_discount_pct": {
       "type": "number",
-      "default": 0,
-      "description": "% desconto VT (Escrit\u00f3rio)"
+      "default": 0
     },
     "dental_plan": {
       "type": "number",
-      "default": 0,
-      "description": "Seguro odontol\u00f3gico (Escrit\u00f3rio)"
-    },
-    "food_voucher": {
-      "type": "number",
-      "default": 0,
-      "description": "Vale alimenta\u00e7\u00e3o (Escrit\u00f3rio)"
+      "default": 0
     },
     "birthday_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "Bonifica\u00e7\u00e3o anivers\u00e1rio (Escrit\u00f3rio)"
+      "default": 0
     }
   },
   "required": [

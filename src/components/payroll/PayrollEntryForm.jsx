@@ -52,12 +52,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
     food_voucher: entry?.food_voucher ?? 0,
     transport_voucher: entry?.transport_voucher ?? 0,
-    km_bonus: entry?.km_bonus ?? 0,
+    km_bonus_qty: entry?.km_bonus_qty ?? 0,
+    km_bonus_value: entry?.km_bonus_value ?? 0,
+    cost_allowance: entry?.cost_allowance ?? 0,
     motorcycle_rental: entry?.motorcycle_rental ?? 0,
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
-    union_contribution_pct: entry?.union_contribution_pct ?? 0,
+    union_contribution_value: entry?.union_contribution_value ?? 35,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     life_insurance: entry?.life_insurance ?? 0,
     inss_pct: entry?.inss_pct ?? 0,
@@ -157,7 +159,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // Total desconto faltas vindo dos ajustes de ponto (nova estrutura multi-coluna)
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
+  const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value };
   const calc = calculatePayroll(calcForm, employee.contract_type);
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
@@ -197,6 +199,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       meal_voucher_days: form.meal_voucher_days,
       meal_voucher: calc.meal_voucher,
       food_voucher: form.food_voucher,
+      km_bonus_qty: form.km_bonus_qty,
+      km_bonus_value: form.km_bonus_value,
+      km_bonus: calc.km_bonus || 0,
+      cost_allowance: form.cost_allowance,
+      union_contribution_value: form.union_contribution_value,
       union_contribution: calc.union_contribution,
       meal_voucher_discount: calc.meal_voucher_discount,
       inss_pct: form.inss_pct,
@@ -302,9 +309,28 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Vale Transporte</Label>
                 <Input className="mt-1 font-mono" type="number" step="0.01" value={form.transport_voucher} onChange={e => setNum('transport_voucher', e.target.value)} disabled={readOnly} />
               </div>}
+              {show('km_bonus') && <div className="col-span-2">
+                <Label>KM Adicional</Label>
+                <div className="flex gap-2 mt-1 items-center">
+                  <div className="flex-1">
+                    <Input className="font-mono" type="number" step="1" min="0" placeholder="Qtd. KM" value={form.km_bonus_qty} onChange={e => setNum('km_bonus_qty', e.target.value)} disabled={readOnly} />
+                    <p className="text-xs text-muted-foreground mt-0.5">Quantidade de KM</p>
+                  </div>
+                  <span className="text-muted-foreground font-bold text-lg">×</span>
+                  <div className="flex-1">
+                    <Input className="font-mono" type="number" step="0.01" min="0" placeholder="R$/KM" value={form.km_bonus_value} onChange={e => setNum('km_bonus_value', e.target.value)} disabled={readOnly} />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor por KM (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground">=</span>
+                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(calc.km_bonus || 0)}</p>
+                    <p className="text-xs text-muted-foreground">Total KM</p>
+                  </div>
+                </div>
+              </div>}
               {show('km_bonus') && <div>
-                <Label>Adicional KM</Label>
-                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.km_bonus} onChange={e => setNum('km_bonus', e.target.value)} disabled={readOnly} />
+                <Label>Ajuda de Custo</Label>
+                <Input className="mt-1 font-mono" type="number" step="0.01" value={form.cost_allowance} onChange={e => setNum('cost_allowance', e.target.value)} disabled={readOnly} />
               </div>}
               {show('motorcycle_rental') && <div>
                 <Label>Aluguel da Motocicleta</Label>
@@ -328,11 +354,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
             <div className="grid grid-cols-2 gap-4">
               {show('union_contribution_pct') && <div>
-                <Label>Contribuição Assistencial (% sobre piso salarial)</Label>
-                <div className="flex gap-2 mt-1 items-center">
-                  <Input className="font-mono" type="number" step="0.01" min="0" placeholder="%" value={form.union_contribution_pct} onChange={e => setNum('union_contribution_pct', e.target.value)} disabled={readOnly} />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.union_contribution)}</span>
-                </div>
+                <Label>Contribuição Assistencial (R$)</Label>
+                <Input className="mt-1 font-mono" type="number" step="0.01" min="0" value={form.union_contribution_value} onChange={e => setNum('union_contribution_value', e.target.value)} disabled={readOnly} />
               </div>}
               {show('meal_voucher_discount_pct') && <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
@@ -452,6 +475,22 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
+                {show('km_bonus') && (calc.km_bonus > 0 || form.cost_allowance > 0) && (
+                  <div className="space-y-1">
+                    {calc.km_bonus > 0 && (
+                      <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                        <span className="text-xs text-secondary font-medium">+ KM Adicional ({form.km_bonus_qty} km × {formatCurrency(form.km_bonus_value)})</span>
+                        <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(calc.km_bonus)}</span>
+                      </div>
+                    )}
+                    {form.cost_allowance > 0 && (
+                      <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                        <span className="text-xs text-secondary font-medium">+ Ajuda de Custo</span>
+                        <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.cost_allowance)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
                   <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
@@ -502,7 +541,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {calc.meal_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Refeição ({form.meal_voucher_days}d × {formatCurrency(form.meal_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.meal_voucher)}</span></div>}
               {show('food_voucher') && form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
               {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
-              {form.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Adicional KM</span><span className="font-mono">{formatCurrency(form.km_bonus)}</span></div>}
+              {show('km_bonus') && calc.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">KM Adicional ({form.km_bonus_qty} km × {formatCurrency(form.km_bonus_value)})</span><span className="font-mono">{formatCurrency(calc.km_bonus)}</span></div>}
+              {show('km_bonus') && form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
               {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
               {form.hazard_pay > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Periculosidade</span><span className="font-mono">{formatCurrency(form.hazard_pay)}</span></div>}
               {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
@@ -519,7 +559,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 {calc.irrf > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">IRRF</span><span className="font-mono text-destructive">- {formatCurrency(calc.irrf)}</span></div>}
               </>}
               {form.pj_retention > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Retenção PJ</span><span className="font-mono text-destructive">- {formatCurrency(form.pj_retention)}</span></div>}
-              {calc.union_contribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Contribuição Assistencial ({form.union_contribution_pct}%)</span><span className="font-mono text-destructive">- {formatCurrency(calc.union_contribution)}</span></div>}
+              {calc.union_contribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Contribuição Assistencial</span><span className="font-mono text-destructive">- {formatCurrency(calc.union_contribution)}</span></div>}
               {calc.meal_voucher_discount > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Desconto VR ({form.meal_voucher_discount_pct}%)</span><span className="font-mono text-destructive">- {formatCurrency(calc.meal_voucher_discount)}</span></div>}
               {form.life_insurance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Seguro de Vida</span><span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span></div>}
 
