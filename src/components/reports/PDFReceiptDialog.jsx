@@ -726,6 +726,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           first_period_advance: entry?.first_period_advance ?? 0,
           first_period_discount: firstTotal,
           second_period_discount: secondTotal,
+          first_period_split: entry?.first_period_split ?? 0.5,
         });
         const firstAdv = entry?.first_period_advance ?? 0;
         const quinzenalLiquido = -firstTotal - secondTotal - firstAdv;
@@ -772,6 +773,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           first_period_advance:      entry?.first_period_advance ?? 0,
           first_period_discount:     firstTotal,
           second_period_discount:    secondTotal,
+          first_period_split:        entry?.first_period_split ?? 0.5,
         }, employee.contract_type, payrollType);
 
         setMergedEntry({

@@ -121,12 +121,15 @@ export function calculateEscritorioPayroll(entry) {
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) / 2
+  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) × split (padrão 50/50)
   // Faltas descontadas na quinzena correspondente
-  const baseQuinzenal = (netTotal + bonus + birthdayBonus) / 2;
+  const baseQuinzenalTotal = netTotal + bonus + birthdayBonus;
+  const splitEsc = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
+  const baseQuinzenal = Math.round(baseQuinzenalTotal * splitEsc * 100) / 100;
+  const baseQuinzenalSecond = Math.round(baseQuinzenalTotal * (1 - splitEsc) * 100) / 100;
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = baseQuinzenal + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = baseQuinzenal - (entry.second_period_discount || 0) - absenceSecond;
+  const secondPeriodNet = baseQuinzenalSecond - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     meal_voucher: mealVoucher,
@@ -193,15 +196,19 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     // (desconto de faltas NÃO entra aqui — é descontado nas quinzenas individualmente)
     const netTotal = grossTotal - inssNet - unionContribution - mealVoucherDiscount - lifeInsurance;
 
-    // Quinzenal: net_total rateado 50/50
+    // Quinzenal: net_total rateado pelo split (padrão 50/50)
     // 1ª quinzena: + food_voucher, - adiantamento, - descontos 1ª
     // 2ª quinzena: + KM + ajuda de custo, - descontos 2ª
     const foodVoucherVal = entry.food_voucher || 0;
     const firstPeriodAdvance = entry.first_period_advance || 0;
     const absenceFirst = entry.absence_discount_first || 0;
     const absenceSecond = entry.absence_discount_second || 0;
-    const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-    const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
+    const splitFirst = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
+    const splitSecond = 1 - splitFirst;
+    const firstBase = Math.round(netTotal * splitFirst * 100) / 100;
+    const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
+    const firstPeriodNet = firstBase + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+    const secondPeriodNet = secondBase + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
     return {
       absence_discount: absenceDiscount,
@@ -216,10 +223,12 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
       meal_voucher_discount: mealVoucherDiscount,
       gross_total: Math.round(grossTotal * 100) / 100,
       net_total: Math.round(netTotal * 100) / 100,
+      first_period_base: firstBase,
+      second_period_base: secondBase,
       first_period_net: Math.round(firstPeriodNet * 100) / 100,
       second_period_net: Math.round(secondPeriodNet * 100) / 100,
     };
-  }
+    }
 
   // ─── OUTROS MODELOS ──────────────────────────────────────────────────────────
   // Faltas são descontadas nas quinzenas — não reduzem o bruto nem a base do INSS
@@ -257,8 +266,12 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const absenceFirst = entry.absence_discount_first || 0;
   const absenceSecond = entry.absence_discount_second || 0;
-  const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
+  const splitFirst2 = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
+  const splitSecond2 = 1 - splitFirst2;
+  const firstBase2 = Math.round(netTotal * splitFirst2 * 100) / 100;
+  const secondBase2 = Math.round(netTotal * splitSecond2 * 100) / 100;
+  const firstPeriodNet = firstBase2 + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+  const secondPeriodNet = secondBase2 + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     absence_discount: absenceDiscount,
@@ -272,6 +285,8 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     meal_voucher_discount: mealVoucherDiscount,
     gross_total: Math.round(grossTotal * 100) / 100,
     net_total: Math.round(netTotal * 100) / 100,
+    first_period_base: firstBase2,
+    second_period_base: secondBase2,
     first_period_net: Math.round(firstPeriodNet * 100) / 100,
     second_period_net: Math.round(secondPeriodNet * 100) / 100,
   };

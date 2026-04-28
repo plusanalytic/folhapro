@@ -42,6 +42,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
+
+  // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)
+  const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
   const [pointAdjustments, setPointAdjustments] = useState([]);
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
 
@@ -144,7 +147,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
+  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, first_period_split: firstPeriodSplit };
   const calc = calculateEscritorioPayroll(calcForm);
 
   // Total a Pagar = Líquido Convenção + Outros Benefícios + líquido quinzenal (créditos - débitos - adiantamento)
@@ -200,6 +203,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       second_discounts: secondDiscounts,
       first_period_net: calc.first_period_net,
       second_period_net: calc.second_period_net,
+      first_period_split: firstPeriodSplit,
       reference_month: referenceMonth,
     });
   };
@@ -394,22 +398,61 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
             {/* ── ABA: Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
+              {/* Rateio editável */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
-                  <p className="text-xs text-muted-foreground">Base 1ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
+                  {readOnly ? (
+                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
+                  ) : (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="font-mono font-bold text-lg h-9"
+                      value={calc.first_period_base ?? calc.net_total / 2}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        const base = calc.net_total > 0 ? Math.min(1, Math.max(0, v / calc.net_total)) : 0.5;
+                        setFirstPeriodSplit(base);
+                      }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg px-4 py-3 text-center">
-                  <p className="text-xs text-muted-foreground">Base 2ª Quinzena (50%)</p>
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.net_total / 2)}</p>
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
+                  {readOnly ? (
+                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
+                  ) : (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="font-mono font-bold text-lg h-9"
+                      value={calc.second_period_base ?? calc.net_total / 2}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        const split = calc.net_total > 0 ? Math.min(1, Math.max(0, 1 - v / calc.net_total)) : 0.5;
+                        setFirstPeriodSplit(split);
+                      }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
                 </div>
               </div>
+              {firstPeriodSplit !== 0.5 && (
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
+                  {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
                   </div>
                   {form.food_voucher > 0 && (
                     <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
@@ -443,7 +486,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <div className="space-y-3 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
                   </div>
                   {absenceSecond > 0 && (
                     <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
