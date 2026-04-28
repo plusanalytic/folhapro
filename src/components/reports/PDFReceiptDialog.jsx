@@ -327,14 +327,18 @@ function HoleriteContent({ employee, entry, month, company }) {
         </div>
       </div>
 
-      {/* ── Separador + Recibo Aluguel Moto ── */}
+      {/* ── Recibo Vale Refeição ── */}
+      {calc.meal_voucher > 0 && (
+        <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
+          <MealVoucherReceiptContent employee={employee} mealVoucherValue={calc.meal_voucher} month={month} />
+        </div>
+      )}
+
+      {/* ── Recibo Aluguel Moto ── */}
       {(entry?.motorcycle_rental ?? 0) > 0 && (
-        <>
-          <div style={{ borderTop: '2px dashed #ccc', margin: '28px 0 20px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)', background: '#fff', padding: '0 12px', color: '#999', fontSize: '10px' }}>✂ Destacar</div>
-          </div>
+        <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <MotoReceiptContent employee={employee} entry={entry} month={month} />
-        </>
+        </div>
       )}
     </div>
   );
@@ -630,6 +634,41 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Recibo Vale Refeição ─────────────────────────────────────────────────────
+function MealVoucherReceiptContent({ employee, mealVoucherValue, month }) {
+  const monthName = getMonthName(month).toUpperCase();
+  return (
+    <div style={{ border: '2px solid #6a3eaf', borderRadius: '10px', padding: '18px 22px', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#1a1a2e' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', color: '#6a3eaf', margin: 0, letterSpacing: '0.5px' }}>
+          Recibo — Vale Refeição
+        </h2>
+        <div style={{ textAlign: 'right', color: '#888', fontSize: '10px' }}>
+          <div>Referência: {monthName}</div>
+        </div>
+      </div>
+      <p style={{ lineHeight: '1.7', textAlign: 'justify', margin: '0 0 20px', fontSize: '12px' }}>
+        Eu, <strong>{employee.name}</strong>, portador(a) do CPF <strong>{employee.cpf_cnpj || '_______________'}</strong>, recebi a importância de{' '}
+        <strong>{formatCurrency(mealVoucherValue)}</strong> ({numberToWords(mealVoucherValue)}) em espécie, correspondente ao{' '}
+        <strong>Vale Refeição</strong> do mês de <strong>{monthName}</strong>.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '10px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ borderTop: '1px solid #999', paddingTop: '6px', marginTop: '32px' }}>
+            <div style={{ fontWeight: 'bold' }}>{employee.name}</div>
+            <div style={{ color: '#888', fontSize: '10px' }}>CPF: {employee.cpf_cnpj || '—'}</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ borderTop: '1px solid #999', paddingTop: '6px', marginTop: '32px' }}>
+            <div style={{ color: '#888', fontSize: '10px' }}>Data: _____ / _____ / _________</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
