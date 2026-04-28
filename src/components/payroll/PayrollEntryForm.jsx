@@ -452,7 +452,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               if (calc.union_contribution > 0) items.push({ label: 'Contribuição Assistencial', value: calc.union_contribution });
               if (calc.meal_voucher_discount > 0) items.push({ label: `Desconto VR (${form.meal_voucher_discount_pct}%)`, value: calc.meal_voucher_discount });
               if (form.life_insurance > 0) items.push({ label: 'Seguro de Vida', value: form.life_insurance });
-              if (totalDiscount > 0 && payrollType !== 'MOTOCICLISTA_CLT') items.push({ label: 'Desconto de Faltas', value: totalDiscount });
+              // Faltas são exibidas nas quinzenas — não entram no bloco de descontos da aba Proventos
               if (items.length === 0) return null;
               const totalDesc = items.reduce((s, i) => s + i.value, 0);
               return (
@@ -507,7 +507,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                    </div>
                  )}
-                {absenceFirst > 0 && payrollType !== 'MOTOCICLISTA_CLT' && (
+                {absenceFirst > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
                     <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceFirst)}</span>
@@ -536,7 +536,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
-                {absenceSecond > 0 && payrollType !== 'MOTOCICLISTA_CLT' && (
+                {absenceSecond > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
                     <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceSecond)}</span>

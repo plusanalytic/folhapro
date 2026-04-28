@@ -219,20 +219,20 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
   }
 
   // ─── OUTROS MODELOS ──────────────────────────────────────────────────────────
-  const salaryAfterAbsence = salary - absenceDiscount;
+  // Faltas são descontadas nas quinzenas — não reduzem o bruto nem a base do INSS
 
   let inss = 0, fgts = 0, irrf = 0, pjRetention = 0;
 
   if (contractType === 'CLT') {
     // Base de cálculo INSS = salário base + periculosidade
-    const inssBase = salaryAfterAbsence + (entry.hazard_pay || 0);
+    const inssBase = salary + (entry.hazard_pay || 0);
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
     } else {
       inss = calculateINSS(inssBase);
     }
-    fgts = calculateFGTS(salaryAfterAbsence);
-    irrf = calculateIRRF(salaryAfterAbsence, inss);
+    fgts = calculateFGTS(salary);
+    irrf = calculateIRRF(salary, inss);
   } else {
     pjRetention = entry.pj_retention || 0;
   }
@@ -241,7 +241,7 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     kmBonus + (entry.motorcycle_rental || 0) + (entry.hazard_pay || 0) +
     (entry.bonus || 0) + (entry.other_benefits || 0) + costAllowance;
 
-  const grossTotal = salaryAfterAbsence + totalBenefits;
+  const grossTotal = salary + totalBenefits;
 
   const inssDiscount = Math.min(entry.inss_discount || 0, inss);
   const inssNet = Math.max(0, inss - inssDiscount);
@@ -249,11 +249,13 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
   const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance;
   const netTotal = grossTotal - totalDiscounts;
 
-  // Quinzenal split
+  // Quinzenal split — desconto de faltas aplicado na quinzena correspondente
   const foodVoucherVal = entry.food_voucher || 0;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0);
+  const absenceFirst = entry.absence_discount_first || 0;
+  const absenceSecond = entry.absence_discount_second || 0;
+  const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+  const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     absence_discount: absenceDiscount,
