@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer } from 'lucide-react';
-import { formatCurrency, numberToWords, getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
+import { formatCurrency, numberToWords, getMonthName, calculatePayroll, calculateEscritorioPayroll, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import { absenceDiscountByPeriod, totalAbsenceDiscount } from '@/components/payroll/AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
@@ -336,6 +336,257 @@ function HoleriteContent({ employee, entry, month, company }) {
 
       {/* ── Recibo Aluguel Moto ── */}
       {(entry?.motorcycle_rental ?? 0) > 0 && (
+        <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
+          <MotoReceiptContent employee={employee} entry={entry} month={month} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Holerite MEI ────────────────────────────────────────────────────────────
+function MeiHoleriteContent({ employee, entry, month, company }) {
+  const monthName = getMonthName(month);
+
+  // Usa EXATAMENTE os valores salvos no entry — sem recalcular
+  const valorBase      = entry?.base_salary ?? 0;
+  const diasMes        = entry?.working_days_month ?? 0;
+  const diasTrabalhados = entry?.working_days_worked ?? diasMes;
+  const diasQ1         = entry?.working_days_first ?? 0;
+  const diasQ2         = entry?.working_days_second ?? 0;
+  const remuneracao    = entry?.gross_total != null
+    ? (() => {
+        // recalcula remuneracao proporcional igual ao formulário
+        const km = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+        const gross = entry.gross_total ?? 0;
+        return Math.round((gross - km - (entry.cost_allowance||0) - (entry.motorcycle_rental||0) - (entry.bonus||0) - (entry.other_benefits||0)) * 100) / 100;
+      })()
+    : 0;
+  const kmBonus        = entry?.km_bonus ?? Math.round((entry?.km_bonus_qty||0)*(entry?.km_bonus_value||0)*100)/100;
+  const costAllowance  = entry?.cost_allowance ?? 0;
+  const motoRental     = entry?.motorcycle_rental ?? 0;
+  const bonus          = entry?.bonus ?? 0;
+  const otherBen       = entry?.other_benefits ?? 0;
+  const foodVoucher    = entry?.food_voucher ?? 0;
+  const lifeInsurance  = entry?.life_insurance ?? 0;
+  const firstAdv       = entry?.first_period_advance ?? 0;
+  const grossTotal     = entry?.gross_total ?? 0;
+  const firstNet       = entry?.first_period_net ?? 0;
+  const secondNet      = entry?.second_period_net ?? 0;
+  const firstBase      = entry?.first_period_base ?? 0;
+  const secondBase     = entry?.second_period_base ?? 0;
+  const firstDiscounts  = entry?.first_discounts  ?? [];
+  const secondDiscounts = entry?.second_discounts ?? [];
+  const firstDiscountTotal  = firstDiscounts.reduce((s,r) => r.type==='credit' ? s-(r.amount||0) : s+(r.amount||0), 0);
+  const secondDiscountTotal = secondDiscounts.reduce((s,r) => r.type==='credit' ? s-(r.amount||0) : s+(r.amount||0), 0);
+
+  const proventos = [
+    { label: `Remuneração Proporcional (${diasTrabalhados}/${diasMes} dias úteis)`, value: remuneracao, show: true },
+    { label: `Adicional KM (${entry?.km_bonus_qty||0} km × ${formatCurrency(entry?.km_bonus_value||0)})`, value: kmBonus, show: kmBonus > 0 },
+    { label: 'Ajuda de Custo', value: costAllowance, show: costAllowance > 0 },
+    { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
+    { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
+    { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
+    { label: 'Outros Benefícios', value: otherBen, show: otherBen > 0 },
+  ].filter(x => x.show);
+
+  const descontos = [
+    { label: 'Seguro de Vida (desc. na 1ª quinzena)', value: lifeInsurance, show: lifeInsurance > 0 },
+  ].filter(x => x.show);
+
+  const totalDescontos = descontos.reduce((s,d) => s+d.value, 0);
+  const maxRows = Math.max(proventos.length, descontos.length);
+
+  return (
+    <div style={{ width: '210mm', minHeight: '297mm', padding: '12mm', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#1a1a2e', backgroundColor: '#fff', boxSizing: 'border-box' }}>
+
+      {/* Cabeçalho */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px solid #6a3eaf', paddingBottom: '10px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '44px', height: '44px', background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>
+            {(company?.name || 'FP').slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#6a3eaf' }}>{company?.name || 'FolhaPro'}</div>
+            {company?.cnpj && <div style={{ color: '#666', fontSize: '10px' }}>CNPJ: {company.cnpj}</div>}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#6a3eaf', textTransform: 'uppercase', letterSpacing: '1px' }}>Recibo de Pagamento</div>
+          <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>{monthName}</div>
+          <div style={{ color: '#888', fontSize: '10px', marginTop: '1px' }}>Modelo: Motociclista MEI</div>
+        </div>
+      </div>
+
+      {/* Dados do colaborador */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', background: '#f5f3ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px' }}>
+        <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Colaborador</div><div style={{ fontWeight: 'bold' }}>{employee.name}</div></div>
+        <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>CPF / CNPJ</div><div style={{ fontWeight: 'bold' }}>{employee.cpf_cnpj || '—'}</div></div>
+        <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Cargo</div><div style={{ fontWeight: 'bold' }}>{employee.position || '—'}</div></div>
+        <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Contrato</div><div style={{ fontWeight: 'bold' }}>MEI — Prestador</div></div>
+        {employee.admission_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Admissão</div><div style={{ fontWeight: 'bold' }}>{employee.admission_date}</div></div>}
+        <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Dias Úteis Mês / Trab.</div><div style={{ fontWeight: 'bold' }}>{diasMes} / {diasTrabalhados}</div></div>
+      </div>
+
+      {/* Tabela Proventos e Descontos */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
+        <thead>
+          <tr>
+            <th style={{ background: '#6a3eaf', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '48%' }}>Proventos</th>
+            <th style={{ background: '#6a3eaf', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '14%' }}>Valor (R$)</th>
+            <th style={{ background: '#444', color: '#fff', padding: '7px 10px', textAlign: 'left', width: '24%' }}>Descontos</th>
+            <th style={{ background: '#444', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '14%' }}>Valor (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: maxRows }).map((_, i) => {
+            const p = proventos[i];
+            const d = descontos[i];
+            return (
+              <tr key={i} style={{ background: i % 2 === 0 ? '#faf9ff' : '#fff' }}>
+                <td style={{ padding: '5px 10px', borderBottom: '1px solid #e8e4f5' }}>{p ? p.label : ''}</td>
+                <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e8e4f5', color: '#2563eb', fontFamily: 'monospace' }}>{p ? formatCurrency(p.value) : ''}</td>
+                <td style={{ padding: '5px 10px', borderBottom: '1px solid #e8e4f5', borderLeft: '1px solid #e8e4f5' }}>{d ? d.label : ''}</td>
+                <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e8e4f5', color: '#dc2626', fontFamily: 'monospace' }}>{d ? formatCurrency(d.value) : ''}</td>
+              </tr>
+            );
+          })}
+          <tr>
+            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf' }}>TOTAL BRUTO / TOTAL A RECEBER</td>
+            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf', color: '#2563eb', fontFamily: 'monospace' }}>{formatCurrency(grossTotal)}</td>
+            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', borderLeft: '1px solid #e8e4f5' }}>TOTAL DESCONTOS</td>
+            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', color: '#dc2626', fontFamily: 'monospace' }}>{formatCurrency(totalDescontos)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Resumo Quinzenal */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+        {/* 1ª Quinzena */}
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            1ª Quinzena (1–15) — {diasQ1} dias úteis ({diasQ1+diasQ2>0?Math.round(diasQ1/(diasQ1+diasQ2)*100):50}%)
+          </div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
+              <span>Base proporcional</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span>
+            </div>
+            {foodVoucher > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                <span>+ Vale Alimentação</span>
+                <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(foodVoucher)}</span>
+              </div>
+            )}
+            {lifeInsurance > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}>
+                <span>− Seguro de Vida</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(lifeInsurance)}</span>
+              </div>
+            )}
+            {firstAdv > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>Adiantamento</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span>
+              </div>
+            )}
+            {firstDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+              <span style={{ color: '#6a3eaf' }}>A Receber</span>
+              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2ª Quinzena */}
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            2ª Quinzena (16–30) — {diasQ2} dias úteis ({diasQ1+diasQ2>0?Math.round(diasQ2/(diasQ1+diasQ2)*100):50}%)
+          </div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
+              <span>Base proporcional</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span>
+            </div>
+            {kmBonus > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                <span>+ KM Adicional ({entry?.km_bonus_qty||0} km × {formatCurrency(entry?.km_bonus_value||0)})</span>
+                <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span>
+              </div>
+            )}
+            {costAllowance > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                <span>+ Ajuda de Custo</span>
+                <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span>
+              </div>
+            )}
+            {secondDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+              <span style={{ color: '#6a3eaf' }}>A Receber</span>
+              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Líquido Total */}
+      <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
+        <div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A RECEBER (1ª + 2ª Quinzena)</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(firstNet + secondNet)}</div>
+        </div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
+      </div>
+
+      {/* Dados bancários */}
+      {(employee.bank_name || employee.pix_key) && (
+        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', background: '#fafafa' }}>
+          <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '6px' }}>Dados para Pagamento</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', fontSize: '10px' }}>
+            {employee.bank_name && <div><span style={{ color: '#888' }}>Banco: </span><strong>{employee.bank_name}</strong></div>}
+            {employee.bank_agency && <div><span style={{ color: '#888' }}>Agência: </span><strong>{employee.bank_agency}</strong></div>}
+            {employee.bank_account && <div><span style={{ color: '#888' }}>Conta: </span><strong>{employee.bank_account}</strong></div>}
+            {employee.bank_beneficiary && <div><span style={{ color: '#888' }}>Favorecido: </span><strong>{employee.bank_beneficiary}</strong></div>}
+            {employee.pix_key && <div><span style={{ color: '#888' }}>PIX: </span><strong>{employee.pix_key}</strong></div>}
+          </div>
+        </div>
+      )}
+
+      {/* Assinatura */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ borderTop: '1px solid #999', paddingTop: '6px', marginTop: '32px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '11px' }}>{company?.name || '______________________________'}</div>
+            <div style={{ color: '#888', fontSize: '10px' }}>Empregador / Responsável</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ borderTop: '1px solid #999', paddingTop: '6px', marginTop: '32px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '11px' }}>{employee.name}</div>
+            <div style={{ color: '#888', fontSize: '10px' }}>Colaborador — {employee.cpf_cnpj}</div>
+          </div>
+          <div style={{ marginTop: '8px', color: '#888', fontSize: '10px' }}>Data: _____ / _____ / _________</div>
+        </div>
+      </div>
+
+      {/* Recibo Aluguel Moto */}
+      {motoRental > 0 && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <MotoReceiptContent employee={employee} entry={entry} month={month} />
         </div>
@@ -784,9 +1035,39 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           second_period_net:        calcEsc.second_period_net,
           _total_a_pagar:           totalAPagar,
         });
+      } else if (payrollType === 'MOTOCICLISTA_MEI') {
+        // MEI: usa valores salvos no entry — recalcula apenas quinzenas com cashouts atualizados
+        const grossTotal = entry?.gross_total ?? 0;
+        const netTotal   = entry?.net_total ?? grossTotal;
+        const diasQ1     = entry?.working_days_first ?? 0;
+        const diasQ2     = entry?.working_days_second ?? 0;
+        const totalDias  = diasQ1 + diasQ2 || 1;
+        const splitFirst  = diasQ1 / totalDias;
+        const splitSecond = diasQ2 / totalDias;
+        const firstBase   = Math.round(netTotal * splitFirst * 100) / 100;
+        const secondBase  = Math.round(netTotal * splitSecond * 100) / 100;
+        const foodVoucher = entry?.food_voucher ?? 0;
+        const lifeIns     = entry?.life_insurance ?? 0;
+        const firstAdv    = entry?.first_period_advance ?? 0;
+        const kmBonus     = entry?.km_bonus ?? Math.round(((entry?.km_bonus_qty||0)*(entry?.km_bonus_value||0))*100)/100;
+        const costAllow   = entry?.cost_allowance ?? 0;
+
+        const firstPeriodNet  = Math.round((firstBase + foodVoucher - lifeIns - firstAdv - firstTotal) * 100) / 100;
+        const secondPeriodNet = Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100;
+
+        setMergedEntry({
+          ...entry,
+          first_discounts:         firstDiscounts,
+          second_discounts:        secondDiscounts,
+          first_period_discount:   firstTotal,
+          second_period_discount:  secondTotal,
+          first_period_base:       firstBase,
+          second_period_base:      secondBase,
+          first_period_net:        firstPeriodNet,
+          second_period_net:       secondPeriodNet,
+        });
       } else {
-        // Modelo padrão (MOTOCICLISTA_CLT, MOTOCICLISTA_MEI, SOCIO, etc.)
-        // Usa os valores salvos no entry para gross/net total; recalcula apenas quinzenas com cashouts atualizados
+        // Modelo padrão (MOTOCICLISTA_CLT, SOCIO, etc.)
         const calcStd = calculatePayroll({
           base_salary:               entry?.base_salary ?? 0,
           absence_discount:          0,
@@ -872,7 +1153,9 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
         <div ref={printRef} className="overflow-auto bg-white">
           {payrollType === 'ESCRITORIO'
             ? <EscritorioHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
-            : <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+            : payrollType === 'MOTOCICLISTA_MEI'
+              ? <MeiHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+              : <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
           }
         </div>
       </DialogContent>

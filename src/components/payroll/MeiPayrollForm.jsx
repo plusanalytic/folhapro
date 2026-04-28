@@ -87,6 +87,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   const defaultPeriods = getWorkingDaysByPeriod(referenceMonth);
 
+  // Se o entry já tem os campos salvos, marca como manual para não recalcular
+  const [workingDaysManual, setWorkingDaysManual] = useState(
+    entry?.working_days_month != null && entry?.working_days_worked != null
+  );
+
   const [form, setForm] = useState({
     company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
@@ -253,6 +258,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       value={form.working_days_month === 0 ? '' : String(form.working_days_month)}
                       onChange={e => {
                         const total = parseInt(e.target.value) || 0;
+                        setWorkingDaysManual(true);
                         set('working_days_month', total);
                         // só recalcula a divisão por quinzena se o usuário não tiver editado manualmente
                         if (!periodDaysManual) {
@@ -272,7 +278,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       type="number" step="1" min="0" disabled={readOnly}
                       className="mt-1 font-mono"
                       value={form.working_days_worked === 0 ? '' : String(form.working_days_worked)}
-                      onChange={e => set('working_days_worked', e.target.value)}
+                      onChange={e => { setWorkingDaysManual(true); set('working_days_worked', e.target.value); }}
                       onBlur={e => setNum('working_days_worked', e.target.value)}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
