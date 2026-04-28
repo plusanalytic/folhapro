@@ -11,7 +11,7 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
   const isRO = readonly || readOnly;
 
   const addRow = () => {
-    if (!newRow.date || !newRow.description || !newRow.amount) return;
+    if (!newRow.description || !newRow.amount) return;
     onChange([...items, {
       ...newRow,
       amount: parseFloat(newRow.amount) || 0,
@@ -127,6 +127,7 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
               className="w-36 font-mono text-xs h-8"
               value={newRow.date}
               onChange={e => setNewRow(r => ({ ...r, date: e.target.value }))}
+              placeholder="Data (opcional)"
             />
             <Input
               placeholder="Descrição"
