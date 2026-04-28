@@ -48,7 +48,8 @@ function calculateMeiPayroll(entry) {
   const lifeInsurance = entry.life_insurance || 0;
 
   const grossTotal = remuneracao + kmBonus + costAllowance + motoRental + bonus + otherBenefits;
-  const netTotal = grossTotal - lifeInsurance;
+  // Seguro de vida NÃO subtrai do total — só é descontado na 1ª quinzena
+  const netTotal = grossTotal;
 
   // Rateio por dias úteis de cada quinzena
   const diasQ1 = entry.working_days_first || 0;
@@ -61,6 +62,7 @@ function calculateMeiPayroll(entry) {
   const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
 
   const firstPeriodNet = firstBase + foodVoucher
+    - lifeInsurance
     - (entry.first_period_advance || 0)
     - (entry.first_period_discount || 0);
   const secondPeriodNet = secondBase + kmBonus + costAllowance
@@ -338,30 +340,22 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               </div>
 
               <Separator />
-              <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
                 <div>
-                  <p className="font-bold text-base">Total Bruto</p>
+                  <p className="font-bold text-base">Total Bruto / Total a Receber</p>
                   <p className="text-xs text-muted-foreground">Remuneração + benefícios</p>
                 </div>
-                <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
+                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.gross_total)}</p>
               </div>
 
               {form.life_insurance > 0 && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Seguro de Vida</span>
-                    <span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span>
+                    <span className="text-amber-700 font-medium">Seguro de Vida — descontado na 1ª quinzena</span>
+                    <span className="font-mono text-amber-700">- {formatCurrency(form.life_insurance)}</span>
                   </div>
                 </div>
               )}
-
-              <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
-                <div>
-                  <p className="font-bold text-base">Total a Receber</p>
-                  <p className="text-xs text-muted-foreground">Líquido após descontos</p>
-                </div>
-                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(calc.net_total)}</p>
-              </div>
             </TabsContent>
 
             {/* ── ABA: Quinzenal ── */}
@@ -434,6 +428,12 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                     </div>
                   )}
+                  {form.life_insurance > 0 && (
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-amber-700 font-medium">− Seguro de Vida</span>
+                      <span className="font-mono text-xs font-semibold text-amber-700">- {formatCurrency(form.life_insurance)}</span>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
                     <Input {...numericField('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
@@ -445,7 +445,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
-                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance)}</p>
+                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance + form.life_insurance)}</p>
                     </div>
                     <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.first_period_net)}</p>
                   </div>
@@ -511,18 +511,18 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
                 {form.other_benefits > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Outros Benefícios</span><span className="font-mono">{formatCurrency(form.other_benefits)}</span></div>}
                 <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
-                  <span>Total Bruto</span>
+                  <span>Total Bruto / Total a Receber</span>
                   <span className="font-mono">{formatCurrency(calc.gross_total)}</span>
                 </div>
-                {form.life_insurance > 0 && (
-                  <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-destructive">Seguro de Vida</span>
-                    <span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span>
-                  </div>
-                )}
-                {(firstDiscounts.length > 0 || form.first_period_advance > 0) && (
+                {(firstDiscounts.length > 0 || form.first_period_advance > 0 || form.life_insurance > 0) && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Descontos 1ª Quinzena</p>
+                    {form.life_insurance > 0 && (
+                      <div className="flex justify-between py-1 border-b border-border">
+                        <span className="text-amber-700 text-sm">Seguro de Vida</span>
+                        <span className="font-mono text-amber-700 text-sm">- {formatCurrency(form.life_insurance)}</span>
+                      </div>
+                    )}
                     {form.first_period_advance > 0 && (
                       <div className="flex justify-between py-1 border-b border-border">
                         <span className="text-destructive text-sm">Adiantamento</span>
