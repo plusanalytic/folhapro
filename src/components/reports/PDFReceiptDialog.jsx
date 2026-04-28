@@ -1036,16 +1036,10 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           _total_a_pagar:           totalAPagar,
         });
       } else if (payrollType === 'MOTOCICLISTA_MEI') {
-        // MEI: usa valores salvos no entry — recalcula apenas quinzenas com cashouts atualizados
-        const grossTotal = entry?.gross_total ?? 0;
-        const netTotal   = entry?.net_total ?? grossTotal;
-        const diasQ1     = entry?.working_days_first ?? 0;
-        const diasQ2     = entry?.working_days_second ?? 0;
-        const totalDias  = diasQ1 + diasQ2 || 1;
-        const splitFirst  = diasQ1 / totalDias;
-        const splitSecond = diasQ2 / totalDias;
-        const firstBase   = Math.round(netTotal * splitFirst * 100) / 100;
-        const secondBase  = Math.round(netTotal * splitSecond * 100) / 100;
+        // MEI: usa valores salvos no entry — recalcula apenas os nets quinzenais com cashouts atualizados
+        // Usa as bases salvas no entry (gravadas no handleSave do formulário)
+        const firstBase  = entry?.first_period_base  ?? 0;
+        const secondBase = entry?.second_period_base ?? 0;
         const foodVoucher = entry?.food_voucher ?? 0;
         const lifeIns     = entry?.life_insurance ?? 0;
         const firstAdv    = entry?.first_period_advance ?? 0;

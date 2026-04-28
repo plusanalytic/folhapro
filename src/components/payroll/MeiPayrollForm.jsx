@@ -195,6 +195,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       second_discounts: secondDiscounts,
       first_period_net: calc.first_period_net,
       second_period_net: calc.second_period_net,
+      first_period_base: calc.first_period_base,
+      second_period_base: calc.second_period_base,
       first_period_split: calc.split_first,
       reference_month: referenceMonth,
       pj_retention: 0,
