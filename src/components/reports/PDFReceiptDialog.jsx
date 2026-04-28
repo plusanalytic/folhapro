@@ -288,10 +288,10 @@ function HoleriteContent({ employee, entry, month, company }) {
       {/* ── Líquido Total ── */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>VALOR LÍQUIDO TOTAL</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(netTotal)}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A RECEBER (1ª + 2ª Quinzena)</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(firstNet + secondNet)}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(netTotal)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
       </div>
 
       {/* ── Dados bancários ── */}
@@ -765,7 +765,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           first_period_advance:      entry?.first_period_advance ?? 0,
           first_period_discount:     firstTotal,
           second_period_discount:    secondTotal,
-        }, employee.contract_type);
+        }, employee.contract_type, payrollType);
 
         setMergedEntry({
           ...entry,
