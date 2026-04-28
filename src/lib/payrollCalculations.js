@@ -186,8 +186,9 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     const inssNet = Math.max(0, inss - inssDiscount);
     const fgts = calculateFGTS(salary - absenceDiscount);
 
-    // Net = Gross - INSS líquido - Contrib. Assistencial - Desc. VR - Seg. Vida - Desc. Faltas
-    const netTotal = grossTotal - inssNet - unionContribution - mealVoucherDiscount - lifeInsurance - absenceDiscount;
+    // Net = Gross - INSS líquido - Contrib. Assistencial - Desc. VR - Seg. Vida
+    // (desconto de faltas NÃO entra aqui — é descontado nas quinzenas individualmente)
+    const netTotal = grossTotal - inssNet - unionContribution - mealVoucherDiscount - lifeInsurance;
 
     // Quinzenal: net_total rateado 50/50
     // 1ª quinzena: + food_voucher, - adiantamento, - descontos 1ª

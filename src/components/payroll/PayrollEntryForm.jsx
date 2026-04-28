@@ -438,6 +438,34 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
             </div>
 
+            {/* Detalhe dos descontos entre bruto e líquido */}
+            {(() => {
+              const items = [];
+              if (calc.inss_net > 0) items.push({ label: `INSS${form.inss_discount > 0 ? ` (desc. ${formatCurrency(form.inss_discount)})` : ''}`, value: calc.inss_net });
+              if (calc.irrf > 0) items.push({ label: 'IRRF', value: calc.irrf });
+              if (calc.union_contribution > 0) items.push({ label: 'Contribuição Assistencial', value: calc.union_contribution });
+              if (calc.meal_voucher_discount > 0) items.push({ label: `Desconto VR (${form.meal_voucher_discount_pct}%)`, value: calc.meal_voucher_discount });
+              if (form.life_insurance > 0) items.push({ label: 'Seguro de Vida', value: form.life_insurance });
+              if (totalDiscount > 0 && payrollType !== 'MOTOCICLISTA_CLT') items.push({ label: 'Desconto de Faltas', value: totalDiscount });
+              if (items.length === 0) return null;
+              const totalDesc = items.reduce((s, i) => s + i.value, 0);
+              return (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-destructive uppercase tracking-wide mb-2">Descontos</p>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{item.label}</span>
+                      <span className="font-mono text-destructive">- {formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-sm font-semibold border-t border-destructive/20 pt-1.5 mt-1">
+                    <span className="text-destructive">Total Descontos</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(totalDesc)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
               <div>
                 <p className="font-bold text-base">Total a Receber</p>
