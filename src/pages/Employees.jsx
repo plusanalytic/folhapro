@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin, Award } from 'lucide-react';
+import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import EmployeeForm from '@/components/employees/EmployeeForm';
+import ManualEmployeeForm from '@/components/employees/ManualEmployeeForm';
 import SyncProgressDialog from '@/components/employees/SyncProgressDialog';
 
 const PAGE_SIZE = 20;
@@ -30,6 +31,7 @@ export default function Employees() {
   const setFilterJobRole = (v) => { _setFilterJobRole(v); setCurrentPage(1); };
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showManualForm, setShowManualForm] = useState(false);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -103,10 +105,16 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-muted-foreground text-sm mt-1">{employees.length} registros importados</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => setShowSyncDialog(true)}>
-          <RefreshCw className="w-4 h-4" />
-          Sincronizar Solides
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setShowManualForm(true)}>
+            <UserPlus className="w-4 h-4" />
+            Novo Colaborador
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setShowSyncDialog(true)}>
+            <RefreshCw className="w-4 h-4" />
+            Sincronizar Solides
+          </Button>
+        </div>
       </div>
 
       {/* Cards de resumo */}
@@ -313,6 +321,15 @@ export default function Employees() {
           onSave={handleSave}
           onReload={load}
           onClose={() => { setShowForm(false); setEditing(null); }}
+        />
+      )}
+
+      {showManualForm && (
+        <ManualEmployeeForm
+          companies={companies}
+          jobRoles={jobRoles}
+          onSave={load}
+          onClose={() => setShowManualForm(false)}
         />
       )}
 
