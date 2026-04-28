@@ -9,19 +9,24 @@ import { base44 } from '@/api/base44Client';
 function HoleriteContent({ employee, entry, month, company }) {
   const isCLT = employee.contract_type === 'CLT';
 
-  // Recalcula proventos/descontos globais (sem quinzenal)
+  // Recalcula proventos/descontos — mesmos campos que o formulário usa
   const calc = calculatePayroll({
     base_salary:               entry?.base_salary ?? 0,
-    absences_days:             entry?.absences_days ?? 0,
+    absence_discount:          0, // faltas não afetam o bruto/líquido — são descontadas nas quinzenas
+    absence_discount_first:    entry?.absence_discount_first ?? entry?.absence_discounts ? undefined : 0,
+    absence_discount_second:   entry?.absence_discount_second ?? 0,
     meal_voucher_day_value:    entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days:         entry?.meal_voucher_days ?? 0,
+    food_voucher:              entry?.food_voucher ?? 0,
     transport_voucher:         entry?.transport_voucher ?? 0,
-    km_bonus:                  entry?.km_bonus ?? 0,
+    km_bonus_qty:              entry?.km_bonus_qty ?? 0,
+    km_bonus_value:            entry?.km_bonus_value ?? 0,
+    cost_allowance:            entry?.cost_allowance ?? 0,
     motorcycle_rental:         entry?.motorcycle_rental ?? 0,
     hazard_pay:                entry?.hazard_pay ?? 0,
     bonus:                     entry?.bonus ?? 0,
     other_benefits:            entry?.other_benefits ?? 0,
-    union_contribution_pct:    entry?.union_contribution_pct ?? 0,
+    union_contribution_value:  entry?.union_contribution_value ?? 35,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     life_insurance:            entry?.life_insurance ?? 0,
     inss_pct:                  entry?.inss_pct ?? 0,
@@ -35,8 +40,12 @@ function HoleriteContent({ employee, entry, month, company }) {
   const baseSalary  = entry?.base_salary ?? 0;
   const mealVDays   = entry?.meal_voucher_days ?? 0;
   const mealVDay    = entry?.meal_voucher_day_value ?? 0;
+  const foodVoucher = entry?.food_voucher ?? 0;
   const transport   = entry?.transport_voucher ?? 0;
-  const kmBonus     = entry?.km_bonus ?? 0;
+  const kmBonusQty  = entry?.km_bonus_qty ?? 0;
+  const kmBonusVal  = entry?.km_bonus_value ?? 0;
+  const kmBonus     = calc.km_bonus ?? 0;
+  const costAllowance = entry?.cost_allowance ?? 0;
   const motoRental  = entry?.motorcycle_rental ?? 0;
   const hazardPay   = entry?.hazard_pay ?? 0;
   const bonus       = entry?.bonus ?? 0;
@@ -44,10 +53,15 @@ function HoleriteContent({ employee, entry, month, company }) {
   const pjRet       = entry?.pj_retention ?? 0;
   const lifeIns     = entry?.life_insurance ?? 0;
   const firstAdv    = entry?.first_period_advance ?? 0;
-  const grossTotal  = calc.gross_total;
-  const netTotal    = calc.net_total;
+  // Usa valores salvos no entry (calculados corretamente no momento do save)
+  const grossTotal  = entry?.gross_total ?? calc.gross_total;
+  const netTotal    = entry?.net_total ?? calc.net_total;
 
-  // Valores de quinzena: usar os salvos no entry (calculados no momento do save com descontos reais)
+  // Desconto de faltas por quinzena (salvo no entry)
+  const absenceFirst  = entry?.absence_discount_first ?? 0;
+  const absenceSecond = entry?.absence_discount_second ?? 0;
+
+  // Valores de quinzena: usar os salvos no entry
   const firstNet  = entry?.first_period_net  ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
 
@@ -60,21 +74,23 @@ function HoleriteContent({ employee, entry, month, company }) {
   const proventos = [
     { label: 'Salário Base', value: baseSalary, show: true },
     { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
+    { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
     { label: 'Vale Transporte', value: transport, show: transport > 0 },
-    { label: 'Adicional KM', value: kmBonus, show: kmBonus > 0 },
+    { label: `Adicional KM (${kmBonusQty} km × ${formatCurrency(kmBonusVal)})`, value: kmBonus, show: kmBonus > 0 },
+    { label: 'Ajuda de Custo', value: costAllowance, show: costAllowance > 0 },
     { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
     { label: 'Periculosidade', value: hazardPay, show: hazardPay > 0 },
     { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
     { label: 'Outros Benefícios', value: otherBen, show: otherBen > 0 },
   ].filter(x => x.show);
 
+  // Faltas NÃO entram aqui — são descontadas nas quinzenas individualmente
   const descontos = [
-    { label: `Desc. Faltas (${entry?.absences_days ?? 0}d)`, value: calc.absence_discount, show: calc.absence_discount > 0 },
-    { label: 'INSS', value: calc.inss_net, show: calc.inss_net > 0 },
+    { label: `INSS${entry?.inss_discount > 0 ? ` (desc. ${formatCurrency(entry.inss_discount)})` : ''}`, value: calc.inss_net, show: calc.inss_net > 0 },
     { label: 'IRRF', value: calc.irrf, show: calc.irrf > 0 },
     { label: 'Retenção PJ', value: pjRet, show: pjRet > 0 },
     { label: 'Contribuição Assistencial', value: calc.union_contribution, show: calc.union_contribution > 0 },
-    { label: 'Desconto Vale Refeição', value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
+    { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
     { label: 'Seguro de Vida', value: lifeIns, show: lifeIns > 0 },
   ].filter(x => x.show);
 
@@ -178,18 +194,33 @@ function HoleriteContent({ employee, entry, month, company }) {
               <span>Base (50% líquido)</span>
               <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
             </div>
+            {foodVoucher > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                <span>+ Vale Alimentação</span>
+                <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(foodVoucher)}</span>
+              </div>
+            )}
+            {absenceFirst > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>Desc. Faltas (1–15)</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceFirst)}</span>
+              </div>
+            )}
             {firstAdv > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
                 <span>Adiantamento</span>
                 <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span>
               </div>
             )}
-            {firstDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
-                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
-              </div>
-            ))}
+            {firstDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
               <span style={{ color: '#6a3eaf' }}>A Receber</span>
               <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
@@ -207,12 +238,37 @@ function HoleriteContent({ employee, entry, month, company }) {
               <span>Base (50% líquido)</span>
               <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
             </div>
-            {secondDiscounts.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
-                <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span>
+            {absenceSecond > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+                <span>Desc. Faltas (16–30)</span>
+                <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceSecond)}</span>
               </div>
-            ))}
+            )}
+            {(kmBonus > 0 || costAllowance > 0) && (
+              <>
+                {kmBonus > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                    <span>+ KM Adicional ({kmBonusQty} km × {formatCurrency(kmBonusVal)})</span>
+                    <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span>
+                  </div>
+                )}
+                {costAllowance > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
+                    <span>+ Ajuda de Custo</span>
+                    <span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span>
+                  </div>
+                )}
+              </>
+            )}
+            {secondDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                </div>
+              );
+            })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
               <span style={{ color: '#6a3eaf' }}>A Receber</span>
               <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
@@ -232,10 +288,10 @@ function HoleriteContent({ employee, entry, month, company }) {
       {/* ── Líquido Total ── */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>VALOR LÍQUIDO TOTAL</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(netTotal)}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A RECEBER (1ª + 2ª Quinzena)</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(firstNet + secondNet)}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(netTotal)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
       </div>
 
       {/* ── Dados bancários ── */}
@@ -303,15 +359,10 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     second_period_discount: 0,
   });
 
-  const baseQuinzenal = calc.first_period_net !== undefined
-    ? (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2
-    : (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
-  // Usa total_a_pagar calculado com créditos/débitos quinzenais se disponível
+  // Usa net_total salvo no entry para a base quinzenal (consistente com o formulário)
+  const savedNetTotal = entry?.net_total ?? calc.net_total;
+  const baseQuinzenal = savedNetTotal / 2;
   const firstAdv = entry?.first_period_advance ?? 0;
-  const firstDiscountTotal = (entry?.first_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
-  const secondDiscountTotal = (entry?.second_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
-  const quinzenalLiquido = -firstDiscountTotal - secondDiscountTotal - firstAdv;
-  const totalPagar = entry?._total_a_pagar ?? Math.round((calc.liquido_convencao + calc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
   const firstDiscounts = entry?.first_discounts ?? [];
@@ -633,41 +684,85 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
       const firstTotal  = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
       const secondTotal = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
 
-      // Recalcula net quinzenal com os descontos atualizados (mesmo cálculo do EscritorioPayrollForm)
-      const calcEsc = calculateEscritorioPayroll({
-        base_salary: entry?.base_salary ?? 0,
-        meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
-        meal_voucher_days: entry?.meal_voucher_days ?? 0,
-        meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
-        transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
-        transport_voucher_days: entry?.transport_voucher_days ?? 0,
-        transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
-        inss_pct: entry?.inss_pct ?? 0,
-        inss_deduction: entry?.inss_deduction ?? 0,
-        dental_plan: entry?.dental_plan ?? 0,
-        food_voucher: entry?.food_voucher ?? 0,
-        bonus: entry?.bonus ?? 0,
-        birthday_bonus: entry?.birthday_bonus ?? 0,
-        absence_discount: entry?.absence_discount ?? 0,
-        first_period_advance: entry?.first_period_advance ?? 0,
-        first_period_discount: firstTotal,
-        second_period_discount: secondTotal,
-      });
-      const firstAdv = entry?.first_period_advance ?? 0;
-      // Total a Pagar = líquido conv + outros benefícios + créditos - débitos - adiantamento
-      const quinzenalLiquido = -firstTotal - secondTotal - firstAdv;
-      const totalAPagar = Math.round((calcEsc.liquido_convencao + calcEsc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
+      const absenceFirst  = entry?.absence_discount_first  ?? 0;
+      const absenceSecond = entry?.absence_discount_second ?? 0;
 
-      setMergedEntry({
-        ...entry,
-        first_discounts:    firstDiscounts,
-        second_discounts:   secondDiscounts,
-        first_period_discount:  firstTotal,
-        second_period_discount: secondTotal,
-        first_period_net:   calcEsc.first_period_net,
-        second_period_net:  calcEsc.second_period_net,
-        _total_a_pagar:     totalAPagar,
-      });
+      if (payrollType === 'ESCRITORIO') {
+        // Recalcula net quinzenal para modelo Escritório
+        const calcEsc = calculateEscritorioPayroll({
+          base_salary: entry?.base_salary ?? 0,
+          meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+          meal_voucher_days: entry?.meal_voucher_days ?? 0,
+          meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+          transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
+          transport_voucher_days: entry?.transport_voucher_days ?? 0,
+          transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
+          inss_pct: entry?.inss_pct ?? 0,
+          inss_deduction: entry?.inss_deduction ?? 0,
+          dental_plan: entry?.dental_plan ?? 0,
+          food_voucher: entry?.food_voucher ?? 0,
+          bonus: entry?.bonus ?? 0,
+          birthday_bonus: entry?.birthday_bonus ?? 0,
+          absence_discount_first: absenceFirst,
+          absence_discount_second: absenceSecond,
+          first_period_advance: entry?.first_period_advance ?? 0,
+          first_period_discount: firstTotal,
+          second_period_discount: secondTotal,
+        });
+        const firstAdv = entry?.first_period_advance ?? 0;
+        const quinzenalLiquido = -firstTotal - secondTotal - firstAdv;
+        const totalAPagar = Math.round((calcEsc.liquido_convencao + calcEsc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
+
+        setMergedEntry({
+          ...entry,
+          first_discounts:       firstDiscounts,
+          second_discounts:      secondDiscounts,
+          first_period_discount: firstTotal,
+          second_period_discount: secondTotal,
+          first_period_net:      calcEsc.first_period_net,
+          second_period_net:     calcEsc.second_period_net,
+          _total_a_pagar:        totalAPagar,
+        });
+      } else {
+        // Modelo padrão (MOTOCICLISTA_CLT, MOTOCICLISTA_MEI, SOCIO, etc.)
+        // Usa os valores salvos no entry para gross/net total; recalcula apenas quinzenas com cashouts atualizados
+        const calcStd = calculatePayroll({
+          base_salary:               entry?.base_salary ?? 0,
+          absence_discount:          0,
+          absence_discount_first:    absenceFirst,
+          absence_discount_second:   absenceSecond,
+          meal_voucher_day_value:    entry?.meal_voucher_day_value ?? 0,
+          meal_voucher_days:         entry?.meal_voucher_days ?? 0,
+          food_voucher:              entry?.food_voucher ?? 0,
+          transport_voucher:         entry?.transport_voucher ?? 0,
+          km_bonus_qty:              entry?.km_bonus_qty ?? 0,
+          km_bonus_value:            entry?.km_bonus_value ?? 0,
+          cost_allowance:            entry?.cost_allowance ?? 0,
+          motorcycle_rental:         entry?.motorcycle_rental ?? 0,
+          hazard_pay:                entry?.hazard_pay ?? 0,
+          bonus:                     entry?.bonus ?? 0,
+          other_benefits:            entry?.other_benefits ?? 0,
+          union_contribution_value:  entry?.union_contribution_value ?? 35,
+          meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+          life_insurance:            entry?.life_insurance ?? 0,
+          inss_pct:                  entry?.inss_pct ?? 0,
+          inss_discount:             entry?.inss_discount ?? 0,
+          pj_retention:              entry?.pj_retention ?? 0,
+          first_period_advance:      entry?.first_period_advance ?? 0,
+          first_period_discount:     firstTotal,
+          second_period_discount:    secondTotal,
+        }, employee.contract_type);
+
+        setMergedEntry({
+          ...entry,
+          first_discounts:       firstDiscounts,
+          second_discounts:      secondDiscounts,
+          first_period_discount: firstTotal,
+          second_period_discount: secondTotal,
+          first_period_net:      calcStd.first_period_net,
+          second_period_net:     calcStd.second_period_net,
+        });
+      }
     });
   }, [employee.id, referenceMonth]);
 

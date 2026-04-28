@@ -105,12 +105,14 @@ export function calculateEscritorioPayroll(entry) {
   // Todos os benefícios extras exibidos na seção "Outros Benefícios"
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + birthdayBonus;
 
-  // Desconto de faltas (vindo dos ajustes de ponto)
-  const absenceDiscount = entry.absence_discount || 0;
+  // Desconto de faltas por quinzena (faltas não afetam bruto/net_total — descontadas nas quinzenas)
+  const absenceFirst = entry.absence_discount_first || 0;
+  const absenceSecond = entry.absence_discount_second || 0;
+  const absenceDiscount = absenceFirst + absenceSecond; // apenas para retorno informativo
 
-  // gross_total e net_total baseados na convenção coletiva
+  // gross_total e net_total baseados na convenção coletiva (SEM faltas — faltas vão nas quinzenas)
   const grossTotal = totalConvencao;
-  const netTotal = liquidoConvencao - absenceDiscount;
+  const netTotal = liquidoConvencao;
 
   // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;
@@ -119,11 +121,12 @@ export function calculateEscritorioPayroll(entry) {
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) / 2, Vale Alimentação na 1ª quinzena
+  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) / 2
+  // Faltas descontadas na quinzena correspondente
   const baseQuinzenal = (netTotal + bonus + birthdayBonus) / 2;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = baseQuinzenal + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0);
-  const secondPeriodNet = baseQuinzenal - (entry.second_period_discount || 0);
+  const firstPeriodNet = baseQuinzenal + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+  const secondPeriodNet = baseQuinzenal - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     meal_voucher: mealVoucher,
