@@ -109,6 +109,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
+  // flag: usuário já editou manualmente os dias por quinzena
+  const [periodDaysManual, setPeriodDaysManual] = useState(false);
 
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
@@ -251,11 +253,14 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       value={form.working_days_month === 0 ? '' : String(form.working_days_month)}
                       onChange={e => {
                         const total = parseInt(e.target.value) || 0;
-                        const periods = getWorkingDaysByPeriod(referenceMonth);
-                        const ratio = periods.first + periods.second > 0 ? periods.first / (periods.first + periods.second) : 0.5;
                         set('working_days_month', total);
-                        set('working_days_first', Math.round(total * ratio));
-                        set('working_days_second', total - Math.round(total * ratio));
+                        // só recalcula a divisão por quinzena se o usuário não tiver editado manualmente
+                        if (!periodDaysManual) {
+                          const periods = getWorkingDaysByPeriod(referenceMonth);
+                          const ratio = periods.first + periods.second > 0 ? periods.first / (periods.first + periods.second) : 0.5;
+                          set('working_days_first', Math.round(total * ratio));
+                          set('working_days_second', total - Math.round(total * ratio));
+                        }
                       }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
@@ -375,6 +380,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       onChange={e => {
                         const v = parseInt(e.target.value) || 0;
                         const total = form.working_days_month || (v + form.working_days_second);
+                        setPeriodDaysManual(true);
                         set('working_days_first', v);
                         set('working_days_second', Math.max(0, total - v));
                       }}
@@ -390,6 +396,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       onChange={e => {
                         const v = parseInt(e.target.value) || 0;
                         const total = form.working_days_month || (form.working_days_first + v);
+                        setPeriodDaysManual(true);
                         set('working_days_second', v);
                         set('working_days_first', Math.max(0, total - v));
                       }}
