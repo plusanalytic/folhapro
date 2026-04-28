@@ -38,6 +38,28 @@ export function totalAbsenceDiscount(absenceDiscounts) {
   return Object.values(absenceDiscounts || {}).reduce((s, v) => s + rowTotal(v), 0);
 }
 
+// Retorna { first: number, second: number } — desconto de faltas por quinzena
+// A chave do mapa é `tangerino_id-YYYY-MM-DD`, então extraímos o dia da chave
+export function absenceDiscountByPeriod(absenceDiscounts) {
+  let first = 0;
+  let second = 0;
+  for (const [key, disc] of Object.entries(absenceDiscounts || {})) {
+    // Extrai a data do padrão "id-YYYY-MM-DD" ou usa "id" sem data
+    const dateMatch = key.match(/(\d{4}-\d{2}-(\d{2}))$/);
+    const day = dateMatch ? parseInt(dateMatch[2], 10) : 0;
+    const amount = rowTotal(disc);
+    if (day >= 1 && day <= 15) {
+      first += amount;
+    } else {
+      second += amount;
+    }
+  }
+  return {
+    first: Math.round(first * 100) / 100,
+    second: Math.round(second * 100) / 100,
+  };
+}
+
 // Calcula valores base por dia com base no formulário
 function calcBaseValues(payrollForm) {
   const baseSalary = parseFloat(payrollForm?.base_salary) || 0;

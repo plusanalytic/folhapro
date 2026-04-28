@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { calculateEscritorioPayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
-import AbsenceDiscountsTable, { totalAbsenceDiscount } from './AbsenceDiscountsTable';
+import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
 export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
@@ -142,8 +142,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
+  const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalDiscount, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
+  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal };
   const calc = calculateEscritorioPayroll(calcForm);
 
   // Total a Pagar = Líquido Convenção + Outros Benefícios + líquido quinzenal (créditos - débitos - adiantamento)
@@ -191,6 +192,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       net_total: calc.net_total,
       absence_discount: totalDiscount,
       absence_discounts: absenceDiscounts,
+      absence_discount_first: absenceFirst,
+      absence_discount_second: absenceSecond,
       first_period_discount: firstDiscountTotal,
       second_period_discount: secondDiscountTotal,
       first_discounts: firstDiscounts,
@@ -414,6 +417,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                     </div>
                   )}
+                  {absenceFirst > 0 && (
+                    <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
+                      <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceFirst)}</span>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
                     <NumInput field="first_period_advance" className="mt-1 h-8 text-sm" />
@@ -425,7 +434,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
-                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance)}</p>
+                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance + absenceFirst)}</p>
                     </div>
                     <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.first_period_net)}</p>
                   </div>
@@ -436,6 +445,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                   </div>
+                  {absenceSecond > 0 && (
+                    <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
+                      <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceSecond)}</span>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
                     <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
@@ -443,7 +458,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Á Receber 2ª Quinzena</p>
-                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal)}</p>
+                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal + absenceSecond)}</p>
                     </div>
                     <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.second_period_net)}</p>
                   </div>
