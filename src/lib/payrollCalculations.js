@@ -174,8 +174,8 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     // Gross = Piso + Aluguel Moto + VR + Periculosidade
     const grossTotal = salary + (entry.motorcycle_rental || 0) + mealVoucher + (entry.hazard_pay || 0);
 
-    // INSS sobre (piso + periculosidade), desconto de faltas reduz o piso
-    const inssBase = (salary - absenceDiscount) + (entry.hazard_pay || 0);
+    // INSS sobre (piso + periculosidade) — sem desconto de faltas
+    const inssBase = salary + (entry.hazard_pay || 0);
     let inss = 0;
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
@@ -184,7 +184,7 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     }
     const inssDiscount = Math.min(entry.inss_discount || 0, inss);
     const inssNet = Math.max(0, inss - inssDiscount);
-    const fgts = calculateFGTS(salary - absenceDiscount);
+    const fgts = calculateFGTS(salary);
 
     // Net = Gross - INSS líquido - Contrib. Assistencial - Desc. VR - Seg. Vida
     // (desconto de faltas NÃO entra aqui — é descontado nas quinzenas individualmente)
@@ -202,6 +202,7 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
 
     return {
       absence_discount: absenceDiscount,
+      inss_base: Math.round(inssBase * 100) / 100,
       inss,
       inss_net: inssNet,
       fgts,

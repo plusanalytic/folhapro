@@ -415,7 +415,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       <Input {...numericField('inss_pct')} className="font-mono" placeholder="% ou deixe 0 para tabela" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Deixe 0 para usar tabela progressiva INSS 2026</p>
+                    {calc.inss_base > 0 && (
+                      <p className="text-xs text-primary mt-1 font-medium">
+                        Base de cálculo: {formatCurrency(calc.inss_base)}
+                        {form.hazard_pay > 0 && <span className="text-muted-foreground font-normal"> (piso {formatCurrency(form.base_salary)} + periculosidade {formatCurrency(form.hazard_pay)})</span>}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">Deixe 0 para usar tabela progressiva INSS 2026</p>
                   </div>
                   <div>
                     <Label>Desconto INSS (R$)</Label>
