@@ -10,10 +10,11 @@ function HoleriteContent({ employee, entry, month, company }) {
   const isCLT = employee.contract_type === 'CLT';
 
   // Recalcula proventos/descontos — mesmos campos que o formulário usa
+  // Nota: first/second_period_net vêm do mergedEntry (calculado no useEffect com cashouts atualizados)
   const calc = calculatePayroll({
     base_salary:               entry?.base_salary ?? 0,
-    absence_discount:          0, // faltas não afetam o bruto/líquido — são descontadas nas quinzenas
-    absence_discount_first:    entry?.absence_discount_first ?? entry?.absence_discounts ? undefined : 0,
+    absence_discount:          0,
+    absence_discount_first:    entry?.absence_discount_first ?? 0,
     absence_discount_second:   entry?.absence_discount_second ?? 0,
     meal_voucher_day_value:    entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days:         entry?.meal_voucher_days ?? 0,
@@ -32,10 +33,10 @@ function HoleriteContent({ employee, entry, month, company }) {
     inss_pct:                  entry?.inss_pct ?? 0,
     inss_discount:             entry?.inss_discount ?? 0,
     pj_retention:              entry?.pj_retention ?? 0,
-    first_period_advance:      0,
-    first_period_discount:     0,
-    second_period_discount:    0,
-  }, employee.contract_type);
+    first_period_advance:      entry?.first_period_advance ?? 0,
+    first_period_discount:     entry?.first_period_discount ?? 0,
+    second_period_discount:    entry?.second_period_discount ?? 0,
+  }, employee.contract_type, null);
 
   const baseSalary  = entry?.base_salary ?? 0;
   const mealVDays   = entry?.meal_voucher_days ?? 0;
@@ -729,13 +730,15 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
 
         setMergedEntry({
           ...entry,
-          first_discounts:       firstDiscounts,
-          second_discounts:      secondDiscounts,
-          first_period_discount: firstTotal,
-          second_period_discount: secondTotal,
-          first_period_net:      calcEsc.first_period_net,
-          second_period_net:     calcEsc.second_period_net,
-          _total_a_pagar:        totalAPagar,
+          first_discounts:          firstDiscounts,
+          second_discounts:         secondDiscounts,
+          first_period_discount:    firstTotal,
+          second_period_discount:   secondTotal,
+          absence_discount_first:   absenceFirst,
+          absence_discount_second:  absenceSecond,
+          first_period_net:         calcEsc.first_period_net,
+          second_period_net:        calcEsc.second_period_net,
+          _total_a_pagar:           totalAPagar,
         });
       } else {
         // Modelo padrão (MOTOCICLISTA_CLT, MOTOCICLISTA_MEI, SOCIO, etc.)
@@ -769,12 +772,14 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
 
         setMergedEntry({
           ...entry,
-          first_discounts:       firstDiscounts,
-          second_discounts:      secondDiscounts,
-          first_period_discount: firstTotal,
-          second_period_discount: secondTotal,
-          first_period_net:      calcStd.first_period_net,
-          second_period_net:     calcStd.second_period_net,
+          first_discounts:         firstDiscounts,
+          second_discounts:        secondDiscounts,
+          first_period_discount:   firstTotal,
+          second_period_discount:  secondTotal,
+          absence_discount_first:  absenceFirst,
+          absence_discount_second: absenceSecond,
+          first_period_net:        calcStd.first_period_net,
+          second_period_net:       calcStd.second_period_net,
         });
       }
     });
