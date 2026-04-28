@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer } from 'lucide-react';
 import { formatCurrency, numberToWords, getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
+import { absenceDiscountByPeriod, totalAbsenceDiscount } from '@/components/payroll/AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
 // ─── Holerite completo ────────────────────────────────────────────────────────
@@ -699,8 +700,10 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
       const firstTotal  = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
       const secondTotal = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
 
-      const absenceFirst  = entry?.absence_discount_first  ?? 0;
-      const absenceSecond = entry?.absence_discount_second ?? 0;
+      // Recalcula faltas por quinzena direto do mapa salvo (absence_discounts)
+      // Isso garante que lançamentos salvos antes de absence_discount_first/second serem populados também funcionem
+      const absenceMap = entry?.absence_discounts ?? {};
+      const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
       if (payrollType === 'ESCRITORIO') {
         // Recalcula net quinzenal para modelo Escritório
@@ -736,6 +739,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           second_period_discount:   secondTotal,
           absence_discount_first:   absenceFirst,
           absence_discount_second:  absenceSecond,
+          absence_discount:         absenceFirst + absenceSecond,
           first_period_net:         calcEsc.first_period_net,
           second_period_net:        calcEsc.second_period_net,
           _total_a_pagar:           totalAPagar,
@@ -778,6 +782,7 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
           second_period_discount:  secondTotal,
           absence_discount_first:  absenceFirst,
           absence_discount_second: absenceSecond,
+          absence_discount:        absenceFirst + absenceSecond,
           first_period_net:        calcStd.first_period_net,
           second_period_net:       calcStd.second_period_net,
         });
