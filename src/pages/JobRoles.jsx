@@ -19,9 +19,9 @@ const PAYROLL_TYPE_COLORS = {
   SOCIO: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
-// Modelos disponíveis (outros ainda em desenvolvimento)
-const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT', 'ESCRITORIO'];
-const COMING_SOON_TYPES = ['MOTOCICLISTA_MEI', 'SOCIO'];
+// Modelos disponíveis
+const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT', 'MOTOCICLISTA_MEI', 'ESCRITORIO'];
+const COMING_SOON_TYPES = ['SOCIO'];
 
 export default function JobRoles() {
   const [jobRoles, setJobRoles] = useState([]);
@@ -126,6 +126,7 @@ export default function JobRoles() {
                         {COMING_SOON_TYPES.map(key => (
                           <SelectItem key={key} value={key} disabled>{PAYROLL_TYPE_LABELS[key]} (em breve)</SelectItem>
                         ))}
+                        {/* MOTOCICLISTA_MEI agora disponível — não está mais em COMING_SOON_TYPES */}
                       </SelectContent>
                     </Select>
                   </td>
