@@ -149,12 +149,74 @@ export function calculateEscritorioPayroll(entry) {
   };
 }
 
-export function calculatePayroll(entry, contractType) {
+export function calculatePayroll(entry, contractType, payrollType = null) {
   const salary = entry.base_salary || 0;
   // Se houver absence_discount direto (vindo dos ajustes de ponto), usa ele; senão calcula por dias
   const absenceDiscount = (entry.absence_discount != null && entry.absence_discount > 0)
     ? entry.absence_discount
     : calculateAbsenceDiscount(salary, entry.absences_days || 0);
+
+  // Vale Refeição = valor dia * dias
+  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+  // KM adicional = quantidade × valor unitário
+  const kmBonus = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+  const costAllowance = entry.cost_allowance || 0;
+
+  // Contribuição Assistencial — valor fixo em R$
+  const unionContribution = entry.union_contribution_value != null ? (entry.union_contribution_value || 0) : 35;
+  // Desconto VR (%) sobre total do VR
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  // Seguro de vida
+  const lifeInsurance = entry.life_insurance || 0;
+
+  // ─── MOTOCICLISTA CLT ────────────────────────────────────────────────────────
+  if (payrollType === 'MOTOCICLISTA_CLT') {
+    // Gross = Piso + Aluguel Moto + VR + Periculosidade
+    const grossTotal = salary + (entry.motorcycle_rental || 0) + mealVoucher + (entry.hazard_pay || 0);
+
+    // INSS sobre (piso + periculosidade), desconto de faltas reduz o piso
+    const inssBase = (salary - absenceDiscount) + (entry.hazard_pay || 0);
+    let inss = 0;
+    if (entry.inss_pct != null && entry.inss_pct > 0) {
+      inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
+    } else {
+      inss = calculateINSS(Math.max(0, inssBase));
+    }
+    const inssDiscount = Math.min(entry.inss_discount || 0, inss);
+    const inssNet = Math.max(0, inss - inssDiscount);
+    const fgts = calculateFGTS(salary - absenceDiscount);
+
+    // Net = Gross - INSS líquido - Contrib. Assistencial - Desc. VR - Seg. Vida - Desc. Faltas
+    const netTotal = grossTotal - inssNet - unionContribution - mealVoucherDiscount - lifeInsurance - absenceDiscount;
+
+    // Quinzenal: net_total rateado 50/50
+    // 1ª quinzena: + food_voucher, - adiantamento, - descontos 1ª
+    // 2ª quinzena: + KM + ajuda de custo, - descontos 2ª
+    const foodVoucherVal = entry.food_voucher || 0;
+    const firstPeriodAdvance = entry.first_period_advance || 0;
+    const absenceFirst = entry.absence_discount_first || 0;
+    const absenceSecond = entry.absence_discount_second || 0;
+    const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+    const secondPeriodNet = (netTotal / 2) + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
+
+    return {
+      absence_discount: absenceDiscount,
+      inss,
+      inss_net: inssNet,
+      fgts,
+      irrf: 0,
+      meal_voucher: mealVoucher,
+      km_bonus: kmBonus,
+      union_contribution: unionContribution,
+      meal_voucher_discount: mealVoucherDiscount,
+      gross_total: Math.round(grossTotal * 100) / 100,
+      net_total: Math.round(netTotal * 100) / 100,
+      first_period_net: Math.round(firstPeriodNet * 100) / 100,
+      second_period_net: Math.round(secondPeriodNet * 100) / 100,
+    };
+  }
+
+  // ─── OUTROS MODELOS ──────────────────────────────────────────────────────────
   const salaryAfterAbsence = salary - absenceDiscount;
 
   let inss = 0, fgts = 0, irrf = 0, pjRetention = 0;
@@ -163,7 +225,6 @@ export function calculatePayroll(entry, contractType) {
     // Base de cálculo INSS = salário base + periculosidade
     const inssBase = salaryAfterAbsence + (entry.hazard_pay || 0);
     if (entry.inss_pct != null && entry.inss_pct > 0) {
-      // INSS manual (% editável pelo usuário)
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
     } else {
       inss = calculateINSS(inssBase);
@@ -174,36 +235,19 @@ export function calculatePayroll(entry, contractType) {
     pjRetention = entry.pj_retention || 0;
   }
 
-  // Vale Refeição = valor dia * dias
-  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
-
-  // KM adicional = quantidade × valor unitário
-  const kmBonus = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
-  const costAllowance = entry.cost_allowance || 0;
-
   const totalBenefits = mealVoucher + (entry.transport_voucher || 0) +
     kmBonus + (entry.motorcycle_rental || 0) + (entry.hazard_pay || 0) +
     (entry.bonus || 0) + (entry.other_benefits || 0) + costAllowance;
 
   const grossTotal = salaryAfterAbsence + totalBenefits;
 
-  // Contribuição Assistencial — valor fixo em R$
-  const unionContribution = entry.union_contribution_value != null ? (entry.union_contribution_value || 0) : 35;
-  // Desconto VR (%) sobre total do VR
-  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
-  // Seguro de vida
-  const lifeInsurance = entry.life_insurance || 0;
-
-  // Desconto manual sobre o INSS (reduz o valor do INSS a ser descontado)
   const inssDiscount = Math.min(entry.inss_discount || 0, inss);
   const inssNet = Math.max(0, inss - inssDiscount);
 
   const totalDiscounts = inssNet + irrf + pjRetention + unionContribution + mealVoucherDiscount + lifeInsurance;
   const netTotal = grossTotal - totalDiscounts;
 
-  // Quinzenal split:
-  // Vale Alimentação → 1ª quinzena
-  // KM Adicional + Ajuda de Custo → 2ª quinzena
+  // Quinzenal split
   const foodVoucherVal = entry.food_voucher || 0;
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = (netTotal / 2) + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0);

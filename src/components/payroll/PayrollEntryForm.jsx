@@ -179,7 +179,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
   const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value };
-  const calc = calculatePayroll(calcForm, employee.contract_type);
+  const calc = calculatePayroll(calcForm, employee.contract_type, payrollType);
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -473,7 +473,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                    </div>
                  )}
-                {absenceFirst > 0 && (
+                {absenceFirst > 0 && payrollType !== 'MOTOCICLISTA_CLT' && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
                     <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceFirst)}</span>
@@ -502,7 +502,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.net_total / 2)}</span>
                 </div>
-                {absenceSecond > 0 && (
+                {absenceSecond > 0 && payrollType !== 'MOTOCICLISTA_CLT' && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
                     <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceSecond)}</span>
