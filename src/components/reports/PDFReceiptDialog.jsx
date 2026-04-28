@@ -288,10 +288,10 @@ function HoleriteContent({ employee, entry, month, company }) {
       {/* ── Líquido Total ── */}
       <div style={{ background: 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL A RECEBER (1ª + 2ª Quinzena)</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(firstNet + secondNet)}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>VALOR LÍQUIDO TOTAL</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(netTotal)}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(netTotal)}</div>
       </div>
 
       {/* ── Dados bancários ── */}
@@ -359,10 +359,15 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     second_period_discount: 0,
   });
 
-  // Usa net_total salvo no entry para a base quinzenal (consistente com o formulário)
-  const savedNetTotal = entry?.net_total ?? calc.net_total;
-  const baseQuinzenal = savedNetTotal / 2;
+  const baseQuinzenal = calc.first_period_net !== undefined
+    ? (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2
+    : (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
+  // Usa total_a_pagar calculado com créditos/débitos quinzenais se disponível
   const firstAdv = entry?.first_period_advance ?? 0;
+  const firstDiscountTotal = (entry?.first_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const secondDiscountTotal = (entry?.second_discounts ?? []).reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const quinzenalLiquido = -firstDiscountTotal - secondDiscountTotal - firstAdv;
+  const totalPagar = entry?._total_a_pagar ?? Math.round((calc.liquido_convencao + calc.total_outros_beneficios + quinzenalLiquido) * 100) / 100;
   const firstNet = entry?.first_period_net ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
   const firstDiscounts = entry?.first_discounts ?? [];
@@ -494,47 +499,56 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
       )}
 
       {/* Quinzenal */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15)</div>
-          <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
-            {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
-            {firstDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+      {(() => {
+        const escAbsenceFirst  = entry?.absence_discount_first  ?? 0;
+        const escAbsenceSecond = entry?.absence_discount_second ?? 0;
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+            <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15)</div>
+              <div style={{ padding: '8px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
+                {(entry?.food_voucher ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.food_voucher)}</span></div>}
+                {escAbsenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceFirst)}</span></div>}
+                {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
+                {firstDiscounts.map((d, i) => {
+                  const isCredit = d.type === 'credit';
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                      <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                      <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+                  <span style={{ color: '#6a3eaf' }}>A Receber</span>
+                  <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
                 </div>
-              );
-            })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
-              <span style={{ color: '#6a3eaf' }}>A Receber</span>
-              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span>
+              </div>
+            </div>
+            <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
+              <div style={{ padding: '8px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
+                {escAbsenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceSecond)}</span></div>}
+                {secondDiscounts.map((d, i) => {
+                  const isCredit = d.type === 'credit';
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
+                      <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                      <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
+                  <span style={{ color: '#6a3eaf' }}>A Receber</span>
+                  <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
-          <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
-            {secondDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
-                  <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
-                </div>
-              );
-            })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
-              <span style={{ color: '#6a3eaf' }}>A Receber</span>
-              <span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
 
 
