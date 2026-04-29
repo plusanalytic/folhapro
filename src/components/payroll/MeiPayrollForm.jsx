@@ -42,7 +42,8 @@ function calculateMeiPayroll(entry) {
   const foodVoucher = entry.food_voucher || 0;
   const lifeInsurance = entry.life_insurance || 0;
 
-  const grossTotal = remuneracao + kmBonus + costAllowance + motoRental + bonus + otherBenefits;
+  // Ajuda de custo NÃO entra no gross/net total — é paga exclusivamente na 2ª quinzena para evitar duplicidade
+  const grossTotal = remuneracao + kmBonus + motoRental + bonus + otherBenefits;
   const netTotal = grossTotal;
 
   const diasQ1 = entry.working_days_first || 0;
@@ -506,7 +507,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     <span className="font-mono">{formatCurrency(calc.km_bonus)}</span>
                   </div>
                 )}
-                {form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
+                {form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo <span className="text-xs">(paga na 2ª quinzena)</span></span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
                 {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
                 {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}

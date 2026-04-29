@@ -357,9 +357,10 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   const remuneracao    = entry?.gross_total != null
     ? (() => {
         // recalcula remuneracao proporcional igual ao formulário
+        // Ajuda de custo NÃO está no gross_total (paga só na 2ª quinzena)
         const km = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
         const gross = entry.gross_total ?? 0;
-        return Math.round((gross - km - (entry.cost_allowance||0) - (entry.motorcycle_rental||0) - (entry.bonus||0) - (entry.other_benefits||0)) * 100) / 100;
+        return Math.round((gross - km - (entry.motorcycle_rental||0) - (entry.bonus||0) - (entry.other_benefits||0)) * 100) / 100;
       })()
     : 0;
   const kmBonus        = entry?.km_bonus ?? Math.round((entry?.km_bonus_qty||0)*(entry?.km_bonus_value||0)*100)/100;
@@ -380,10 +381,10 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   const firstDiscountTotal  = firstDiscounts.reduce((s,r) => r.type==='credit' ? s-(r.amount||0) : s+(r.amount||0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s,r) => r.type==='credit' ? s-(r.amount||0) : s+(r.amount||0), 0);
 
+  // Ajuda de Custo NÃO entra nos proventos gerais — é paga exclusivamente na 2ª quinzena
   const proventos = [
     { label: `Remuneração Proporcional (${diasTrabalhados}/${diasMes} dias úteis)`, value: remuneracao, show: true },
     { label: `Adicional KM (${entry?.km_bonus_qty||0} km × ${formatCurrency(entry?.km_bonus_value||0)})`, value: kmBonus, show: kmBonus > 0 },
-    { label: 'Ajuda de Custo', value: costAllowance, show: costAllowance > 0 },
     { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
     { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
     { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
