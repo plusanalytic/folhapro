@@ -96,6 +96,14 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     notes: entry?.notes ?? '',
   });
 
+  // Estado de string separado para os 4 campos de dias — evita que parseInt('') = NaN reforce 0 durante digitação
+  const [daysStr, setDaysStr] = useState({
+    working_days_month:  String(entry?.working_days_month  ?? ''),
+    working_days_worked: String(entry?.working_days_worked ?? ''),
+    working_days_first:  String(entry?.working_days_first  ?? ''),
+    working_days_second: String(entry?.working_days_second ?? ''),
+  });
+
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
@@ -114,40 +122,58 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     });
   }, [employee.id, referenceMonth]);
 
-  // Helpers de atualização — sempre salvam como número
-  const setField = (k, v) => {
+  // Atualiza campo de dias: mantém string para exibição e número no form
+  const setDayField = (key, strVal) => {
     if (readOnly) return;
-    setForm(f => ({ ...f, [k]: v }));
-  };
-  const setNum = (k, v) => {
-    if (readOnly) return;
-    setForm(f => ({ ...f, [k]: parseFloat(v) || 0 }));
-  };
-  const setInt = (k, v) => {
-    if (readOnly) return;
-    setForm(f => ({ ...f, [k]: parseInt(v) || 0 }));
+    setDaysStr(prev => ({ ...prev, [key]: strVal }));
+    const num = parseInt(strVal);
+    setForm(f => ({ ...f, [key]: isNaN(num) ? 0 : num }));
   };
 
-  // Input numérico genérico (float) — salva como número direto no onChange
+  // Quando "Dias Trabalhados" muda, pré-distribui entre as quinzenas SE ainda não foram editadas manualmente
+  const handleWorkedDaysChange = (strVal) => {
+    if (readOnly) return;
+    setDaysStr(prev => ({ ...prev, working_days_worked: strVal }));
+    const num = parseInt(strVal);
+    const worked = isNaN(num) ? 0 : num;
+    setForm(f => {
+      const newForm = { ...f, working_days_worked: worked };
+      // Só distribui automaticamente se ambos os campos de quinzena ainda estão zerados
+      if (f.working_days_first === 0 && f.working_days_second === 0 && worked > 0) {
+        const half = Math.floor(worked / 2);
+        const q1 = half;
+        const q2 = worked - half;
+        setDaysStr(prev => ({ ...prev, working_days_first: String(q1), working_days_second: String(q2) }));
+        return { ...newForm, working_days_first: q1, working_days_second: q2 };
+      }
+      return newForm;
+    });
+  };
+
+  // Input numérico genérico (float)
   const numericInput = (key) => ({
     type: 'number',
     step: 'any',
     disabled: readOnly,
     className: 'mt-1 font-mono',
     value: form[key] === 0 ? '' : String(form[key]),
-    onChange: (e) => setNum(key, e.target.value),
+    onChange: (e) => {
+      if (readOnly) return;
+      const v = e.target.value;
+      setForm(f => ({ ...f, [key]: v === '' ? 0 : parseFloat(v) || 0 }));
+    },
     onFocus: (e) => setTimeout(() => e.target.select(), 0),
   });
 
-  // Input inteiro (para dias)
-  const intInput = (key) => ({
+  // Input de dias — usa daysStr para não forçar zero durante digitação
+  const dayInput = (key) => ({
     type: 'number',
     step: '1',
     min: '0',
     disabled: readOnly,
     className: 'mt-1 font-mono',
-    value: form[key] === 0 ? '' : String(form[key]),
-    onChange: (e) => setInt(key, e.target.value),
+    value: daysStr[key] ?? '',
+    onChange: (e) => setDayField(key, e.target.value),
     onFocus: (e) => setTimeout(() => e.target.select(), 0),
   });
 
@@ -255,12 +281,18 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   <div>
                     <Label>Dias Úteis no Mês</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Total de dias úteis</p>
-                    <Input {...intInput('working_days_month')} min="1" />
+                    <Input {...dayInput('working_days_month')} min="1" />
                   </div>
                   <div>
                     <Label>Dias Úteis Trabalhados</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Dias efetivamente trabalhados</p>
-                    <Input {...intInput('working_days_worked')} />
+                    <Input
+                      type="number" step="1" min="0" disabled={readOnly}
+                      className="mt-1 font-mono"
+                      value={daysStr.working_days_worked ?? ''}
+                      onChange={e => handleWorkedDaysChange(e.target.value)}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
@@ -355,14 +387,15 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Dias Úteis por Quinzena — Rateio da Remuneração
                 </p>
+                <p className="text-xs text-muted-foreground">Referência: {form.working_days_worked} dias trabalhados. Edite livremente.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
-                    <Input {...intInput('working_days_first')} />
+                    <Input {...dayInput('working_days_first')} />
                   </div>
                   <div>
                     <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
-                    <Input {...intInput('working_days_second')} />
+                    <Input {...dayInput('working_days_second')} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
