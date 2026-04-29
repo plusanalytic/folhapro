@@ -42,7 +42,7 @@ const DEFAULTS = {
 };
 
 export default function ProLaboreForm({ employee, entry, referenceMonth, readOnly, onSave, onClose }) {
-  const [form, setForm] = useState({ ...DEFAULTS, ...entry });
+  const [form, setForm] = useState({ ...DEFAULTS, company_id: employee.company_id, ...entry });
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
