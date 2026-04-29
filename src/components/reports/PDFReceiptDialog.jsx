@@ -354,15 +354,11 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   const diasTrabalhados = entry?.working_days_worked ?? diasMes;
   const diasQ1         = entry?.working_days_first ?? 0;
   const diasQ2         = entry?.working_days_second ?? 0;
-  const remuneracao    = entry?.gross_total != null
-    ? (() => {
-        // recalcula remuneracao proporcional igual ao formulário
-        // Ajuda de custo NÃO está no gross_total (paga só na 2ª quinzena)
-        const km = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
-        const gross = entry.gross_total ?? 0;
-        return Math.round((gross - km - (entry.motorcycle_rental||0) - (entry.bonus||0) - (entry.other_benefits||0)) * 100) / 100;
-      })()
-    : 0;
+  // Remuneração proporcional calculada diretamente pelos dias — nunca derivada do gross_total salvo
+  // para evitar que costAllowance (salvo em versões antigas dentro do gross) distorça o valor
+  const remuneracao    = diasMes > 0
+    ? Math.round((valorBase / diasMes) * diasTrabalhados * 100) / 100
+    : valorBase;
   const kmBonus        = entry?.km_bonus ?? Math.round((entry?.km_bonus_qty||0)*(entry?.km_bonus_value||0)*100)/100;
   const costAllowance  = entry?.cost_allowance ?? 0;
   const motoRental     = entry?.motorcycle_rental ?? 0;
@@ -371,8 +367,8 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   const foodVoucher    = entry?.food_voucher ?? 0;
   const lifeInsurance  = entry?.life_insurance ?? 0;
   const firstAdv       = entry?.first_period_advance ?? 0;
-  // Ajuda de custo NÃO entra no grossTotal exibido — é paga exclusivamente na 2ª quinzena
-  const grossTotal     = Math.max(0, (entry?.gross_total ?? 0) - costAllowance);
+  // grossTotal = remuneração + benefícios (sem costAllowance — pago exclusivamente na 2ª quinzena)
+  const grossTotal     = Math.round((remuneracao + kmBonus + motoRental + bonus + otherBen) * 100) / 100;
   const firstNet       = entry?.first_period_net ?? 0;
   const secondNet      = entry?.second_period_net ?? 0;
   const firstBase      = entry?.first_period_base ?? 0;
