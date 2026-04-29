@@ -10,6 +10,7 @@ import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
 import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
+import ProLaboreForm from '@/components/payroll/ProLaboreForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 import { toast } from 'sonner';
 
@@ -340,7 +341,7 @@ export default function Payroll() {
       {showForm && editingEmployee && (() => {
         const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
         const pt = empJobRole?.payroll_type;
-        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : PayrollEntryForm;
+        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'SOCIO' ? ProLaboreForm : PayrollEntryForm;
         return (
           <FormComponent
             key={`${editingEmployee.id}-${editingEntry?.id ?? 'new'}`}

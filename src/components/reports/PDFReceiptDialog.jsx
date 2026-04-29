@@ -5,6 +5,7 @@ import { Printer } from 'lucide-react';
 import { formatCurrency, numberToWords, getMonthName, calculatePayroll, calculateEscritorioPayroll, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import { absenceDiscountByPeriod, totalAbsenceDiscount } from '@/components/payroll/AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
+import ProLaboreReceiptContent from './ProLaboreReceiptContent';
 
 // ─── Holerite completo ────────────────────────────────────────────────────────
 function HoleriteContent({ employee, entry, month, company }) {
@@ -1155,7 +1156,9 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
             ? <EscritorioHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
             : payrollType === 'MOTOCICLISTA_MEI'
               ? <MeiHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
-              : <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+              : payrollType === 'SOCIO'
+                ? <ProLaboreReceiptContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+                : <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
           }
         </div>
       </DialogContent>

@@ -292,6 +292,41 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
   };
 }
 
+// ─── PRÓ-LABORE ──────────────────────────────────────────────────────────────
+// INSS Pró-Labore: alíquota fixa de 11% sobre o valor do pró-labore (sem tabela progressiva)
+export const PRO_LABORE_INSS_RATE = 0.11;
+
+export function calculateProLabore(entry) {
+  const proLaboreBase  = entry.base_salary       || 0;
+  const quotaAdjust    = entry.quota_adjustment   || 0;  // Reajuste de cota
+  const birthdayBonus  = entry.birthday_bonus     || 0;
+  const profitDist     = entry.profit_distribution || 0; // Distribuição de lucros
+  const firstAdvance   = entry.first_period_advance || 0;
+  const otherDiscounts = entry.other_discounts    || 0;  // Outros descontos
+  const inssCustomPct  = entry.inss_pct;                 // % customizado (null = usa 11%)
+  const irrfCustom     = entry.irrf               || 0;  // IRRF manual
+
+  // INSS fixo 11% (ou % customizado) sobre pró-labore base
+  const inssPct  = (inssCustomPct != null && inssCustomPct > 0) ? inssCustomPct / 100 : PRO_LABORE_INSS_RATE;
+  const inss     = Math.round(proLaboreBase * inssPct * 100) / 100;
+
+  const grossTotal = Math.round((proLaboreBase + quotaAdjust + birthdayBonus) * 100) / 100;
+  const irrf       = irrfCustom > 0 ? irrfCustom : calculateIRRF(grossTotal, inss);
+  const netLabore  = Math.round((grossTotal - inss - irrf) * 100) / 100;
+
+  // Total líquido a receber = líquido do pró-labore + distribuição de lucros - adiantamento - outros descontos
+  const netTotal = Math.round((netLabore + profitDist - firstAdvance - otherDiscounts) * 100) / 100;
+
+  return {
+    gross_total: grossTotal,
+    inss,
+    irrf,
+    net_labore: netLabore,   // líquido apenas do pró-labore
+    net_total: netTotal,     // total líquido a receber
+    profit_distribution: profitDist,
+  };
+}
+
 export function numberToWords(value) {
   const units = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
     'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
