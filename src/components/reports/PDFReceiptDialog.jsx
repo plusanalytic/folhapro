@@ -79,7 +79,6 @@ function HoleriteContent({ employee, entry, month, company }) {
     { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
     { label: 'Vale Transporte', value: transport, show: transport > 0 },
     { label: `Adicional KM (${kmBonusQty} km × ${formatCurrency(kmBonusVal)})`, value: kmBonus, show: kmBonus > 0 },
-    { label: 'Ajuda de Custo', value: costAllowance, show: costAllowance > 0 },
     { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
     { label: 'Periculosidade', value: hazardPay, show: hazardPay > 0 },
     { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },

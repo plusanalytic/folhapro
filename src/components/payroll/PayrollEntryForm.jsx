@@ -443,7 +443,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
               <div>
                 <p className="font-bold text-base">Total Bruto</p>
-                <p className="text-xs text-muted-foreground">Antes dos descontos</p>
+                <p className="text-xs text-muted-foreground">
+                  {payrollType === 'MOTOCICLISTA_CLT' ? 'Piso + Aluguel Moto + VR + Periculosidade (Ajuda de Custo e KM pagos na 2ª quinzena)' : 'Antes dos descontos'}
+                </p>
               </div>
               <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
             </div>
@@ -651,7 +653,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {show('food_voucher') && form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
               {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
               {show('km_bonus') && calc.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">KM Adicional ({form.km_bonus_qty} km × {formatCurrency(form.km_bonus_value)})</span><span className="font-mono">{formatCurrency(calc.km_bonus)}</span></div>}
-              {show('km_bonus') && form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
+              {show('km_bonus') && form.cost_allowance > 0 && payrollType !== 'MOTOCICLISTA_CLT' && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
+              {show('km_bonus') && form.cost_allowance > 0 && payrollType === 'MOTOCICLISTA_CLT' && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo (paga na 2ª quinzena)</span><span className="font-mono text-secondary">{formatCurrency(form.cost_allowance)}</span></div>}
               {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
               {form.hazard_pay > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Periculosidade</span><span className="font-mono">{formatCurrency(form.hazard_pay)}</span></div>}
               {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
