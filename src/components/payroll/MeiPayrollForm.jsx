@@ -8,20 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
+import MeiPeriodDiscountsTable from './MeiPeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import { base44 } from '@/api/base44Client';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+
 
 const COST_ALLOWANCE_DEFAULT = 500;
-
-// Calcula ajuda de custo baseado nas faltas registradas na quinzena
-function calcCostAllowanceByAbsences(baseValue, absences, workingDays) {
-  if (absences === 0) return baseValue;
-  if (absences >= 2) return 0;
-  // 1 falta = desconta 1 diária
-  const daily = workingDays > 0 ? baseValue / workingDays : 0;
-  return Math.max(0, Math.round((baseValue - daily) * 100) / 100);
-}
 
 // Calcula dias úteis da 1ª quinzena (dias 1–15) e 2ª quinzena (dias 16–fim)
 function getWorkingDaysByPeriod(yearMonth) {
@@ -121,16 +114,23 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
 
-  // Faltas por quinzena — para regra de Ajuda de Custo
-  const [absencesFirst, setAbsencesFirst] = useState(entry?.mei_absences_first ?? 0);
-  const [absencesSecond, setAbsencesSecond] = useState(entry?.mei_absences_second ?? 0);
-  const totalAbsences = absencesFirst + absencesSecond;
+  // Conta faltas automaticamente a partir das tabelas de descontos
+  const faltasFirst = firstDiscounts.filter(r => r.category === 'falta').length;
+  const faltasSecond = secondDiscounts.filter(r => r.category === 'falta').length;
+  const totalFaltas = faltasFirst + faltasSecond;
 
-  // Recalcula a ajuda de custo com base nas faltas
+  // Recalcula ajuda de custo com base nas faltas das tabelas
   const recalcCostAllowance = () => {
-    const base = form.cost_allowance > 0 ? form.cost_allowance : COST_ALLOWANCE_DEFAULT;
     const workingDays = form.working_days_month || 1;
-    const newValue = calcCostAllowanceByAbsences(base, totalAbsences, workingDays);
+    let newValue;
+    if (totalFaltas === 0) {
+      newValue = COST_ALLOWANCE_DEFAULT;
+    } else if (totalFaltas === 1) {
+      const daily = COST_ALLOWANCE_DEFAULT / workingDays;
+      newValue = Math.max(0, Math.round((COST_ALLOWANCE_DEFAULT - daily) * 100) / 100);
+    } else {
+      newValue = 0;
+    }
     setForm(f => ({ ...f, cost_allowance: newValue }));
   };
 
@@ -252,8 +252,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       second_period_base: calc.second_period_base,
       first_period_split: calc.split_first,
       reference_month: referenceMonth,
-      mei_absences_first: absencesFirst,
-      mei_absences_second: absencesSecond,
       pj_retention: 0,
       absence_discount: 0,
       absence_discounts: {},
@@ -458,49 +456,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 </div>
               </div>
 
-              {/* ── Faltas e regra de Ajuda de Custo ── */}
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-600" />
-                    <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Faltas — Regra Ajuda de Custo</p>
-                  </div>
-                  {!readOnly && (
-                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-100" onClick={recalcCostAllowance}>
-                      <RefreshCw className="w-3 h-3" /> Recalcular Ajuda de Custo
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Faltas — 1ª Quinzena (1–15)</Label>
-                    <Input
-                      type="number" step="1" min="0" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={absencesFirst === 0 ? '' : String(absencesFirst)}
-                      onChange={e => { if (!readOnly) setAbsencesFirst(parseInt(e.target.value) || 0); }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Faltas — 2ª Quinzena (16–fim)</Label>
-                    <Input
-                      type="number" step="1" min="0" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={absencesSecond === 0 ? '' : String(absencesSecond)}
-                      onChange={e => { if (!readOnly) setAbsencesSecond(parseInt(e.target.value) || 0); }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="rounded-md bg-white border border-orange-200 px-3 py-2 text-xs text-orange-700 space-y-0.5">
-                  <p className="font-semibold">Regra aplicada: {totalAbsences === 0 ? '✅ Sem faltas — valor integral' : totalAbsences === 1 ? '⚠️ 1 falta — desconta 1 diária' : '❌ 2+ faltas — perde o benefício (R$ 0,00)'}</p>
-                  <p className="text-orange-600">Total de faltas: {totalAbsences} | Ajuda de Custo atual: {formatCurrency(form.cost_allowance)} | Clique em "Recalcular" para aplicar a regra.</p>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
@@ -526,7 +481,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                    <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                    <MeiPeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
                   </div>
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <div>
@@ -560,8 +515,16 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     </div>
                   )}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                    <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-muted-foreground">Descontos da 2ª Quinzena</p>
+                      {!readOnly && (
+                        <Button size="sm" variant="outline" className="gap-1 h-6 text-xs border-orange-300 text-orange-700 hover:bg-orange-50" onClick={recalcCostAllowance}>
+                          <RefreshCw className="w-3 h-3" /> Recalc. Ajuda de Custo
+                          {totalFaltas > 0 && <span className="ml-1 bg-red-500 text-white rounded-full text-[10px] px-1">{totalFaltas}</span>}
+                        </Button>
+                      )}
+                    </div>
+                    <MeiPeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
                   </div>
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <div>
