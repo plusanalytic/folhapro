@@ -343,6 +343,7 @@ export default function Payroll() {
         const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : PayrollEntryForm;
         return (
           <FormComponent
+            key={`${editingEmployee.id}-${editingEntry?.id ?? 'new'}`}
             employee={editingEmployee}
             entry={editingEntry}
             referenceMonth={selectedMonth}
