@@ -101,6 +101,16 @@
       "default": 0,
       "description": "Ajuda de custo (paga na 2\u00aa quinzena)"
     },
+    "mei_absences_first": {
+      "type": "number",
+      "default": 0,
+      "description": "Faltas MEI na 1\u00aa quinzena (para c\u00e1lculo da ajuda de custo)"
+    },
+    "mei_absences_second": {
+      "type": "number",
+      "default": 0,
+      "description": "Faltas MEI na 2\u00aa quinzena (para c\u00e1lculo da ajuda de custo)"
+    },
     "motorcycle_rental": {
       "type": "number",
       "default": 0
