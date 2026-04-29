@@ -332,8 +332,22 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Ajuda de Custo</Label>
-                  <Input {...numericInput('cost_allowance')} />
+                  <Label>Ajuda de Custo (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    disabled={readOnly}
+                    className="mt-1 font-mono"
+                    value={form.cost_allowance === 0 ? '' : String(form.cost_allowance)}
+                    onChange={e => {
+                      if (readOnly) return;
+                      const v = e.target.value;
+                      setForm(f => ({ ...f, cost_allowance: v === '' ? 0 : parseFloat(v) || 0 }));
+                    }}
+                    onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    placeholder="0,00"
+                  />
                 </div>
                 <div>
                   <Label>Aluguel da Motocicleta</Label>
