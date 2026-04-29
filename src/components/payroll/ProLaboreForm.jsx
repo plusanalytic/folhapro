@@ -3,10 +3,11 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { X, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { formatCurrency, calculateProLabore, getMonthName } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
@@ -91,62 +92,74 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
   const monthName = getMonthName(referenceMonth);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
-      <Card className="w-full max-w-3xl my-4">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">
-            Pró-Labore — {employee.name} — {monthName}
-          </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </CardHeader>
-        <CardContent>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
+        <div className="flex-1 overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
+              <Badge variant="secondary">Sócio</Badge>
+              <Badge variant="outline" className="text-xs">Pró-Labore</Badge>
+              <span className="text-sm font-normal text-muted-foreground">{monthName}</span>
+            </DialogTitle>
+          </DialogHeader>
+
           <Tabs defaultValue="proventos">
-            <TabsList className="mb-4">
+            <TabsList className="grid grid-cols-3 w-full mt-4">
               <TabsTrigger value="proventos">Pró-Labore</TabsTrigger>
               <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
               <TabsTrigger value="resumo">Resumo</TabsTrigger>
             </TabsList>
 
             {/* ── Pró-Labore ── */}
-            <TabsContent value="proventos" className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Pró-Labore Base (R$)</Label>
-                  <NumInput value={form.base_salary} disabled={readOnly} onChange={v => set('base_salary', v)} />
+            <TabsContent value="proventos" className="space-y-4 mt-4">
+              {readOnly && (
+                <div className="bg-muted/50 border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground">
+                  Modo visualização — nenhuma alteração pode ser realizada.
                 </div>
-                <div>
-                  <Label className="text-xs">Reajuste de Cota (R$)</Label>
-                  <NumInput value={form.quota_adjustment} disabled={readOnly} onChange={v => set('quota_adjustment', v)} />
-                </div>
-                <div>
-                  <Label className="text-xs">Bonificação de Aniversário (R$)</Label>
-                  <NumInput value={form.birthday_bonus} disabled={readOnly} onChange={v => set('birthday_bonus', v)} />
-                </div>
-                <div>
-                  <Label className="text-xs">Distribuição de Lucros (R$)</Label>
-                  <NumInput value={form.profit_distribution} disabled={readOnly} onChange={v => set('profit_distribution', v)} />
+              )}
+
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Pró-Labore Base (R$)</Label>
+                    <NumInput value={form.base_salary} disabled={readOnly} onChange={v => set('base_salary', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Reajuste de Cota (R$)</Label>
+                    <NumInput value={form.quota_adjustment} disabled={readOnly} onChange={v => set('quota_adjustment', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Bonificação de Aniversário (R$)</Label>
+                    <NumInput value={form.birthday_bonus} disabled={readOnly} onChange={v => set('birthday_bonus', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Distribuição de Lucros (R$)</Label>
+                    <NumInput value={form.profit_distribution} disabled={readOnly} onChange={v => set('profit_distribution', v)} />
+                  </div>
                 </div>
               </div>
 
-              <Separator />
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Descontos</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">INSS Pró-Labore (%)</Label>
-                  <NumInput value={form.inss_pct} disabled={readOnly} onChange={v => set('inss_pct', v)} step="0.01" />
-                </div>
-                <div>
-                  <Label className="text-xs">IRRF (R$) — manual</Label>
-                  <NumInput value={form.irrf} disabled={readOnly} onChange={v => set('irrf', v)} />
-                </div>
-                <div>
-                  <Label className="text-xs">Outros Descontos (R$)</Label>
-                  <NumInput value={form.other_discounts} disabled={readOnly} onChange={v => set('other_discounts', v)} />
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs">INSS Pró-Labore (%)</Label>
+                    <NumInput value={form.inss_pct} disabled={readOnly} onChange={v => set('inss_pct', v)} step="0.01" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">IRRF (R$) — manual</Label>
+                    <NumInput value={form.irrf} disabled={readOnly} onChange={v => set('irrf', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Outros Descontos (R$)</Label>
+                    <NumInput value={form.other_discounts} disabled={readOnly} onChange={v => set('other_discounts', v)} />
+                  </div>
                 </div>
               </div>
 
-              <Separator />
-              <div className="rounded-lg bg-muted/40 p-4 space-y-1 text-sm font-mono">
+              <div className="rounded-lg bg-primary/10 p-4 space-y-2 text-sm font-mono">
                 <div className="flex justify-between"><span>Total Bruto</span><span className="font-semibold">{formatCurrency(calc.gross_total)}</span></div>
                 <div className="flex justify-between text-destructive"><span>INSS ({form.inss_pct}%)</span><span>- {formatCurrency(calc.inss)}</span></div>
                 <div className="flex justify-between text-destructive"><span>IRRF</span><span>- {formatCurrency(calc.irrf)}</span></div>
@@ -156,70 +169,98 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
             </TabsContent>
 
             {/* ── Quinzenal ── */}
-            <TabsContent value="quinzenal" className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            <TabsContent value="quinzenal" className="space-y-5 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs">Adiantamento 1ª Quinzena (R$)</Label>
                   <NumInput value={form.first_period_advance} disabled={readOnly} onChange={v => set('first_period_advance', v)} />
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Descontos / Créditos — 1ª Quinzena</p>
+                <div className="space-y-3 border border-border rounded-xl p-4">
+                  <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                  <p className="text-xs font-medium text-muted-foreground">Descontos / Créditos</p>
                   <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                  <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(Math.round((calc.net_labore / 2 - form.first_period_advance - firstTotal) * 100) / 100)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Descontos / Créditos — 2ª Quinzena</p>
+                <div className="space-y-3 border border-border rounded-xl p-4">
+                  <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                  {form.profit_distribution > 0 && (
+                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-secondary font-medium">+ Distribuição de Lucros</span>
+                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.profit_distribution)}</span>
+                    </div>
+                  )}
+                  <p className="text-xs font-medium text-muted-foreground">Descontos / Créditos</p>
                   <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                  <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">Á Receber 2ª Quinzena</p>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(Math.round((calc.net_labore / 2 + form.profit_distribution - form.other_discounts - secondTotal) * 100) / 100)}</p>
+                  </div>
                 </div>
               </div>
             </TabsContent>
 
             {/* ── Resumo ── */}
-            <TabsContent value="resumo" className="space-y-3">
-              <div className="rounded-lg border p-4 space-y-2 text-sm font-mono">
-                <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Resumo do Pró-Labore</p>
-                <div className="flex justify-between"><span>Pró-Labore Base</span><span>{formatCurrency(form.base_salary)}</span></div>
-                <div className="flex justify-between"><span>Reajuste de Cota</span><span>{formatCurrency(form.quota_adjustment)}</span></div>
-                <div className="flex justify-between"><span>Bon. Aniversário</span><span>{formatCurrency(form.birthday_bonus)}</span></div>
-                <div className="flex justify-between font-semibold border-t pt-2"><span>Total Bruto</span><span>{formatCurrency(calc.gross_total)}</span></div>
-                <div className="flex justify-between text-destructive"><span>INSS ({form.inss_pct}%)</span><span>- {formatCurrency(calc.inss)}</span></div>
-                <div className="flex justify-between text-destructive"><span>IRRF</span><span>- {formatCurrency(calc.irrf)}</span></div>
-                <div className="flex justify-between font-bold text-primary border-t pt-2"><span>Líquido Pró-Labore</span><span>{formatCurrency(calc.net_labore)}</span></div>
-                <Separator className="my-2" />
-                <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Distribuição e Adiantamentos</p>
-                <div className="flex justify-between"><span>Líquido Pró-Labore</span><span>{formatCurrency(calc.net_labore)}</span></div>
-                <div className="flex justify-between"><span>Distribuição de Lucros</span><span>{formatCurrency(form.profit_distribution)}</span></div>
-                {form.first_period_advance > 0 && <div className="flex justify-between text-destructive"><span>Adiantamento 1ª Quinzena</span><span>- {formatCurrency(form.first_period_advance)}</span></div>}
-                {form.other_discounts > 0 && <div className="flex justify-between text-destructive"><span>Outros Descontos</span><span>- {formatCurrency(form.other_discounts)}</span></div>}
-                {(firstTotal + secondTotal) !== 0 && <div className="flex justify-between text-destructive"><span>Descontos Quinzenais</span><span>- {formatCurrency(firstTotal + secondTotal)}</span></div>}
-                <div className="flex justify-between font-bold text-primary text-base border-t pt-2"><span>Total Líquido a Receber</span><span>{formatCurrency(calc.net_total)}</span></div>
+            <TabsContent value="resumo" className="mt-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-border">
+                  <span className="text-muted-foreground">Pró-Labore Base</span>
+                  <span className="font-mono">{formatCurrency(form.base_salary)}</span>
+                </div>
+                {form.quota_adjustment > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Reajuste de Cota</span><span className="font-mono">{formatCurrency(form.quota_adjustment)}</span></div>}
+                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bon. Aniversário</span><span className="font-mono">{formatCurrency(form.birthday_bonus)}</span></div>}
+                <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
+                  <span>Total Bruto</span>
+                  <span className="font-mono">{formatCurrency(calc.gross_total)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border text-destructive"><span>INSS ({form.inss_pct}%)</span><span className="font-mono">- {formatCurrency(calc.inss)}</span></div>
+                <div className="flex justify-between py-2 border-b border-border text-destructive"><span>IRRF</span><span className="font-mono">- {formatCurrency(calc.irrf)}</span></div>
+                <div className="flex justify-between items-center py-2 border-b border-border font-bold text-primary">
+                  <span>Líquido Pró-Labore</span>
+                  <span className="font-mono">{formatCurrency(calc.net_labore)}</span>
+                </div>
+                {form.profit_distribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">+ Distribuição de Lucros</span><span className="font-mono">{formatCurrency(form.profit_distribution)}</span></div>}
+                {form.first_period_advance > 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Adiantamento 1ª Quinzena</span><span className="font-mono">- {formatCurrency(form.first_period_advance)}</span></div>}
+                {form.other_discounts > 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Outros Descontos</span><span className="font-mono">- {formatCurrency(form.other_discounts)}</span></div>}
+                {(firstTotal + secondTotal) !== 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Descontos Quinzenais</span><span className="font-mono">- {formatCurrency(firstTotal + secondTotal)}</span></div>}
+                <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
+                  <span className="font-bold text-lg">Total Líquido a Receber</span>
+                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.net_total)}</span>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
+        </div>
 
-          {!readOnly && (
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-              <Button variant="outline" onClick={onClose}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                <Save className="w-4 h-4" /> {saving ? 'Salvando...' : 'Salvar'}
+        <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
+          {readOnly ? (
+            <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+          ) : (
+            <>
+              <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+              <Button className="flex-1" onClick={handleSave} disabled={saving} >
+                <Save className="w-4 h-4 mr-2" /> {saving ? 'Salvando...' : 'Salvar Lançamento'}
               </Button>
-            </div>
+            </>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {installmentDialog && (
-        <InstallmentDialog
-          period={installmentDialog}
-          onAdd={(item) => {
-            if (installmentDialog === 'first') setFirstDiscounts(p => [...p, item]);
-            else setSecondDiscounts(p => [...p, item]);
-            setInstallmentDialog(null);
-          }}
-          onClose={() => setInstallmentDialog(null)}
-        />
-      )}
-    </div>
+        {installmentDialog && (
+          <InstallmentDialog
+            period={installmentDialog}
+            onAdd={(item) => {
+              if (installmentDialog === 'first') setFirstDiscounts(p => [...p, item]);
+              else setSecondDiscounts(p => [...p, item]);
+              setInstallmentDialog(null);
+            }}
+            onClose={() => setInstallmentDialog(null)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
