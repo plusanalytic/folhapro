@@ -371,7 +371,8 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   const foodVoucher    = entry?.food_voucher ?? 0;
   const lifeInsurance  = entry?.life_insurance ?? 0;
   const firstAdv       = entry?.first_period_advance ?? 0;
-  const grossTotal     = entry?.gross_total ?? 0;
+  // Ajuda de custo NÃO entra no grossTotal exibido — é paga exclusivamente na 2ª quinzena
+  const grossTotal     = Math.max(0, (entry?.gross_total ?? 0) - costAllowance);
   const firstNet       = entry?.first_period_net ?? 0;
   const secondNet      = entry?.second_period_net ?? 0;
   const firstBase      = entry?.first_period_base ?? 0;
