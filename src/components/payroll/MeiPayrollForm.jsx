@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
+import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import { base44 } from '@/api/base44Client';
@@ -28,11 +28,6 @@ function getWorkingDaysByPeriod(yearMonth) {
   return { first, second };
 }
 
-// Cálculo MEI:
-// - remuneracao = (valor_base / dias_uteis_mes) * dias_uteis_trabalhados
-// - Gross = remuneracao + KM + Ajuda de Custo + Moto + Bônus + Outros
-// - Net = Gross - Seguro de Vida
-// - Quinzenal = net rateado pelos dias úteis de cada quinzena
 function calculateMeiPayroll(entry) {
   const valorBase = entry.base_salary || 0;
   const diasMes = entry.working_days_month || 1;
@@ -48,10 +43,8 @@ function calculateMeiPayroll(entry) {
   const lifeInsurance = entry.life_insurance || 0;
 
   const grossTotal = remuneracao + kmBonus + costAllowance + motoRental + bonus + otherBenefits;
-  // Seguro de vida NÃO subtrai do total — só é descontado na 1ª quinzena
   const netTotal = grossTotal;
 
-  // Rateio por dias úteis de cada quinzena
   const diasQ1 = entry.working_days_first || 0;
   const diasQ2 = entry.working_days_second || 0;
   const totalQDias = diasQ1 + diasQ2 || 1;
@@ -83,15 +76,7 @@ function calculateMeiPayroll(entry) {
   };
 }
 
-export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
-  const workingDays = getWorkingDaysInMonth(referenceMonth);
-  const defaultPeriods = getWorkingDaysByPeriod(referenceMonth);
-
-  // Se o entry já tem os campos salvos, marca como manual para não recalcular
-  const [workingDaysManual, setWorkingDaysManual] = useState(
-    entry?.working_days_month != null && entry?.working_days_worked != null
-  );
-
+export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
   const [form, setForm] = useState({
     company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
@@ -114,8 +99,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
-  // flag: usuário já editou manualmente os dias por quinzena
-  const [periodDaysManual, setPeriodDaysManual] = useState(false);
 
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
@@ -131,33 +114,51 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     });
   }, [employee.id, referenceMonth]);
 
-  const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
-  const setNum = (k, v) => set(k, parseFloat(v) || 0);
+  // Helpers de atualização — sempre salvam como número
+  const setField = (k, v) => {
+    if (readOnly) return;
+    setForm(f => ({ ...f, [k]: v }));
+  };
+  const setNum = (k, v) => {
+    if (readOnly) return;
+    setForm(f => ({ ...f, [k]: parseFloat(v) || 0 }));
+  };
+  const setInt = (k, v) => {
+    if (readOnly) return;
+    setForm(f => ({ ...f, [k]: parseInt(v) || 0 }));
+  };
 
-  const numericField = useCallback((key) => {
-    const externalVal = form[key] ?? 0;
-    return {
-      type: 'number',
-      step: 'any',
-      disabled: readOnly,
-      className: 'mt-1 font-mono',
-      value: externalVal === 0 ? '' : String(externalVal),
-      onChange: (e) => set(key, e.target.value),
-      onBlur: (e) => setNum(key, e.target.value),
-      onFocus: (e) => setTimeout(() => e.target.select(), 0),
-    };
-  }, [form, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Input numérico genérico (float) — salva como número direto no onChange
+  const numericInput = (key) => ({
+    type: 'number',
+    step: 'any',
+    disabled: readOnly,
+    className: 'mt-1 font-mono',
+    value: form[key] === 0 ? '' : String(form[key]),
+    onChange: (e) => setNum(key, e.target.value),
+    onFocus: (e) => setTimeout(() => e.target.select(), 0),
+  });
+
+  // Input inteiro (para dias)
+  const intInput = (key) => ({
+    type: 'number',
+    step: '1',
+    min: '0',
+    disabled: readOnly,
+    className: 'mt-1 font-mono',
+    value: form[key] === 0 ? '' : String(form[key]),
+    onChange: (e) => setInt(key, e.target.value),
+    onFocus: (e) => setTimeout(() => e.target.select(), 0),
+  });
 
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
 
-  const calcForm = {
+  const calc = calculateMeiPayroll({
     ...form,
     first_period_discount: firstDiscountTotal,
     second_period_discount: secondDiscountTotal,
-  };
-  const calc = calculateMeiPayroll(calcForm);
-  const remuneracao = calc.remuneracao;
+  });
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -249,31 +250,17 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   <div>
                     <Label>Valor Base (R$)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Remuneração contratual</p>
-                    <Input {...numericField('base_salary')} />
+                    <Input {...numericInput('base_salary')} />
                   </div>
                   <div>
                     <Label>Dias Úteis no Mês</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Total de dias úteis</p>
-                    <Input
-                      type="number" step="1" min="1" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={form.working_days_month === 0 ? '' : String(form.working_days_month)}
-                      onChange={e => set('working_days_month', parseInt(e.target.value) || 0)}
-                      onBlur={e => setNum('working_days_month', e.target.value)}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
+                    <Input {...intInput('working_days_month')} min="1" />
                   </div>
                   <div>
                     <Label>Dias Úteis Trabalhados</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Dias efetivamente trabalhados</p>
-                    <Input
-                      type="number" step="1" min="0" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={form.working_days_worked === 0 ? '' : String(form.working_days_worked)}
-                      onChange={e => set('working_days_worked', e.target.value)}
-                      onBlur={e => setNum('working_days_worked', e.target.value)}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
+                    <Input {...intInput('working_days_worked')} />
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
@@ -282,7 +269,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       Remuneração = ({formatCurrency(form.base_salary)} ÷ {form.working_days_month || 1} dias) × {form.working_days_worked || 0} dias
                     </p>
                   </div>
-                  <p className="font-mono font-bold text-primary text-lg">{formatCurrency(remuneracao)}</p>
+                  <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.remuneracao)}</p>
                 </div>
               </div>
 
@@ -294,12 +281,12 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 <Label>KM Excedente</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <Input {...numericField('km_bonus_qty')} className="font-mono" placeholder="Qtd. KM" />
+                    <Input {...numericInput('km_bonus_qty')} placeholder="Qtd. KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Quantidade de KM</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="flex-1">
-                    <Input {...numericField('km_bonus_value')} className="font-mono" placeholder="R$/KM" />
+                    <Input {...numericInput('km_bonus_value')} placeholder="R$/KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por KM (R$)</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -313,23 +300,23 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Ajuda de Custo</Label>
-                  <Input {...numericField('cost_allowance')} />
+                  <Input {...numericInput('cost_allowance')} />
                 </div>
                 <div>
                   <Label>Aluguel da Motocicleta</Label>
-                  <Input {...numericField('motorcycle_rental')} />
+                  <Input {...numericInput('motorcycle_rental')} />
                 </div>
                 <div>
                   <Label>Vale Alimentação</Label>
-                  <Input {...numericField('food_voucher')} />
+                  <Input {...numericInput('food_voucher')} />
                 </div>
                 <div>
                   <Label>Bonificação / Prêmio</Label>
-                  <Input {...numericField('bonus')} />
+                  <Input {...numericInput('bonus')} />
                 </div>
                 <div>
                   <Label>Outros Benefícios</Label>
-                  <Input {...numericField('other_benefits')} />
+                  <Input {...numericInput('other_benefits')} />
                 </div>
               </div>
 
@@ -338,7 +325,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Seguro de Vida (R$)</Label>
-                  <Input {...numericField('life_insurance')} />
+                  <Input {...numericInput('life_insurance')} />
                 </div>
               </div>
 
@@ -371,25 +358,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
-                    <Input
-                      type="number" step="1" min="0" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={form.working_days_first === 0 ? '' : String(form.working_days_first)}
-                      onChange={e => set('working_days_first', parseInt(e.target.value) || 0)}
-                      onBlur={e => setNum('working_days_first', e.target.value)}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
+                    <Input {...intInput('working_days_first')} />
                   </div>
                   <div>
                     <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
-                    <Input
-                      type="number" step="1" min="0" disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={form.working_days_second === 0 ? '' : String(form.working_days_second)}
-                      onChange={e => set('working_days_second', parseInt(e.target.value) || 0)}
-                      onBlur={e => setNum('working_days_second', e.target.value)}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
+                    <Input {...intInput('working_days_second')} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -431,7 +404,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
-                    <Input {...numericField('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
+                    <Input {...numericInput('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
@@ -492,7 +465,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-muted-foreground">Remuneração Proporcional ({form.working_days_worked}/{form.working_days_month} dias)</span>
-                  <span className="font-mono font-semibold">{formatCurrency(remuneracao)}</span>
+                  <span className="font-mono font-semibold">{formatCurrency(calc.remuneracao)}</span>
                 </div>
                 {calc.km_bonus > 0 && (
                   <div className="flex justify-between py-2 border-b border-border">
