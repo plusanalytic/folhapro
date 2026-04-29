@@ -18,6 +18,26 @@
       "type": "number",
       "description": "Sal\u00e1rio base / Piso salarial"
     },
+    "working_days_month": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de dias \u00fateis no m\u00eas"
+    },
+    "working_days_worked": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias \u00fateis efetivamente trabalhados"
+    },
+    "working_days_first": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias \u00fateis na 1\u00aa quinzena (1\u201315)"
+    },
+    "working_days_second": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias \u00fateis na 2\u00aa quinzena (16\u2013fim)"
+    },
     "absences_days": {
       "type": "number",
       "default": 0
