@@ -39,13 +39,15 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
       const headerRow1 = [
         '', 'COLABORADOR', '', '', '',
         'REMUNERAÇÃO', '', '',
-        '',
+        '1ª QUINZENA', '', '',
+        '2ª QUINZENA', '',
         'DADOS BANCÁRIOS', '', '', '', '', ''
       ];
       const headerRow2 = [
         'ADMISSÃO', 'NOME', 'CONTRATO', 'SITUAÇÃO', 'CPF/CNPJ',
         'VALOR BASE', 'BONIFICAÇÃO', 'TOTAL BRUTO',
-        'TOTAL LÍQUIDO',
+        'ADIANTAMENTO', 'Á RECEBER 1ª Q.', 'TOTAL LÍQUIDO',
+        'Á RECEBER 2ª Q.', 'TOTAL LÍQUIDO',
         'BANCO', 'AGÊNCIA', 'CONTA', 'FAVORECIDO', 'PIX', 'EMPRESA'
       ];
 
@@ -58,6 +60,10 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
         entry.base_salary || 0,
         entry.bonus || 0,
         entry.gross_total || 0,
+        entry.first_period_advance || 0,
+        entry.first_period_net || 0,
+        (entry.first_period_net || 0) + (entry.second_period_net || 0),
+        entry.second_period_net || 0,
         (entry.first_period_net || 0) + (entry.second_period_net || 0),
         emp.bank_name || '',
         emp.bank_agency || '',
@@ -74,6 +80,10 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
         dataRows.reduce((s, r) => s + r[6], 0),
         dataRows.reduce((s, r) => s + r[7], 0),
         dataRows.reduce((s, r) => s + r[8], 0),
+        dataRows.reduce((s, r) => s + r[9], 0),
+        dataRows.reduce((s, r) => s + r[10], 0),
+        dataRows.reduce((s, r) => s + r[11], 0),
+        dataRows.reduce((s, r) => s + r[12], 0),
         '', '', '', '', '', '',
       ];
 
@@ -84,7 +94,8 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
       ws['!cols'] = [
         { wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 16 },
         { wch: 14 }, { wch: 14 }, { wch: 14 },
-        { wch: 16 },
+        { wch: 14 }, { wch: 16 }, { wch: 14 },
+        { wch: 16 }, { wch: 14 },
         { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
       ];
 
@@ -92,8 +103,9 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
       ws['!merges'] = [
         { s: { r: 0, c: 1 }, e: { r: 0, c: 4 } },   // COLABORADOR
         { s: { r: 0, c: 5 }, e: { r: 0, c: 7 } },   // REMUNERAÇÃO
-        { s: { r: 0, c: 8 }, e: { r: 1, c: 8 } },   // TOTAL LÍQUIDO
-        { s: { r: 0, c: 9 }, e: { r: 0, c: 14 } },  // DADOS BANCÁRIOS
+        { s: { r: 0, c: 8 }, e: { r: 0, c: 10 } },  // 1ª QUINZENA
+        { s: { r: 0, c: 11 }, e: { r: 0, c: 12 } }, // 2ª QUINZENA
+        { s: { r: 0, c: 13 }, e: { r: 0, c: 18 } }, // DADOS BANCÁRIOS
         { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },   // ADMISSÃO
       ];
 
@@ -117,17 +129,17 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
         };
       };
 
-      const cols = 'ABCDEFGHIJKLMNO';
+      const cols = 'ABCDEFGHIJKLMNOPQRS';
 
       // Row 1 (grupo)
-      const groupColors = [null, purple, purple, purple, purple, gray, gray, gray, green, gray, gray, gray, gray, gray, gray];
+      const groupColors = [null, purple, purple, purple, purple, gray, gray, gray, blue, blue, blue, green, green, gray, gray, gray, gray, gray, gray];
       cols.split('').forEach((col, i) => {
         applyStyle(`${col}1`, groupColors[i] || purple, boldWhite, 'center');
       });
 
       // Row 2 (campos)
       cols.split('').forEach((col, i) => {
-        const bg = i < 5 ? purple : i < 8 ? gray : i === 8 ? green : gray;
+        const bg = i < 5 ? purple : i < 8 ? gray : i < 11 ? blue : i < 13 ? green : gray;
         applyStyle(`${col}2`, bg, boldWhite, 'center');
       });
 
@@ -141,10 +153,10 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
           if (!ws[cell]) return;
           ws[cell].s = {
             fill: { patternType: 'solid', ...rowBg },
-            font: { sz: 10, color: { rgb: colIdx >= 5 && colIdx <= 8 ? '1E1B4B' : '374151' } },
-            alignment: { horizontal: colIdx >= 5 && colIdx <= 8 ? 'right' : 'left', vertical: 'center' },
+            font: { sz: 10, color: { rgb: colIdx >= 5 && colIdx <= 12 ? '1E1B4B' : '374151' } },
+            alignment: { horizontal: colIdx >= 5 && colIdx <= 12 ? 'right' : 'left', vertical: 'center' },
             border: { bottom: { style: 'thin', color: { rgb: 'E5E7EB' } }, right: { style: 'thin', color: { rgb: 'E5E7EB' } } },
-            numFmt: colIdx >= 5 && colIdx <= 8 ? '"R$ "#,##0.00' : undefined,
+            numFmt: colIdx >= 5 && colIdx <= 12 ? '"R$ "#,##0.00' : undefined,
           };
         });
       });
@@ -157,9 +169,9 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
         ws[cell].s = {
           fill: { patternType: 'solid', ...totalBg },
           font: { sz: 10, bold: true, color: { rgb: '6B3FAE' } },
-          alignment: { horizontal: colIdx >= 5 && colIdx <= 8 ? 'right' : 'left', vertical: 'center' },
+          alignment: { horizontal: colIdx >= 5 && colIdx <= 12 ? 'right' : 'left', vertical: 'center' },
           border: { top: { style: 'medium', color: { rgb: '6B3FAE' } }, bottom: { style: 'thin', color: { rgb: 'D1D5DB' } } },
-          numFmt: colIdx >= 5 && colIdx <= 8 ? '"R$ "#,##0.00' : undefined,
+          numFmt: colIdx >= 5 && colIdx <= 12 ? '"R$ "#,##0.00' : undefined,
         };
       });
 
@@ -189,8 +201,18 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
               <th className="p-3 text-right font-semibold text-muted-foreground whitespace-nowrap">VALOR FIXO</th>
               <th className="p-3 text-right font-semibold text-muted-foreground whitespace-nowrap">BONIFICAÇÃO</th>
               <th className="p-3 text-right font-semibold text-muted-foreground whitespace-nowrap">TOTAL MENSAL</th>
-              {/* Total Líquido */}
-              <th className="p-3 text-right font-semibold text-primary whitespace-nowrap border-l border-border">TOTAL LÍQUIDO</th>
+              {/* 1º 15 */}
+              <th className="p-3 text-right font-semibold text-blue-500 whitespace-nowrap border-l border-blue-200 dark:border-blue-900">ADIANTAMENTO 1º15</th>
+              <th className="p-3 text-right font-semibold text-blue-500 whitespace-nowrap">Á RECEBER 1º15</th>
+              <th className="p-3 text-left font-semibold text-blue-500 whitespace-nowrap">NOTA 1º15</th>
+              {/* Descontos 1º15 */}
+              <th className="p-3 text-right font-semibold text-red-500 whitespace-nowrap border-l border-red-200 dark:border-red-900">PAGAMENTO 1º15</th>
+              <th className="p-3 text-right font-semibold text-red-500 whitespace-nowrap">VALOR DESC 1º15</th>
+              <th className="p-3 text-left font-semibold text-red-500 whitespace-nowrap">NOTA DESC 1º15</th>
+              {/* 2º 15 */}
+              <th className="p-3 text-right font-semibold text-green-600 whitespace-nowrap border-l border-green-200 dark:border-green-900">Á RECEBER 2º15</th>
+              <th className="p-3 text-right font-semibold text-green-600 whitespace-nowrap">VALOR 2º15</th>
+              <th className="p-3 text-left font-semibold text-green-600 whitespace-nowrap">NOTA 2º15</th>
               {/* Bancários */}
               <th className="p-3 text-left font-semibold text-muted-foreground whitespace-nowrap border-l border-border">BANCO</th>
               <th className="p-3 text-left font-semibold text-muted-foreground whitespace-nowrap">AGÊNCIA</th>
@@ -219,8 +241,18 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
                 <td className="p-3 text-right font-mono whitespace-nowrap">{formatCurrency(entry.base_salary)}</td>
                 <td className="p-3 text-right font-mono whitespace-nowrap">{formatCurrency(entry.bonus)}</td>
                 <td className="p-3 text-right font-mono font-semibold whitespace-nowrap">{formatCurrency(entry.gross_total)}</td>
-                {/* Total Líquido */}
-                <td className="p-3 text-right font-mono font-semibold text-primary whitespace-nowrap border-l border-border">{formatCurrency((entry.first_period_net || 0) + (entry.second_period_net || 0))}</td>
+                {/* 1º15 */}
+                <td className="p-3 text-right font-mono whitespace-nowrap border-l border-blue-100 dark:border-blue-900/30">{formatCurrency(entry.first_period_advance)}</td>
+                <td className="p-3 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
+                <td className="p-3 text-muted-foreground italic whitespace-nowrap max-w-24 truncate">{entry.first_period_note || '—'}</td>
+                {/* Descontos 1º15 */}
+                <td className="p-3 text-right font-mono whitespace-nowrap border-l border-red-100 dark:border-red-900/30">{formatCurrency(entry.first_period_advance)}</td>
+                <td className="p-3 text-right font-mono text-destructive whitespace-nowrap">{formatCurrency(entry.first_period_discount)}</td>
+                <td className="p-3 text-muted-foreground italic whitespace-nowrap max-w-24 truncate">—</td>
+                {/* 2º15 */}
+                <td className="p-3 text-right font-mono whitespace-nowrap border-l border-green-100 dark:border-green-900/30">{formatCurrency(entry.second_period_net)}</td>
+                <td className="p-3 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
+                <td className="p-3 text-muted-foreground italic whitespace-nowrap max-w-24 truncate">{entry.second_period_note || '—'}</td>
                 {/* Bancários */}
                 <td className="p-3 whitespace-nowrap border-l border-border">{emp.bank_name || '—'}</td>
                 <td className="p-3 whitespace-nowrap">{emp.bank_agency || '—'}</td>
@@ -251,7 +283,7 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={16} className="text-center py-10 text-muted-foreground">Nenhum lançamento para este período</td></tr>
+              <tr><td colSpan={23} className="text-center py-10 text-muted-foreground">Nenhum lançamento para este período</td></tr>
             )}
           </tbody>
         </table>
