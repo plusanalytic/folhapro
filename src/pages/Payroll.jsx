@@ -244,9 +244,10 @@ export default function Payroll() {
                     </tr>
                   </thead>
                   <tbody>
-                    {companyEmps.map(emp => {
+                    {[...companyEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => {
                       const entry = getEntry(emp.id);
                       const totalDiscounts = entry ? ((entry.inss || 0) + (entry.irrf || 0) + (entry.pj_retention || 0) + (entry.first_period_discount || 0) + (entry.second_period_discount || 0)) : 0;
+                      const liquidoTotal = entry ? ((entry.first_period_net || 0) + (entry.second_period_net || 0)) : null;
                       return (
                         <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                           <td className="p-3 pl-6">
@@ -263,7 +264,7 @@ export default function Payroll() {
                           <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.base_salary) : '—'}</td>
                           <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.gross_total) : '—'}</td>
                           <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(totalDiscounts) : '—'}</td>
-                          <td className="p-3 text-right font-mono font-semibold text-primary">{entry ? formatCurrency(entry.net_total) : '—'}</td>
+                          <td className="p-3 text-right font-mono font-semibold text-primary">{liquidoTotal !== null ? formatCurrency(liquidoTotal) : '—'}</td>
                           <td className="p-3 text-center">
                             {(() => {
                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));

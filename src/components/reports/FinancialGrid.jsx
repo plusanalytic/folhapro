@@ -3,6 +3,7 @@ import { Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import * as XLSX from 'xlsx';
 
 export default function FinancialGrid({ entries, employees, companies, selectedMonth, onGenerateReceipt }) {
   const tableRef = useRef();
@@ -10,58 +11,182 @@ export default function FinancialGrid({ entries, employees, companies, selectedM
   const getEmployee = (id) => employees.find(e => e.id === id);
   const getCompany = (id) => companies.find(c => c.id === id);
 
-  const rows = entries.map(entry => {
+  const rows = [...entries].sort((a, b) => {
+    const empA = employees.find(e => e.id === a.employee_id);
+    const empB = employees.find(e => e.id === b.employee_id);
+    return (empA?.name || '').localeCompare(empB?.name || '', 'pt-BR');
+  }).map(entry => {
     const emp = getEmployee(entry.employee_id);
     if (!emp) return null;
     const company = getCompany(emp.company_id);
     return { entry, emp, company };
   }).filter(Boolean);
 
-  const exportCSV = () => {
-    const headers = [
-      'INICIO', 'PRESTADOR', 'CONTRATO', 'SITUAÇÃO', 'VALOR FIXO', 'BONIFICAÇÃO', 'TOTAL MENSAL',
-      'ADIANTAMENTO 1º15', 'Á RECEBER 1º15', 'NOTA 1º15',
-      'PAGAMENTO 2º15', 'VALOR 2º15', 'NOTA 2º15',
-      'NOME DO BANCO', 'AGÊNCIA', 'CONTA', 'FAVORECIDO', 'CHAVE PIX', 'CPF/CNPJ FAVORECIDO'
-    ];
-    const csvRows = rows.map(({ entry, emp }) => [
-      emp.admission_date || '',
-      emp.name,
-      emp.contract_type,
-      entry.status === 'closed' ? 'Fechado' : 'Aberto',
-      entry.base_salary || 0,
-      entry.bonus || 0,
-      entry.gross_total || 0,
-      entry.first_period_advance || 0,
-      entry.first_period_net || 0,
-      entry.first_period_note || '',
-      entry.first_period_discount || 0,
-      entry.second_period_net || 0,
-      entry.second_period_note || '',
-      emp.bank_name || '',
-      emp.bank_agency || '',
-      emp.bank_account || '',
-      emp.bank_beneficiary || '',
-      emp.pix_key || '',
-      emp.cpf_cnpj || '',
-    ].map(v => `"${v}"`).join(','));
+  const exportXLSX = () => {
+    const wb = XLSX.utils.book_new();
 
-    const csv = [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `folha-${selectedMonth}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // ── Grupo por empresa ──
+    const companiesInRows = [...new Set(rows.map(r => r.company?.id))];
+
+    companiesInRows.forEach(companyId => {
+      const companyRows = rows.filter(r => r.company?.id === companyId);
+      const company = companyRows[0]?.company;
+      const sheetName = (company?.name || 'Sem Empresa').slice(0, 31);
+
+      const sortedRows = [...companyRows].sort((a, b) => a.emp.name.localeCompare(b.emp.name, 'pt-BR'));
+
+      // Headers em 2 linhas: grupo + campo
+      const headerRow1 = [
+        '', 'COLABORADOR', '', '', '',
+        'REMUNERAÇÃO', '', '',
+        '1ª QUINZENA', '', '',
+        '2ª QUINZENA', '',
+        'DADOS BANCÁRIOS', '', '', '', '', ''
+      ];
+      const headerRow2 = [
+        'ADMISSÃO', 'NOME', 'CONTRATO', 'SITUAÇÃO', 'CPF/CNPJ',
+        'VALOR BASE', 'BONIFICAÇÃO', 'TOTAL BRUTO',
+        'ADIANTAMENTO', 'Á RECEBER 1ª Q.', 'TOTAL LÍQUIDO',
+        'Á RECEBER 2ª Q.', 'TOTAL LÍQUIDO',
+        'BANCO', 'AGÊNCIA', 'CONTA', 'FAVORECIDO', 'PIX', 'EMPRESA'
+      ];
+
+      const dataRows = sortedRows.map(({ entry, emp }) => [
+        emp.admission_date || '',
+        emp.name,
+        emp.contract_type,
+        entry.status === 'closed' ? 'Fechado' : 'Aberto',
+        emp.cpf_cnpj || '',
+        entry.base_salary || 0,
+        entry.bonus || 0,
+        entry.gross_total || 0,
+        entry.first_period_advance || 0,
+        entry.first_period_net || 0,
+        (entry.first_period_net || 0) + (entry.second_period_net || 0),
+        entry.second_period_net || 0,
+        (entry.first_period_net || 0) + (entry.second_period_net || 0),
+        emp.bank_name || '',
+        emp.bank_agency || '',
+        emp.bank_account || '',
+        emp.bank_beneficiary || emp.name,
+        emp.pix_key || '',
+        company?.name || '',
+      ]);
+
+      // Total row
+      const totalRow = [
+        'TOTAL', '', '', '', '',
+        dataRows.reduce((s, r) => s + r[5], 0),
+        dataRows.reduce((s, r) => s + r[6], 0),
+        dataRows.reduce((s, r) => s + r[7], 0),
+        dataRows.reduce((s, r) => s + r[8], 0),
+        dataRows.reduce((s, r) => s + r[9], 0),
+        dataRows.reduce((s, r) => s + r[10], 0),
+        dataRows.reduce((s, r) => s + r[11], 0),
+        dataRows.reduce((s, r) => s + r[12], 0),
+        '', '', '', '', '', '',
+      ];
+
+      const wsData = [headerRow1, headerRow2, ...dataRows, totalRow];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Larguras de colunas
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 16 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 14 }, { wch: 16 }, { wch: 14 },
+        { wch: 16 }, { wch: 14 },
+        { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
+      ];
+
+      // Merge de cabeçalho de grupos
+      ws['!merges'] = [
+        { s: { r: 0, c: 1 }, e: { r: 0, c: 4 } },   // COLABORADOR
+        { s: { r: 0, c: 5 }, e: { r: 0, c: 7 } },   // REMUNERAÇÃO
+        { s: { r: 0, c: 8 }, e: { r: 0, c: 10 } },  // 1ª QUINZENA
+        { s: { r: 0, c: 11 }, e: { r: 0, c: 12 } }, // 2ª QUINZENA
+        { s: { r: 0, c: 13 }, e: { r: 0, c: 18 } }, // DADOS BANCÁRIOS
+        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },   // ADMISSÃO
+      ];
+
+      // Estilos
+      const purple = { fgColor: { rgb: '6B3FAE' } };
+      const blue   = { fgColor: { rgb: '1D4ED8' } };
+      const green  = { fgColor: { rgb: '15803D' } };
+      const gray   = { fgColor: { rgb: '374151' } };
+      const totalBg = { fgColor: { rgb: 'EDE9FE' } };
+      const white  = { fgColor: { rgb: 'FFFFFF' } };
+      const boldWhite = { bold: true, color: { rgb: 'FFFFFF' } };
+      const boldPurple = { bold: true, color: { rgb: '6B3FAE' } };
+
+      const applyStyle = (cell, fill, font, alignment) => {
+        if (!ws[cell]) return;
+        ws[cell].s = {
+          fill: { patternType: 'solid', ...fill },
+          font: { sz: 10, ...font },
+          alignment: { horizontal: alignment || 'center', vertical: 'center', wrapText: true },
+          border: { bottom: { style: 'thin', color: { rgb: 'D1D5DB' } }, right: { style: 'thin', color: { rgb: 'D1D5DB' } } }
+        };
+      };
+
+      const cols = 'ABCDEFGHIJKLMNOPQRS';
+
+      // Row 1 (grupo)
+      const groupColors = [null, purple, purple, purple, purple, gray, gray, gray, blue, blue, blue, green, green, gray, gray, gray, gray, gray, gray];
+      cols.split('').forEach((col, i) => {
+        applyStyle(`${col}1`, groupColors[i] || purple, boldWhite, 'center');
+      });
+
+      // Row 2 (campos)
+      cols.split('').forEach((col, i) => {
+        const bg = i < 5 ? purple : i < 8 ? gray : i < 11 ? blue : i < 13 ? green : gray;
+        applyStyle(`${col}2`, bg, boldWhite, 'center');
+      });
+
+      // Linhas de dados
+      dataRows.forEach((_, rowIdx) => {
+        const excelRow = rowIdx + 3;
+        const isAlt = rowIdx % 2 === 1;
+        const rowBg = isAlt ? { fgColor: { rgb: 'F5F3FF' } } : { fgColor: { rgb: 'FFFFFF' } };
+        cols.split('').forEach((col, colIdx) => {
+          const cell = `${col}${excelRow}`;
+          if (!ws[cell]) return;
+          ws[cell].s = {
+            fill: { patternType: 'solid', ...rowBg },
+            font: { sz: 10, color: { rgb: colIdx >= 5 && colIdx <= 12 ? '1E1B4B' : '374151' } },
+            alignment: { horizontal: colIdx >= 5 && colIdx <= 12 ? 'right' : 'left', vertical: 'center' },
+            border: { bottom: { style: 'thin', color: { rgb: 'E5E7EB' } }, right: { style: 'thin', color: { rgb: 'E5E7EB' } } },
+            numFmt: colIdx >= 5 && colIdx <= 12 ? '"R$ "#,##0.00' : undefined,
+          };
+        });
+      });
+
+      // Linha de total
+      const totalExcelRow = dataRows.length + 3;
+      cols.split('').forEach((col, colIdx) => {
+        const cell = `${col}${totalExcelRow}`;
+        if (!ws[cell]) return;
+        ws[cell].s = {
+          fill: { patternType: 'solid', ...totalBg },
+          font: { sz: 10, bold: true, color: { rgb: '6B3FAE' } },
+          alignment: { horizontal: colIdx >= 5 && colIdx <= 12 ? 'right' : 'left', vertical: 'center' },
+          border: { top: { style: 'medium', color: { rgb: '6B3FAE' } }, bottom: { style: 'thin', color: { rgb: 'D1D5DB' } } },
+          numFmt: colIdx >= 5 && colIdx <= 12 ? '"R$ "#,##0.00' : undefined,
+        };
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    XLSX.writeFile(wb, `folha-${selectedMonth}.xlsx`);
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-foreground">Grade Financeira</h2>
-        <Button variant="outline" size="sm" className="gap-2" onClick={exportCSV}>
-          <Download className="w-4 h-4" /> Exportar CSV
+        <Button variant="outline" size="sm" className="gap-2" onClick={exportXLSX}>
+          <Download className="w-4 h-4" /> Exportar XLSX
         </Button>
       </div>
 
