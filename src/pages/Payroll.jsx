@@ -42,7 +42,18 @@ export default function Payroll() {
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
       base44.entities.MonthClose.filter({ reference_month: selectedMonth }),
     ]);
-    setEmployees(e.filter(x => x.is_active !== false));
+    // Exclui colaboradores inativos E demitidos antes do mês selecionado
+    setEmployees(e.filter(x => {
+      if (x.is_active === false) {
+        // Se tem data de demissão em mês anterior ao selecionado, exclui
+        if (x.termination_date) {
+          const termMonth = x.termination_date.slice(0, 7);
+          return termMonth >= selectedMonth;
+        }
+        return false; // inativo sem data de demissão: exclui
+      }
+      return true;
+    }));
     setCompanies(c.filter(x => x.is_active !== false));
     setWorkplaces(w);
     setJobRoles(jr);

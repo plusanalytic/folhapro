@@ -76,6 +76,15 @@
       "format": "date",
       "description": "Data de admiss\u00e3o"
     },
+    "termination_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de demiss\u00e3o"
+    },
+    "termination_reason": {
+      "type": "string",
+      "description": "Motivo de demiss\u00e3o (conforme Tangerino, ex: TERMINO_CONTRATO_TERMO)"
+    },
     "position": {
       "type": "string",
       "description": "Cargo (texto livre / legado)"

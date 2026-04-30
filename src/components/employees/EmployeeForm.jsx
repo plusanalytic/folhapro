@@ -107,6 +107,12 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
               {readonlyInput('Gênero', employee?.gender)}
               {readonlyInput('Data de Nascimento', employee?.birth_date)}
               {readonlyInput('Data de Admissão', employee?.admission_date)}
+              {employee?.termination_date && (
+                <>
+                  {readonlyInput('Data de Demissão', employee.termination_date)}
+                  {readonlyInput('Motivo de Demissão', employee.termination_reason || '—')}
+                </>
+              )}
               {readonlyInput('Cargo', getJobRoleName())}
               {readonlyInput('Tipo de Contrato', employee?.contract_type)}
               {readonlyInput('Empresa', getCompanyName(employee?.company_id))}

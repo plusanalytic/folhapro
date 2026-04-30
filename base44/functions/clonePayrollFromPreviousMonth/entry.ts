@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
 
     // Compute previous month (YYYY-MM)
     const [year, month] = target_month.split('-').map(Number);
-    const prevDate = new Date(year, month - 2, 1); // month-2 because JS months are 0-indexed
+    const prevDate = new Date(year, month - 2, 1);
     const prev_month = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
     // Fetch previous month entries
@@ -25,7 +25,25 @@ Deno.serve(async (req) => {
     const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month });
     const existingEmployeeIds = new Set(existingEntries.map(e => e.employee_id));
 
-    // Fields to carry over (exclude computed/meta fields and period discount arrays — rebuilt from CashOut)
+    // Fetch all employees to check termination status
+    const allEmployees = await base44.asServiceRole.entities.Employee.list();
+    const employeeMap = {};
+    for (const emp of allEmployees) {
+      employeeMap[emp.id] = emp;
+    }
+
+    // Helper: check if employee was terminated before target_month
+    // i.e. termination_date is in a month prior to target_month
+    function isFiredBeforeMonth(emp, targetMonth) {
+      if (!emp) return false;
+      if (emp.is_active !== false) return false; // still active
+      if (!emp.termination_date) return false;
+      // Compare YYYY-MM only
+      const termMonth = emp.termination_date.slice(0, 7);
+      return termMonth < targetMonth;
+    }
+
+    // Fields to carry over
     const EXCLUDE_FIELDS = ['id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
       'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes'];
 
@@ -34,15 +52,24 @@ Deno.serve(async (req) => {
 
     let cloned = 0;
     let skipped = 0;
+    let skippedFired = 0;
     const errors = [];
 
     for (const prev of prevEntries) {
+      // Skip if already exists for target month
       if (existingEmployeeIds.has(prev.employee_id)) {
         skipped++;
         continue;
       }
 
-      // Build first/second discount arrays from CashOut records of the target month for this employee
+      // Skip if employee was fired before target_month
+      const emp = employeeMap[prev.employee_id];
+      if (isFiredBeforeMonth(emp, target_month)) {
+        skippedFired++;
+        continue;
+      }
+
+      // Build first/second discount arrays from CashOut records
       const empCashOuts = targetCashOuts.filter(c => c.employee_id === prev.employee_id);
       const first_discounts = empCashOuts
         .filter(c => c.period === 'first')
@@ -80,10 +107,11 @@ Deno.serve(async (req) => {
     return Response.json({
       cloned,
       skipped,
+      skippedFired,
       errors,
       prev_month,
       target_month,
-      message: `${cloned} lançamento(s) clonado(s) de ${prev_month} para ${target_month}. ${skipped} já existiam.`
+      message: `${cloned} lançamento(s) clonado(s) de ${prev_month} para ${target_month}. ${skipped} já existiam. ${skippedFired > 0 ? `${skippedFired} ignorado(s) por demissão.` : ''}`
     });
 
   } catch (error) {

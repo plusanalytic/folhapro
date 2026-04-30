@@ -23,12 +23,14 @@ export default function Employees() {
   const [filterContract, _setFilterContract] = useState('all');
   const [filterWorkplace, _setFilterWorkplace] = useState('all');
   const [filterJobRole, _setFilterJobRole] = useState('all');
+  const [filterStatus, _setFilterStatus] = useState('active');
 
   const setSearch = (v) => { _setSearch(v); setCurrentPage(1); };
   const setFilterCompany = (v) => { _setFilterCompany(v); setCurrentPage(1); };
   const setFilterContract = (v) => { _setFilterContract(v); setCurrentPage(1); };
   const setFilterWorkplace = (v) => { _setFilterWorkplace(v); setCurrentPage(1); };
   const setFilterJobRole = (v) => { _setFilterJobRole(v); setCurrentPage(1); };
+  const setFilterStatus = (v) => { _setFilterStatus(v); setCurrentPage(1); };
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showManualForm, setShowManualForm] = useState(false);
@@ -56,7 +58,9 @@ export default function Employees() {
       const matchContract = filterContract === 'all' || emp.contract_type === filterContract;
       const matchWorkplace = filterWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(filterWorkplace);
       const matchJobRole = filterJobRole === 'all' || String(emp.job_role_tangerino_id) === filterJobRole;
-      return matchSearch && matchCompany && matchContract && matchWorkplace && matchJobRole;
+      const isActive = emp.is_active !== false;
+      const matchStatus = filterStatus === 'all' || (filterStatus === 'active' ? isActive : !isActive);
+      return matchSearch && matchCompany && matchContract && matchWorkplace && matchJobRole && matchStatus;
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -222,6 +226,16 @@ export default function Employees() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Ativos</SelectItem>
+            <SelectItem value="inactive">Demitidos</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -275,9 +289,16 @@ export default function Employees() {
                 </td>
                 <td className="p-4 text-right font-mono font-medium">{formatCurrency(emp.base_salary)}</td>
                 <td className="p-4 text-center">
-                  <Badge variant={emp.is_active !== false ? 'outline' : 'secondary'} className="text-xs">
-                    {emp.is_active !== false ? 'Ativo' : 'Inativo'}
-                  </Badge>
+                  {emp.is_active !== false ? (
+                    <Badge variant="outline" className="text-xs text-green-700 border-green-300 bg-green-50">Ativo</Badge>
+                  ) : (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Badge variant="secondary" className="text-xs text-red-700 border-red-200 bg-red-50">Demitido</Badge>
+                      {emp.termination_date && (
+                        <span className="text-xs text-muted-foreground font-mono">{emp.termination_date}</span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="p-4 text-right">
                   <Button variant="ghost" size="sm" onClick={() => { setEditing(emp); setShowForm(true); }}>

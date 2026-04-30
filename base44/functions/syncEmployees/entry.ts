@@ -17,7 +17,7 @@ async function withRetry(fn, retries = 5, delay = 1000) {
     } catch (err) {
       const is429 = err?.message?.includes('429') || err?.message?.includes('Rate limit');
       if (is429 && attempt < retries - 1) {
-        await sleep(delay * (attempt + 1)); // backoff crescente
+        await sleep(delay * (attempt + 1));
         continue;
       }
       throw err;
@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Busca todos os colaboradores do Tangerino
-    const apiRes = await fetch(`https://employer.tangerino.com.br/employee/find-all?page=0&size=300`, {
+    // Busca todos os colaboradores do Tangerino — incluindo demitidos (showFired=1)
+    const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/employee/find-all?showFired=1&size=1000`, {
       headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
     });
     if (!apiRes.ok) return Response.json({ error: `Tangerino API error: ${apiRes.status}` }, { status: 500 });
@@ -84,6 +84,15 @@ Deno.serve(async (req) => {
 
       const jobRoleTangerinoId = re.jobRoleDTO?.id ? String(re.jobRoleDTO.id) : '';
 
+      // Determina se está demitido: fired=true OU status != 0
+      const isFired = re.fired === true || re.status !== 0;
+
+      // Data de demissão: effectiveDate quando fired=true, senão vazio
+      const terminationDate = isFired ? tsToDate(re.effectiveDate) : '';
+
+      // Motivo de demissão
+      const terminationReason = re.motivoDemissao ?? '';
+
       const payload = {
         tangerino_id: tangerinoId,
         name: re.name ?? '',
@@ -91,12 +100,14 @@ Deno.serve(async (req) => {
         cpf_cnpj: re.cpf ?? re.document ?? '',
         pis: re.pis ?? '',
         gender: re.gender ?? '',
-        admission_date: tsToDate(re.admissionDate ?? re.effectiveDate),
+        admission_date: tsToDate(re.admissionDate),
         birth_date: tsToDate(re.birthDate),
         contract_type: re.contractType === 'PJ' ? 'PJ' : 'CLT',
         company_id: localCompany?.id ?? '',
         tangerino_company_id: companyTangerinoId,
-        is_active: re.fired === false || re.status === 0,
+        is_active: !isFired,
+        termination_date: terminationDate,
+        termination_reason: terminationReason,
         base_salary: re.salary ?? re.baseSalary ?? 0,
         position: re.jobRoleDTO?.description ?? re.jobRoleDTO?.name ?? re.position ?? '',
         job_role_tangerino_id: jobRoleTangerinoId,
