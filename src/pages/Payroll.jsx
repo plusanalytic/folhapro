@@ -201,7 +201,7 @@ export default function Payroll() {
         if (companyEmps.length === 0) return null;
         const closed = isMonthClosed(company.id);
         const companyEntries = entries.filter(e => companyEmps.some(emp => emp.id === e.employee_id));
-        const totalNet = companyEntries.reduce((s, e) => s + (e.net_total || 0), 0);
+        const totalNet = companyEntries.reduce((s, e) => s + (e.first_period_net || 0) + (e.second_period_net || 0), 0);
 
         return (
           <Card key={company.id} className="border-border">
