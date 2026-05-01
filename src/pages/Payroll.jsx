@@ -21,7 +21,10 @@ export default function Payroll() {
   const [jobRoles, setJobRoles] = useState([]);
   const [entries, setEntries] = useState([]);
   const [monthCloses, setMonthCloses] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const current = new Date().toISOString().slice(0, 7);
+    return current >= '2026-04' ? current : '2026-04';
+  });
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [selectedJobRole, setSelectedJobRole] = useState('all');
@@ -42,18 +45,20 @@ export default function Payroll() {
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
       base44.entities.MonthClose.filter({ reference_month: selectedMonth }),
     ]);
-    // Regra: colaborador aparece na folha do mês em que foi demitido (para pagar dias trabalhados)
-    // e some a partir do mês SEGUINTE à demissão.
+    // Regra de exibição na folha:
+    // - Ativo (is_active !== false): sempre aparece
+    // - Demitido com termination_date: aparece no mês da demissão e nos anteriores; some do mês seguinte em diante
+    // - Demitido sem termination_date, mas com is_active=false: não aparece
+    // Nota: usa termination_date independentemente de is_active, para cobrir casos onde
+    // o campo is_active pode ainda não ter sido setado mas a data de demissão já existe.
     setEmployees(e.filter(x => {
-      if (x.is_active === false) {
-        if (x.termination_date) {
-          const termMonth = x.termination_date.slice(0, 7); // YYYY-MM da demissão
-          // Aparece no mês da demissão e em meses anteriores; some a partir do mês seguinte
-          return termMonth >= selectedMonth;
-        }
-        return false; // inativo sem data de demissão: exclui
+      if (x.termination_date) {
+        // Tem data de demissão: aparece somente até o mês da demissão (inclusive)
+        const termMonth = x.termination_date.slice(0, 7);
+        return termMonth >= selectedMonth;
       }
-      return true; // ativo: sempre aparece
+      // Sem data de demissão: só aparece se estiver ativo
+      return x.is_active !== false;
     }));
     setCompanies(c.filter(x => x.is_active !== false));
     setWorkplaces(w);
@@ -114,12 +119,21 @@ export default function Payroll() {
     }
   };
 
-  // Generate months list
+  // Lista de meses: do mês atual até abril/2026 (inclusive), sem ir antes disso
+  const FIRST_MONTH = '2026-04';
   const months = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    months.push(d.toISOString().slice(0, 7));
+  {
+    const now = new Date();
+    let y = now.getFullYear();
+    let mo = now.getMonth() + 1; // 1-based
+    while (true) {
+      const m = `${y}-${String(mo).padStart(2, '0')}`;
+      months.push(m);
+      if (m === FIRST_MONTH) break;
+      mo--;
+      if (mo === 0) { mo = 12; y--; }
+      if (`${y}-${String(mo).padStart(2, '0')}` < FIRST_MONTH) break;
+    }
   }
 
   const companiesInView = selectedCompany === 'all' ? companies : companies.filter(c => c.id === selectedCompany);
