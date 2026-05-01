@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
       // Determina se está demitido: fired=true OU status != 0
       const isFired = re.fired === true || re.status !== 0;
 
-      // Data de demissão: effectiveDate quando fired=true, senão vazio
-      const terminationDate = isFired ? tsToDate(re.effectiveDate) : '';
+      // Data de demissão: resignationDate quando fired=true, senão vazio
+      const terminationDate = isFired ? tsToDate(re.resignationDate) : '';
 
       // Motivo de demissão
       const terminationReason = re.motivoDemissao ?? '';
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       }
 
       // Pausa entre cada registro para respeitar o rate limit
-      await sleep(80);
+      await sleep(300);
     }
 
     return Response.json({
