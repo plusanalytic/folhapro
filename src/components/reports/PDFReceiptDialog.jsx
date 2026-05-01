@@ -64,9 +64,12 @@ function HoleriteContent({ employee, entry, month, company }) {
   const absenceFirst  = entry?.absence_discount_first ?? 0;
   const absenceSecond = entry?.absence_discount_second ?? 0;
 
-  // Valores de quinzena: usar os salvos no entry
-  const firstNet  = entry?.first_period_net  ?? 0;
-  const secondNet = entry?.second_period_net ?? 0;
+  // Valores de quinzena: usar os salvos no entry (calculados com o split correto)
+  const firstNet   = entry?.first_period_net   ?? 0;
+  const secondNet  = entry?.second_period_net  ?? 0;
+  const firstBase  = entry?.first_period_base  ?? (netTotal * (entry?.first_period_split ?? 0.5));
+  const secondBase = entry?.second_period_base ?? (netTotal * (1 - (entry?.first_period_split ?? 0.5)));
+  const splitFirst = entry?.first_period_split ?? 0.5;
 
   // Descontos detalhados por quinzena
   const firstDiscounts  = entry?.first_discounts  ?? [];
@@ -190,12 +193,12 @@ function HoleriteContent({ employee, entry, month, company }) {
         {/* 1ª Quinzena */}
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            1ª Quinzena (1–15)
+            1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%
           </div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
-              <span>Base (50% líquido)</span>
-              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
+              <span>Base quinzenal ({Math.round(splitFirst * 100)}% líquido)</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span>
             </div>
             {foodVoucher > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}>
@@ -234,12 +237,12 @@ function HoleriteContent({ employee, entry, month, company }) {
         {/* 2ª Quinzena */}
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            2ª Quinzena (16–30)
+            2ª Quinzena (16–30) — {Math.round((1 - splitFirst) * 100)}%
           </div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}>
-              <span>Base (50% líquido)</span>
-              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(netTotal / 2)}</span>
+              <span>Base quinzenal ({Math.round((1 - splitFirst) * 100)}% líquido)</span>
+              <span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span>
             </div>
             {absenceSecond > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
