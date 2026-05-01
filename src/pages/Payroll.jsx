@@ -42,17 +42,18 @@ export default function Payroll() {
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
       base44.entities.MonthClose.filter({ reference_month: selectedMonth }),
     ]);
-    // Exclui colaboradores inativos E demitidos antes do mês selecionado
+    // Regra: colaborador aparece na folha do mês em que foi demitido (para pagar dias trabalhados)
+    // e some a partir do mês SEGUINTE à demissão.
     setEmployees(e.filter(x => {
       if (x.is_active === false) {
-        // Se tem data de demissão em mês anterior ao selecionado, exclui
         if (x.termination_date) {
-          const termMonth = x.termination_date.slice(0, 7);
+          const termMonth = x.termination_date.slice(0, 7); // YYYY-MM da demissão
+          // Aparece no mês da demissão e em meses anteriores; some a partir do mês seguinte
           return termMonth >= selectedMonth;
         }
         return false; // inativo sem data de demissão: exclui
       }
-      return true;
+      return true; // ativo: sempre aparece
     }));
     setCompanies(c.filter(x => x.is_active !== false));
     setWorkplaces(w);

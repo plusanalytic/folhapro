@@ -32,14 +32,15 @@ Deno.serve(async (req) => {
       employeeMap[emp.id] = emp;
     }
 
-    // Helper: check if employee was terminated before target_month
-    // i.e. termination_date is in a month prior to target_month
+    // Helper: verifica se o colaborador foi demitido ANTES do mês alvo.
+    // Se foi demitido NO mês alvo → ainda deve aparecer (para pagar dias trabalhados).
+    // Se foi demitido em mês ANTERIOR ao alvo → não deve ser clonado.
     function isFiredBeforeMonth(emp, targetMonth) {
       if (!emp) return false;
-      if (emp.is_active !== false) return false; // still active
-      if (!emp.termination_date) return false;
-      // Compare YYYY-MM only
-      const termMonth = emp.termination_date.slice(0, 7);
+      if (emp.is_active !== false) return false; // ainda ativo
+      if (!emp.termination_date) return false;   // inativo mas sem data: pula
+      const termMonth = emp.termination_date.slice(0, 7); // YYYY-MM
+      // Só exclui se demitido ANTES do mês alvo (termMonth < targetMonth)
       return termMonth < targetMonth;
     }
 
