@@ -260,7 +260,7 @@ export default function Payroll() {
                   <thead>
                     <tr className="border-t border-b border-border bg-muted/30">
                       <th className="text-left p-3 pl-6 font-medium text-muted-foreground">Colaborador</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Contrato</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
                       <th className="text-right p-3 font-medium text-muted-foreground">Salário Base</th>
                       <th className="text-right p-3 font-medium text-muted-foreground">Bruto</th>
                       <th className="text-right p-3 font-medium text-muted-foreground">Descontos</th>
@@ -284,8 +284,8 @@ export default function Payroll() {
                               <span className="font-medium">{emp.name}</span>
                             </div>
                           </td>
-                          <td className="p-3">
-                            <Badge variant={emp.contract_type === 'CLT' ? 'default' : 'secondary'} className="text-xs">{emp.contract_type}</Badge>
+                          <td className="p-3 text-sm text-muted-foreground">
+                            {jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))?.name || '—'}
                           </td>
                           <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.base_salary) : '—'}</td>
                           <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.gross_total) : '—'}</td>
