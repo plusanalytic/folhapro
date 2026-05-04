@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList
 } from 'recharts';
 
 const FIRST_MONTH = '2026-04';
@@ -285,7 +285,9 @@ export default function Dashboard() {
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="liquido" name="Líquido" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="liquido" name="Líquido" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="liquido" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -308,8 +310,12 @@ export default function Dashboard() {
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="1ª Quinzena" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="2ª Quinzena" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="1ª Quinzena" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="1ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
+                  </Bar>
+                  <Bar dataKey="2ª Quinzena" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="2ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
