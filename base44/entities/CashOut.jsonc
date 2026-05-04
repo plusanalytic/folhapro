@@ -8,7 +8,7 @@
     },
     "employee_id": {
       "type": "string",
-      "description": "ID do colaborador"
+      "description": "ID do colaborador (opcional)"
     },
     "date": {
       "type": "string",
@@ -38,10 +38,14 @@
     "notes": {
       "type": "string",
       "description": "Observa\u00e7\u00e3o adicional"
+    },
+    "deduct_from_payroll": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se true, o valor ser\u00e1 descontado da folha de pagamento do colaborador na quinzena correspondente"
     }
   },
   "required": [
-    "employee_id",
     "date",
     "description",
     "amount"

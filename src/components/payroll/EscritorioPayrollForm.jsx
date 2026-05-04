@@ -98,10 +98,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   // Carregar CashOuts
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
-      const fromCashFirst = cashOuts.filter(c => c.period === 'first').map(c => ({
+      const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
+      const fromCashFirst = toDeduct.filter(c => c.period === 'first').map(c => ({
         id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
       }));
-      const fromCashSecond = cashOuts.filter(c => c.period === 'second').map(c => ({
+      const fromCashSecond = toDeduct.filter(c => c.period === 'second').map(c => ({
         id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
       }));
       setFirstDiscounts(prev => [...prev.filter(x => !x.fromCashOut), ...fromCashFirst]);
@@ -173,6 +174,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
         reference_month: p.month,
         period: isFirst ? 'first' : 'second',
         notes: `Parcela gerada automaticamente`,
+        deduct_from_payroll: true,
       });
     }
     setInstallmentDialog(null);
