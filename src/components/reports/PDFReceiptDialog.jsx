@@ -92,12 +92,12 @@ function HoleriteContent({ employee, entry, month, company }) {
 
   // Faltas NÃO entram aqui — são descontadas nas quinzenas individualmente
   const descontos = [
-    { label: `INSS${entry?.inss_discount > 0 ? ` (desc. ${formatCurrency(entry.inss_discount)})` : ''}`, value: calc.inss_net, show: calc.inss_net > 0 },
+    { label: 'INSS', value: calc.inss_net, show: calc.inss_net > 0 },
     { label: 'IRRF', value: calc.irrf, show: calc.irrf > 0 },
     { label: 'Retenção PJ', value: pjRet, show: pjRet > 0 },
     { label: 'Contribuição Assistencial', value: calc.union_contribution, show: calc.union_contribution > 0 },
     { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
-    { label: 'Seguro de Vida', value: lifeIns, show: lifeIns > 0 },
+    { label: 'Seguro de Vida (Acordo entre as partes)', value: lifeIns, show: lifeIns > 0 },
   ].filter(x => x.show);
 
   const totalDescontos = descontos.reduce((s, d) => s + d.value, 0);
@@ -222,7 +222,7 @@ function HoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                   <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                 </div>
               );
@@ -270,7 +270,7 @@ function HoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                   <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                 </div>
               );
@@ -393,7 +393,7 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
   ].filter(x => x.show);
 
   const descontos = [
-    { label: 'Seguro de Vida (desc. na 1ª quinzena)', value: lifeInsurance, show: lifeInsurance > 0 },
+    { label: 'Seguro de Vida (Acordo entre as partes)', value: lifeInsurance, show: lifeInsurance > 0 },
   ].filter(x => x.show);
 
   const totalDescontos = descontos.reduce((s,d) => s+d.value, 0);
@@ -482,7 +482,7 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
             )}
             {lifeInsurance > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}>
-                <span>− Seguro de Vida</span>
+                <span>− Seguro de Vida (Acordo entre as partes)</span>
                 <span style={{ fontFamily: 'monospace' }}>- {formatCurrency(lifeInsurance)}</span>
               </div>
             )}
@@ -496,7 +496,7 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                   <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                 </div>
               );
@@ -534,7 +534,7 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                  <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                  <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                   <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                 </div>
               );
@@ -644,7 +644,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
     { label: `Desconto VT (${entry?.transport_voucher_discount_pct ?? 0}%)`, value: calc.transport_voucher_discount, show: calc.transport_voucher_discount > 0 },
     { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
     {
-      label: `INSS (${entry?.inss_pct ?? 0}%${(entry?.inss_deduction ?? 0) > 0 ? ` − ded. ${formatCurrency(entry?.inss_deduction ?? 0)}` : ''})`,
+      label: `INSS (${entry?.inss_pct ?? 0}%)`,
       value: calc.inss_net,
       show: calc.inss_net > 0,
     },
@@ -774,7 +774,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
                   const isCredit = d.type === 'credit';
                   return (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                      <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                      <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                       <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                     </div>
                   );
@@ -794,7 +794,7 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
                   const isCredit = d.type === 'credit';
                   return (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}>
-                      <span>{d.description}{d.date ? ` (${d.date})` : ''}</span>
+                      <span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span>
                       <span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span>
                     </div>
                   );

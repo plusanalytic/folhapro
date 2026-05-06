@@ -156,7 +156,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
             const isCredit = d.type === 'credit';
             return (
               <tr key={i} style={{ background: i % 2 === 0 ? '#f9fafb' : '#fff' }}>
-                <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb' }}>{d.description?.toUpperCase()}{d.date ? ` (${d.date})` : ''}</td>
+                <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb' }}>{d.description?.toUpperCase()}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</td>
                 <td style={{ padding: '7px 14px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e5e7eb', color: isCredit ? '#16a34a' : '#dc2626' }}>
                   {isCredit ? '' : '-'}{formatCurrency(d.amount)}
                 </td>
