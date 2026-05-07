@@ -456,12 +456,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
                   </div>
-                  {form.food_voucher > 0 && (
-                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
-                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
-                    </div>
-                  )}
                   {absenceFirst > 0 && (
                     <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                       <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
@@ -490,6 +484,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
                   </div>
+                  {form.food_voucher > 0 && (
+                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
+                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                    </div>
+                  )}
                   {absenceSecond > 0 && (
                     <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                       <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
@@ -646,15 +646,29 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
           />
         )}
 
-        <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
-          {readOnly ? (
-            <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
-          ) : (
-            <>
-              <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
-            </>
+        <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {!readOnly && (
+            <div className="mb-3">
+              <Label className="text-xs">Observação (aparece no PDF)</Label>
+              <textarea
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                placeholder="Observação informativa para o recibo..."
+                value={form.notes}
+                onChange={e => set('notes', e.target.value)}
+              />
+            </div>
           )}
+          <div className="flex gap-3 pb-4">
+            {readOnly ? (
+              <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

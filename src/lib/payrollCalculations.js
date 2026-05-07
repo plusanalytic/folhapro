@@ -128,8 +128,8 @@ export function calculateEscritorioPayroll(entry) {
   const baseQuinzenal = Math.round(baseQuinzenalTotal * splitEsc * 100) / 100;
   const baseQuinzenalSecond = Math.round(baseQuinzenalTotal * (1 - splitEsc) * 100) / 100;
   const firstPeriodAdvance = entry.first_period_advance || 0;
-  const firstPeriodNet = baseQuinzenal + foodVoucher - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = baseQuinzenalSecond - (entry.second_period_discount || 0) - absenceSecond;
+  const firstPeriodNet = baseQuinzenal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+  const secondPeriodNet = baseQuinzenalSecond + foodVoucher - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     meal_voucher: mealVoucher,
@@ -207,8 +207,8 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     const splitSecond = 1 - splitFirst;
     const firstBase = Math.round(netTotal * splitFirst * 100) / 100;
     const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
-    const firstPeriodNet = firstBase + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-    const secondPeriodNet = secondBase + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
+    const firstPeriodNet = firstBase - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+    const secondPeriodNet = secondBase + foodVoucherVal + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
     return {
       absence_discount: absenceDiscount,
@@ -270,8 +270,8 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
   const splitSecond2 = 1 - splitFirst2;
   const firstBase2 = Math.round(netTotal * splitFirst2 * 100) / 100;
   const secondBase2 = Math.round(netTotal * splitSecond2 * 100) / 100;
-  const firstPeriodNet = firstBase2 + foodVoucherVal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = secondBase2 + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
+  const firstPeriodNet = firstBase2 - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
+  const secondPeriodNet = secondBase2 + foodVoucherVal + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     absence_discount: absenceDiscount,

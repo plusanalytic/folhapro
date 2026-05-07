@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Lock, Unlock, Search, FileText, Eye, Printer, Copy, Loader2 } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -108,6 +108,13 @@ export default function Payroll() {
     }
     load();
     toast.success('Mês fechado com sucesso!');
+  };
+
+  const handleCloseEmployeeEntry = async (entry) => {
+    if (entry.status === 'closed') return;
+    await base44.entities.PayrollEntry.update(entry.id, { status: 'closed' });
+    load();
+    toast.success('Folha do colaborador fechada!');
   };
 
   const handleReopenMonth = async (companyId) => {
@@ -297,6 +304,7 @@ export default function Payroll() {
                               if (!empJobRole?.payroll_type) {
                                 return <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300 bg-yellow-50">Sem modelo</Badge>;
                               }
+                              if (entry?.status === 'closed') return <Badge variant="destructive" className="text-xs gap-1"><Lock className="w-2.5 h-2.5" />Fechado</Badge>;
                               return <Badge variant={entry ? 'default' : 'outline'} className="text-xs">{entry ? 'Lançado' : 'Pendente'}</Badge>;
                             })()}
                           </td>
@@ -318,10 +326,19 @@ export default function Payroll() {
                                    title="Imprimir Recibo"
                                    onClick={() => {
                                     const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: jr?.payroll_type });
+                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: jr?.payroll_type, jobRoleName: jr?.name });
                                   }}
                                  >
                                    <Printer className="w-3.5 h-3.5" />
+                                 </Button>
+                                 <Button
+                                   variant={entry.status === 'closed' ? 'secondary' : 'ghost'}
+                                   size="sm"
+                                   title={entry.status === 'closed' ? 'Folha individual já fechada' : 'Fechar folha deste colaborador'}
+                                   disabled={entry.status === 'closed'}
+                                   onClick={() => handleCloseEmployeeEntry(entry)}
+                                 >
+                                   <UserCheck className="w-3.5 h-3.5" />
                                  </Button>
                                </>
                              )}
@@ -361,6 +378,7 @@ export default function Payroll() {
           referenceMonth={selectedMonth}
           receiptType="holerite"
           payrollType={printReceipt.payrollType}
+          jobRoleName={printReceipt.jobRoleName}
           onClose={() => setPrintReceipt(null)}
         />
       )}

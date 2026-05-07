@@ -10,12 +10,24 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
 export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload }) {
+  const detectPixKeyType = (key) => {
+    if (!key) return '';
+    const cleaned = key.replace(/\D/g, '');
+    if (/^\d{11}$/.test(cleaned)) return 'CPF';
+    if (/^\d{14}$/.test(cleaned)) return 'CNPJ';
+    if (/^\+?\d{10,13}$/.test(cleaned) || /^\(\d{2}\)\s?\d{4,5}-?\d{4}$/.test(key)) return 'Telefone';
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return 'Email';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) return 'Chave Aleatória';
+    return '';
+  };
+
   const [form, setForm] = useState({
     bank_name: employee?.bank_name || '',
     bank_agency: employee?.bank_agency || '',
     bank_account: employee?.bank_account || '',
     bank_beneficiary: employee?.bank_beneficiary || '',
     pix_key: employee?.pix_key || '',
+    pix_key_type: employee?.pix_key_type || detectPixKeyType(employee?.pix_key || ''),
   });
   const [syncingWP, setSyncingWP] = useState(false);
   const [localWorkplaceList, setLocalWorkplaceList] = useState(employee?.workplace_list ?? []);
@@ -169,9 +181,37 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
                 <Label>Favorecido</Label>
                 <Input className="mt-1" value={form.bank_beneficiary} onChange={e => set('bank_beneficiary', e.target.value)} placeholder="Nome do favorecido" />
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label>Chave PIX</Label>
-                <Input className="mt-1" value={form.pix_key} onChange={e => set('pix_key', e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+                <Input
+                  className="mt-1"
+                  value={form.pix_key}
+                  onChange={e => {
+                    const val = e.target.value;
+                    set('pix_key', val);
+                    const detected = detectPixKeyType(val);
+                    if (detected) set('pix_key_type', detected);
+                  }}
+                  placeholder="CPF, e-mail, telefone ou chave aleatória"
+                />
+              </div>
+              <div>
+                <Label>Tipo de Chave PIX</Label>
+                <select
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={form.pix_key_type}
+                  onChange={e => set('pix_key_type', e.target.value)}
+                >
+                  <option value="">Selecionar tipo</option>
+                  <option value="CPF">CPF</option>
+                  <option value="CNPJ">CNPJ</option>
+                  <option value="Telefone">Telefone</option>
+                  <option value="Email">Email</option>
+                  <option value="Chave Aleatória">Chave Aleatória</option>
+                </select>
+                {form.pix_key && !form.pix_key_type && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Tipo não identificado automaticamente</p>
+                )}
               </div>
             </div>
           </TabsContent>

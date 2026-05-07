@@ -364,8 +364,23 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Input {...numericField('motorcycle_rental')} />
               </div>}
               {show('hazard_pay') && <div>
-                <Label>Periculosidade</Label>
-                <Input {...numericField('hazard_pay')} />
+                <Label>Periculosidade (30% do salário base)</Label>
+                <Input
+                  {...numericField('hazard_pay')}
+                  onFocus={(e) => {
+                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === Math.round(form.base_salary * 0.3 * 100) / 100)) {
+                      const auto = Math.round(form.base_salary * 0.3 * 100) / 100;
+                      set('hazard_pay', auto);
+                    }
+                    setTimeout(() => e.target.select(), 0);
+                  }}
+                />
+                {form.base_salary > 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Auto: {formatCurrency(Math.round(form.base_salary * 0.3 * 100) / 100)} (30% de {formatCurrency(form.base_salary)})
+                    {!readOnly && form.hazard_pay !== Math.round(form.base_salary * 0.3 * 100) / 100 && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}
+                  </p>
+                )}
               </div>}
               <div>
                 <Label>Bonificação / Prêmio</Label>
@@ -545,12 +560,6 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
                 </div>
-                {show('food_voucher') && form.food_voucher > 0 && (
-                   <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                     <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
-                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
-                   </div>
-                 )}
                 {absenceFirst > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
@@ -580,6 +589,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
                 </div>
+                {show('food_voucher') && form.food_voucher > 0 && (
+                   <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                     <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
+                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                   </div>
+                 )}
                 {absenceSecond > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
@@ -639,6 +654,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
           <TabsContent value="resumo" className="mt-4">
             <div className="space-y-3">
+              {form.notes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Observação</p>
+                  <p className="text-sm text-amber-800">{form.notes}</p>
+                </div>
+              )}
               <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-muted-foreground">Salário Base</span>
                 <span className="font-mono">{formatCurrency(form.base_salary)}</span>
@@ -723,15 +744,29 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           />
         )}
 
-        <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
-          {readOnly ? (
-            <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
-          ) : (
-            <>
-              <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
-            </>
+        <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {!readOnly && (
+            <div className="mb-3">
+              <Label className="text-xs">Observação (aparece no PDF)</Label>
+              <textarea
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                placeholder="Observação informativa para o recibo..."
+                value={form.notes}
+                onChange={e => set('notes', e.target.value)}
+              />
+            </div>
           )}
+          <div className="flex gap-3 pb-4">
+            {readOnly ? (
+              <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -314,6 +314,14 @@ function HoleriteContent({ employee, entry, month, company }) {
         </div>
       )}
 
+      {/* ── Observação ── */}
+      {entry?.notes && (
+        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fdf9ff' }}>
+          <div style={{ color: '#6a3eaf', fontSize: '9px', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 'bold' }}>Observação</div>
+          <div style={{ fontSize: '10px', color: '#444' }}>{entry.notes}</div>
+        </div>
+      )}
+
       {/* ── Assinatura ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
         <div style={{ textAlign: 'center' }}>
@@ -567,6 +575,14 @@ function MeiHoleriteContent({ employee, entry, month, company }) {
             {employee.bank_beneficiary && <div><span style={{ color: '#888' }}>Favorecido: </span><strong>{employee.bank_beneficiary}</strong></div>}
             {employee.pix_key && <div><span style={{ color: '#888' }}>PIX: </span><strong>{employee.pix_key}</strong></div>}
           </div>
+        </div>
+      )}
+
+      {/* Observação */}
+      {entry?.notes && (
+        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fdf9ff' }}>
+          <div style={{ color: '#6a3eaf', fontSize: '9px', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 'bold' }}>Observação</div>
+          <div style={{ fontSize: '10px', color: '#444' }}>{entry.notes}</div>
         </div>
       )}
 
@@ -834,6 +850,14 @@ function EscritorioHoleriteContent({ employee, entry, month, company }) {
         </div>
       )}
 
+      {/* Observação */}
+      {entry?.notes && (
+        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', background: '#fdf9ff' }}>
+          <div style={{ color: '#6a3eaf', fontSize: '9px', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 'bold' }}>Observação</div>
+          <div style={{ fontSize: '10px', color: '#444' }}>{entry.notes}</div>
+        </div>
+      )}
+
       {/* Assinatura */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
         <div style={{ textAlign: 'center' }}>
@@ -968,7 +992,7 @@ function MotoReceiptContent({ employee, entry, month }) {
 }
 
 // ─── Dialog principal ─────────────────────────────────────────────────────────
-export default function PDFReceiptDialog({ employee, entry, receiptType, referenceMonth, onClose, company, payrollType }) {
+export default function PDFReceiptDialog({ employee, entry, receiptType, referenceMonth, onClose, company, payrollType, jobRoleName }) {
   const printRef = useRef();
   const [mergedEntry, setMergedEntry] = useState(entry);
 
@@ -1156,12 +1180,12 @@ export default function PDFReceiptDialog({ employee, entry, receiptType, referen
         </DialogHeader>
         <div ref={printRef} className="overflow-auto bg-white">
           {payrollType === 'ESCRITORIO'
-            ? <EscritorioHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+            ? <EscritorioHoleriteContent employee={{...employee, position: employee.position || jobRoleName}} entry={mergedEntry} month={referenceMonth} company={company} />
             : payrollType === 'MOTOCICLISTA_MEI'
-              ? <MeiHoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+              ? <MeiHoleriteContent employee={{...employee, position: employee.position || jobRoleName}} entry={mergedEntry} month={referenceMonth} company={company} />
               : payrollType === 'SOCIO'
-                ? <ProLaboreReceiptContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
-                : <HoleriteContent employee={employee} entry={mergedEntry} month={referenceMonth} company={company} />
+                ? <ProLaboreReceiptContent employee={{...employee, position: employee.position || jobRoleName}} entry={mergedEntry} month={referenceMonth} company={company} />
+                : <HoleriteContent employee={{...employee, position: employee.position || jobRoleName}} entry={mergedEntry} month={referenceMonth} company={company} />
           }
         </div>
       </DialogContent>

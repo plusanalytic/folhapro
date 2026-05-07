@@ -71,6 +71,17 @@
       "type": "string",
       "description": "Chave PIX"
     },
+    "pix_key_type": {
+      "type": "string",
+      "enum": [
+        "CPF",
+        "CNPJ",
+        "Telefone",
+        "Email",
+        "Chave Aleat\u00f3ria"
+      ],
+      "description": "Tipo da chave PIX"
+    },
     "admission_date": {
       "type": "string",
       "format": "date",

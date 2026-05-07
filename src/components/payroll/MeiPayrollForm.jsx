@@ -60,11 +60,11 @@ function calculateMeiPayroll(entry) {
   const firstBase = Math.round(netTotal * splitFirst * 100) / 100;
   const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
 
-  const firstPeriodNet = firstBase + foodVoucher
+  const firstPeriodNet = firstBase
     - lifeInsurance
     - (entry.first_period_advance || 0)
     - (entry.first_period_discount || 0);
-  const secondPeriodNet = secondBase + kmBonus + costAllowance
+  const secondPeriodNet = secondBase + foodVoucher + kmBonus + costAllowance
     - (entry.second_period_discount || 0);
 
   return {
@@ -465,12 +465,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base)}</span>
                   </div>
-                  {form.food_voucher > 0 && (
-                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 1ª quinzena)</span>
-                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
-                    </div>
-                  )}
                   {form.life_insurance > 0 && (
                     <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                       <span className="text-xs text-amber-700 font-medium">− Seguro de Vida</span>
@@ -496,11 +490,17 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
                 {/* 2ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
-                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base)}</span>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base)}</span>
+                </div>
+                {form.food_voucher > 0 && (
+                  <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
+                    <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
+                    <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                   </div>
-                  {(calc.km_bonus > 0 || form.cost_allowance > 0) && (
+                )}
+                {(calc.km_bonus > 0 || form.cost_allowance > 0) && (
                     <div className="space-y-1">
                       {calc.km_bonus > 0 && (
                         <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
@@ -618,15 +618,29 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
           />
         )}
 
-        <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
-          {readOnly ? (
-            <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
-          ) : (
-            <>
-              <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
-            </>
+        <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {!readOnly && (
+            <div className="mb-3">
+              <Label className="text-xs">Observação (aparece no PDF)</Label>
+              <textarea
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                placeholder="Observação informativa para o recibo..."
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
           )}
+          <div className="flex gap-3 pb-4">
+            {readOnly ? (
+              <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
