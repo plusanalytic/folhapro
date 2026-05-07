@@ -185,8 +185,6 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     let inss = 0;
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
-    } else {
-      inss = calculateINSS(Math.max(0, inssBase));
     }
     const inssDiscount = Math.min(entry.inss_discount || 0, inss);
     const inssNet = Math.max(0, inss - inssDiscount);
@@ -240,8 +238,6 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     const inssBase = salary + (entry.hazard_pay || 0);
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
-    } else {
-      inss = calculateINSS(inssBase);
     }
     fgts = calculateFGTS(salary);
     irrf = calculateIRRF(salary, inss);
@@ -306,9 +302,9 @@ export function calculateProLabore(entry) {
   const inssCustomPct  = entry.inss_pct;                 // % customizado (null = usa 11%)
   const irrfCustom     = entry.irrf               || 0;  // IRRF manual
 
-  // INSS fixo 11% (ou % customizado) sobre pró-labore base
-  const inssPct  = (inssCustomPct != null && inssCustomPct > 0) ? inssCustomPct / 100 : PRO_LABORE_INSS_RATE;
-  const inss     = Math.round(proLaboreBase * inssPct * 100) / 100;
+  // INSS fixo 11% (ou % customizado) sobre pró-labore base — sem cálculo automático se em branco/zerado
+  const inssPct  = (inssCustomPct != null && inssCustomPct > 0) ? inssCustomPct / 100 : 0;
+  const inss     = inssPct > 0 ? Math.round(proLaboreBase * inssPct * 100) / 100 : 0;
 
   const grossTotal = Math.round((proLaboreBase + quotaAdjust + birthdayBonus) * 100) / 100;
   const irrf       = irrfCustom > 0 ? irrfCustom : calculateIRRF(grossTotal, inss);
