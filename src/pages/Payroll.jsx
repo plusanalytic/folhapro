@@ -12,6 +12,7 @@ import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
 import ProLaboreForm from '@/components/payroll/ProLaboreForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
+import ConfirmDialog from '@/components/payroll/ConfirmDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -35,6 +36,8 @@ export default function Payroll() {
   const [viewOnly, setViewOnly] = useState(false);
   const [printReceipt, setPrintReceipt] = useState(null); // { employee, entry, company }
   const [cloning, setCloning] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
+  const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
 
   const load = async () => {
     const [e, c, w, jr, p, m] = await Promise.all([
@@ -111,10 +114,15 @@ export default function Payroll() {
   };
 
   const handleCloseEmployeeEntry = async (entry) => {
-    if (entry.status === 'closed') return;
     await base44.entities.PayrollEntry.update(entry.id, { status: 'closed' });
     load();
     toast.success('Folha do colaborador fechada!');
+  };
+
+  const handleReopenEmployeeEntry = async (entry) => {
+    await base44.entities.PayrollEntry.update(entry.id, { status: 'open' });
+    load();
+    toast.success('Folha do colaborador reaberta!');
   };
 
   const handleReopenMonth = async (companyId) => {
@@ -250,11 +258,11 @@ export default function Payroll() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Total: <strong className="text-foreground">{formatCurrency(totalNet)}</strong></span>
                   {closed ? (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleReopenMonth(company.id)}>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmReopen({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Unlock className="w-3.5 h-3.5" /> Reabrir Mês
                     </Button>
                   ) : (
-                    <Button variant="default" size="sm" className="gap-1.5" onClick={() => handleCloseMonth(company.id)}>
+                    <Button variant="default" size="sm" className="gap-1.5" onClick={() => setConfirmClose({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Lock className="w-3.5 h-3.5" /> Fechar Mês
                     </Button>
                   )}
@@ -331,15 +339,25 @@ export default function Payroll() {
                                  >
                                    <Printer className="w-3.5 h-3.5" />
                                  </Button>
-                                 <Button
-                                   variant={entry.status === 'closed' ? 'secondary' : 'ghost'}
-                                   size="sm"
-                                   title={entry.status === 'closed' ? 'Folha individual já fechada' : 'Fechar folha deste colaborador'}
-                                   disabled={entry.status === 'closed'}
-                                   onClick={() => handleCloseEmployeeEntry(entry)}
-                                 >
-                                   <UserCheck className="w-3.5 h-3.5" />
-                                 </Button>
+                                 {entry.status === 'closed' ? (
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     title="Reabrir folha deste colaborador"
+                                     onClick={() => setConfirmReopen({ type: 'entry', entry, empName: emp.name })}
+                                   >
+                                     <Unlock className="w-3.5 h-3.5" />
+                                   </Button>
+                                 ) : (
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     title="Fechar folha deste colaborador"
+                                     onClick={() => setConfirmClose({ type: 'entry', entry, empName: emp.name })}
+                                   >
+                                     <UserCheck className="w-3.5 h-3.5" />
+                                   </Button>
+                                 )}
                                </>
                              )}
                              {(() => {
@@ -349,8 +367,8 @@ export default function Payroll() {
                                  <Button
                                    variant="outline"
                                    size="sm"
-                                   disabled={closed || !hasPayrollType}
-                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : undefined}
+                                   disabled={closed || !hasPayrollType || entry?.status === 'closed'}
+                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
                                    onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
                                  >
                                    {entry ? 'Editar' : 'Lançar'}
@@ -369,6 +387,39 @@ export default function Payroll() {
           </Card>
         );
       })}
+
+      <ConfirmDialog
+        open={!!confirmClose}
+        onOpenChange={(v) => !v && setConfirmClose(null)}
+        title={confirmClose?.type === 'month' ? 'Fechar mês?' : 'Fechar folha?'}
+        description={
+          confirmClose?.type === 'month'
+            ? `Deseja fechar o mês de ${getMonthName(selectedMonth)} para ${confirmClose?.companyName}? Após fechar, não será possível editar as folhas de pagamento.`
+            : `Deseja fechar a folha de ${confirmClose?.empName}? Após fechar, não será possível editar as informações.`
+        }
+        confirmLabel="Fechar"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          if (confirmClose?.type === 'month') handleCloseMonth(confirmClose.companyId);
+          else handleCloseEmployeeEntry(confirmClose.entry);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!confirmReopen}
+        onOpenChange={(v) => !v && setConfirmReopen(null)}
+        title={confirmReopen?.type === 'month' ? 'Reabrir mês?' : 'Reabrir folha?'}
+        description={
+          confirmReopen?.type === 'month'
+            ? `Deseja reabrir o mês de ${getMonthName(selectedMonth)} para ${confirmReopen?.companyName}?`
+            : `Deseja reabrir a folha de ${confirmReopen?.empName}?`
+        }
+        confirmLabel="Reabrir"
+        onConfirm={() => {
+          if (confirmReopen?.type === 'month') handleReopenMonth(confirmReopen.companyId);
+          else handleReopenEmployeeEntry(confirmReopen.entry);
+        }}
+      />
 
       {printReceipt && (
         <PDFReceiptDialog
@@ -393,7 +444,7 @@ export default function Payroll() {
             employee={editingEmployee}
             entry={editingEntry}
             referenceMonth={selectedMonth}
-            readOnly={viewOnly}
+            readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEmployee?.company_id)}
             onSave={handleSaveEntry}
             onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
             jobRole={empJobRole}
