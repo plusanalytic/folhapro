@@ -107,25 +107,32 @@ Deno.serve(async (req) => {
 
     let lastUpdate;
     if (mode === 'daily') {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(0, 0, 0, 0);
-      lastUpdate = yesterday.getTime();
+      // Últimos 3 dias para garantir que não perca nada
+      const d = new Date();
+      d.setDate(d.getDate() - 3);
+      d.setHours(0, 0, 0, 0);
+      lastUpdate = d.getTime();
     } else {
       lastUpdate = new Date('2020-01-01T00:00:00Z').getTime();
     }
 
     const { items, total } = await fetchAllPages(lastUpdate);
 
-    // Busca IDs já existentes para deduplicação (sem limite, paginando)
+    // Coleta todos os tangerino_ids da API que vieram
+    const apiIds = new Set(items.map(i => Number(i.id)).filter(Boolean));
+
+    // Busca IDs já existentes no banco — usa filter paginado corretamente
     const existingIds = new Set();
-    let paPage = 1;
-    const PA_SIZE = 1000;
+    const PA_SIZE = 2000;
+    let paOffset = 0;
     while (true) {
-      const chunk = await base44.asServiceRole.entities.PointAdjustment.list('tangerino_id', PA_SIZE, (paPage - 1) * PA_SIZE);
-      for (const e of chunk) existingIds.add(Number(e.tangerino_id));
+      // SDK list(sort, limit, skip) — skip é o 3º parâmetro
+      const chunk = await base44.asServiceRole.entities.PointAdjustment.list('tangerino_id', PA_SIZE, paOffset);
+      for (const e of chunk) {
+        if (e.tangerino_id) existingIds.add(Number(e.tangerino_id));
+      }
       if (chunk.length < PA_SIZE) break;
-      paPage++;
+      paOffset += PA_SIZE;
     }
 
     // De-para colaboradores locais
@@ -138,7 +145,7 @@ Deno.serve(async (req) => {
     let skipped = 0;
     let errors = 0;
 
-    // Filtra apenas registros novos
+    // Filtra apenas registros novos (não existem no banco)
     const toCreate = [];
     for (const item of items) {
       const tid = Number(item.id);
@@ -147,8 +154,8 @@ Deno.serve(async (req) => {
       toCreate.push(mapRecord(item, employeeByTangerinoId));
     }
 
-    // Insere em lotes de 50 para não estourar timeout
-    const BATCH = 50;
+    // Insere em lotes de 100
+    const BATCH = 100;
     let created = 0;
     for (let i = 0; i < toCreate.length; i += BATCH) {
       const batch = toCreate.slice(i, i + BATCH);
@@ -157,6 +164,7 @@ Deno.serve(async (req) => {
         created += batch.length;
       } catch (e) {
         errors += batch.length;
+        console.error('Batch error:', e.message);
       }
     }
 
@@ -165,6 +173,7 @@ Deno.serve(async (req) => {
       mode,
       total_from_api: total,
       fetched: items.length,
+      existing_in_db: existingIds.size,
       created,
       skipped,
       errors,
