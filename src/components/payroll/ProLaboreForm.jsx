@@ -13,15 +13,16 @@ import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 
 function NumInput({ value, onChange, disabled, placeholder = '0,00', step = '0.01' }) {
-  const [raw, setRaw] = useState(value === 0 ? '' : String(value));
-  useEffect(() => { setRaw(value === 0 ? '' : String(value)); }, [value]);
+  const [raw, setRaw] = useState(null);
+  const display = raw !== null ? raw : (value === 0 ? '' : String(value));
   return (
     <Input
       type="number" step={step} min="0" disabled={disabled}
       className="font-mono"
-      value={raw}
-      onChange={e => { setRaw(e.target.value); onChange(parseFloat(e.target.value) || 0); }}
-      onFocus={e => setTimeout(() => e.target.select(), 0)}
+      value={display}
+      onChange={e => setRaw(e.target.value)}
+      onBlur={e => { onChange(parseFloat(e.target.value) || 0); setRaw(null); }}
+      onFocus={e => { setRaw(value === 0 ? '' : String(value)); setTimeout(() => e.target.select(), 0); }}
       placeholder={placeholder}
     />
   );

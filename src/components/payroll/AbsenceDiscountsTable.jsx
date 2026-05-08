@@ -99,6 +99,24 @@ function calcAutoForReason(reasonId, payrollForm, isMotocyclist) {
   };
 }
 
+// CellInput extraído para FORA do componente pai para evitar perda de foco
+function CellInput({ value, disabled, onChange, onBlur }) {
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      min="0"
+      disabled={disabled}
+      className="h-7 font-mono text-xs text-right border-destructive/30 focus:border-destructive px-1"
+      placeholder="0"
+      value={value}
+      onChange={onChange}
+      onBlur={onBlur}
+      onFocus={e => { e.target.select(); }}
+    />
+  );
+}
+
 export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscounts, setAbsenceDiscounts, readOnly, isMotocyclist, payrollForm }) {
   // Ao montar ou quando os ajustes mudam, pré-preenche automaticamente linhas ainda zeradas E não editadas manualmente
   useEffect(() => {
@@ -150,23 +168,14 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
     }));
   };
 
-  const CellInput = ({ rowKey, col }) => {
-    const val = absenceDiscounts[rowKey]?.[col] ?? '';
-    return (
-      <Input
-        type="number"
-        step="0.01"
-        min="0"
-        disabled={readOnly}
-        className="h-7 font-mono text-xs text-right border-destructive/30 focus:border-destructive px-1"
-        placeholder="0"
-        value={val}
-        onChange={e => setCell(rowKey, col, e.target.value)}
-        onBlur={e => blurCell(rowKey, col, e.target.value)}
-        onFocus={e => { e.target.select(); }}
-      />
-    );
-  };
+  const renderCell = (rowKey, col) => (
+    <CellInput
+      value={absenceDiscounts[rowKey]?.[col] ?? ''}
+      disabled={readOnly}
+      onChange={e => setCell(rowKey, col, e.target.value)}
+      onBlur={e => blurCell(rowKey, col, e.target.value)}
+    />
+  );
 
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
 
@@ -234,13 +243,13 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
 
                   {isAbsence ? (
                     <>
-                      <td className="px-2 py-1.5"><CellInput rowKey={key} col="daily" /></td>
-                      <td className="px-2 py-1.5"><CellInput rowKey={key} col="vt" /></td>
-                      <td className="px-2 py-1.5"><CellInput rowKey={key} col="vr" /></td>
-                      <td className="px-2 py-1.5"><CellInput rowKey={key} col="dsr" /></td>
+                      <td className="px-2 py-1.5">{renderCell(key, 'daily')}</td>
+                      <td className="px-2 py-1.5">{renderCell(key, 'vt')}</td>
+                      <td className="px-2 py-1.5">{renderCell(key, 'vr')}</td>
+                      <td className="px-2 py-1.5">{renderCell(key, 'dsr')}</td>
                       {isMotocyclist && <>
-                        <td className="px-2 py-1.5"><CellInput rowKey={key} col="moto" /></td>
-                        <td className="px-2 py-1.5"><CellInput rowKey={key} col="hazard" /></td>
+                        <td className="px-2 py-1.5">{renderCell(key, 'moto')}</td>
+                        <td className="px-2 py-1.5">{renderCell(key, 'hazard')}</td>
                       </>}
                       {!readOnly && (
                         <td className="px-2 py-1.5 text-center">

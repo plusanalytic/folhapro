@@ -13,6 +13,53 @@ import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
+// Componentes extraídos para FORA do componente pai para evitar perda de foco ao redigitar
+function NumInput({ value, onChange, disabled, className = '', step = '0.01', min, placeholder }) {
+  const [local, setLocal] = useState(null);
+  const externalVal = value ?? 0;
+  const displayVal = local !== null ? local : (externalVal === 0 ? '' : String(externalVal));
+  return (
+    <Input
+      className={`font-mono ${className}`}
+      type="number"
+      step={step}
+      min={min}
+      placeholder={placeholder}
+      value={displayVal}
+      disabled={disabled}
+      onFocus={e => {
+        setLocal(externalVal === 0 ? '' : String(externalVal));
+        setTimeout(() => e.target.select(), 0);
+      }}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={e => {
+        const parsed = parseFloat(e.target.value);
+        onChange(isNaN(parsed) ? 0 : parsed);
+        setLocal(null);
+      }}
+    />
+  );
+}
+
+function FormRow({ label, hint, children }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+function CalcRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="font-mono font-semibold text-primary">{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
 export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
 
@@ -113,36 +160,14 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   }, [employee.id, referenceMonth]);
 
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
-  const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
-  // Input numérico que não perde foco, permite apagar o zero para redigitar
-  const NumInput = ({ field, className = '', step = '0.01', min, placeholder }) => {
-    const [local, setLocal] = useState(null); // null = não está sendo editado
-    const externalVal = form[field] ?? 0;
-    const displayVal = local !== null ? local : (externalVal === 0 ? '' : String(externalVal));
-    return (
-      <Input
-        className={`font-mono ${className}`}
-        type="number"
-        step={step}
-        min={min}
-        placeholder={placeholder}
-        value={displayVal}
-        disabled={readOnly}
-        onFocus={e => {
-          setLocal(externalVal === 0 ? '' : String(externalVal));
-          setTimeout(() => e.target.select(), 0);
-        }}
-        onChange={e => setLocal(e.target.value)}
-        onBlur={e => {
-          const parsed = parseFloat(e.target.value);
-          const val = isNaN(parsed) ? 0 : parsed;
-          set(field, val);
-          setLocal(null);
-        }}
-      />
-    );
-  };
+  // Helper: conecta NumInput ao form state por field name
+  const numInputProps = (field, extra = {}) => ({
+    value: form[field] ?? 0,
+    disabled: readOnly,
+    onChange: v => set(field, v),
+    ...extra,
+  });
 
   // crédito reduz o total de desconto, débito aumenta
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
@@ -212,20 +237,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     });
   };
 
-  const Row = ({ label, hint, children }) => (
-    <div>
-      <Label>{label}</Label>
-      {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
-      <div className="mt-1">{children}</div>
-    </div>
-  );
 
-  const CalcRow = ({ label, value }) => (
-    <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-mono font-semibold text-primary">{formatCurrency(value)}</span>
-    </div>
-  );
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -262,9 +274,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Piso Salarial" hint="Valor bruto do salário base">
-                  <NumInput field="base_salary" />
-                </Row>
+                <FormRow label="Piso Salarial" hint="Valor bruto do salário base">
+                  <NumInput {...numInputProps('base_salary')} />
+                </FormRow>
                 <div>
                   <Label>Desconto de Faltas (R$)</Label>
                   {totalDiscount > 0 ? (
@@ -284,12 +296,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <Label>Vale Refeição</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <NumInput field="meal_voucher_day_value" placeholder="Valor/dia" />
+                    <NumInput {...numInputProps('meal_voucher_day_value', { placeholder: 'Valor/dia' })} />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por dia trabalhado</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="w-24">
-                    <NumInput field="meal_voucher_days" step="1" min="0" className="text-center" />
+                    <NumInput {...numInputProps('meal_voucher_days', { step: '1', min: '0', className: 'text-center' })} />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -305,35 +317,35 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <Separator />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Seguro Odontológico">
-                  <NumInput field="dental_plan" />
-                </Row>
-                <Row label="Vale Alimentação">
-                  <NumInput field="food_voucher" />
-                </Row>
+                <FormRow label="Seguro Odontológico">
+                  <NumInput {...numInputProps('dental_plan')} />
+                </FormRow>
+                <FormRow label="Vale Alimentação">
+                  <NumInput {...numInputProps('food_voucher')} />
+                </FormRow>
               </div>
 
               <Separator />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (diluídas nas quinzenas)</p>
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Bonificação / Prêmio" hint="Somado ao líquido e dividido 50/50">
-                  <NumInput field="bonus" />
-                </Row>
-                <Row label="Bonificação de Aniversário" hint="Somado ao líquido e dividido 50/50">
-                  <NumInput field="birthday_bonus" />
-                </Row>
+                <FormRow label="Bonificação / Prêmio" hint="Somado ao líquido e dividido 50/50">
+                  <NumInput {...numInputProps('bonus')} />
+                </FormRow>
+                <FormRow label="Bonificação de Aniversário" hint="Somado ao líquido e dividido 50/50">
+                  <NumInput {...numInputProps('birthday_bonus')} />
+                </FormRow>
               </div>
 
               <div>
                 <Label>Vale Transporte</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <NumInput field="transport_voucher_day_value" placeholder="Valor/dia" />
+                    <NumInput {...numInputProps('transport_voucher_day_value', { placeholder: 'Valor/dia' })} />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por dia trabalhado</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="w-24">
-                    <NumInput field="transport_voucher_days" step="1" min="0" className="text-center" />
+                    <NumInput {...numInputProps('transport_voucher_days', { step: '1', min: '0', className: 'text-center' })} />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -349,30 +361,30 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos Convenção</p>
 
               <div className="grid grid-cols-2 gap-4">
-                <Row label="Desconto Vale Transporte (%)" hint="% sobre o valor do vale transporte">
+                <FormRow label="Desconto Vale Transporte (%)" hint="% sobre o valor do vale transporte">
                   <div className="flex gap-2 items-center">
-                    <NumInput field="transport_voucher_discount_pct" min="0" placeholder="%" />
+                    <NumInput {...numInputProps('transport_voucher_discount_pct', { min: '0', placeholder: '%' })} />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.transport_voucher_discount)}</span>
                   </div>
-                </Row>
-                <Row label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale refeição">
+                </FormRow>
+                <FormRow label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale refeição">
                   <div className="flex gap-2 items-center">
-                    <NumInput field="meal_voucher_discount_pct" min="0" placeholder="%" />
+                    <NumInput {...numInputProps('meal_voucher_discount_pct', { min: '0', placeholder: '%' })} />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                   </div>
-                </Row>
-                <Row label="Desconto INSS (%)" hint="% calculado sobre o piso salarial">
+                </FormRow>
+                <FormRow label="Desconto INSS (%)" hint="% calculado sobre o piso salarial">
                   <div className="flex gap-2 items-center">
-                    <NumInput field="inss_pct" min="0" placeholder="%" />
+                    <NumInput {...numInputProps('inss_pct', { min: '0', placeholder: '%' })} />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                   </div>
-                </Row>
-                <Row label="Dedução INSS (R$)" hint="Valor a subtrair do desconto INSS bruto">
+                </FormRow>
+                <FormRow label="Dedução INSS (R$)" hint="Valor a subtrair do desconto INSS bruto">
                   <div className="flex gap-2 items-center">
-                    <NumInput field="inss_deduction" min="0" placeholder="R$" />
+                    <NumInput {...numInputProps('inss_deduction', { min: '0', placeholder: 'R$' })} />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">líq. {formatCurrency(calc.inss_net)}</span>
                   </div>
-                </Row>
+                </FormRow>
               </div>
 
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
@@ -476,7 +488,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
-                    <NumInput field="first_period_advance" className="mt-1 h-8 text-sm" />
+                    <NumInput {...numInputProps('first_period_advance', { className: 'mt-1 h-8 text-sm' })} />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
