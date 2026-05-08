@@ -414,8 +414,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       value={calc.first_period_base ?? calc.net_total / 2}
                       onChange={e => {
                         const v = parseFloat(e.target.value) || 0;
-                        const base = calc.net_total > 0 ? Math.min(1, Math.max(0, v / calc.net_total)) : 0.5;
-                        setFirstPeriodSplit(base);
+                        if (calc.net_total !== 0) {
+                          setFirstPeriodSplit(v / calc.net_total);
+                        }
                       }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
@@ -434,8 +435,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       value={calc.second_period_base ?? calc.net_total / 2}
                       onChange={e => {
                         const v = parseFloat(e.target.value) || 0;
-                        const split = calc.net_total > 0 ? Math.min(1, Math.max(0, 1 - v / calc.net_total)) : 0.5;
-                        setFirstPeriodSplit(split);
+                        if (calc.net_total !== 0) {
+                          setFirstPeriodSplit(1 - v / calc.net_total);
+                        }
                       }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
