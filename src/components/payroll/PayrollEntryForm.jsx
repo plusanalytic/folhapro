@@ -39,6 +39,30 @@ function isFieldVisible(payrollType, field) {
   return true;
 }
 
+// Input para valor de base quinzenal — permite digitação livre sem travar o cursor
+function PeriodBaseInput({ value, onChange }) {
+  const [raw, setRaw] = useState(null);
+  const display = raw !== null ? raw : (value === 0 ? '0' : String(value ?? 0));
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      className="font-mono font-bold text-lg h-9"
+      value={display}
+      onChange={e => setRaw(e.target.value)}
+      onBlur={e => {
+        const v = parseFloat(e.target.value);
+        onChange(isNaN(v) ? 0 : v);
+        setRaw(null);
+      }}
+      onFocus={e => {
+        setRaw(String(value ?? 0));
+        setTimeout(() => e.target.select(), 0);
+      }}
+    />
+  );
+}
+
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   const payrollType = jobRole?.payroll_type || null;
@@ -75,6 +99,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
+  // Override direto do valor base da 1ª quinzena (usado quando net_total = 0)
+  const [firstBaseOverride, setFirstBaseOverride] = useState(entry?.first_period_base ?? null);
 
   // Parcelas
   const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
@@ -183,7 +209,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
   const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value, first_period_split: firstPeriodSplit };
-  const calc = calculatePayroll(calcForm, employee.contract_type, payrollType);
+  const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
+  // Quando net_total = 0, aplica override direto do valor da 1ª base
+  const calc = (calcRaw.net_total === 0 && firstBaseOverride !== null)
+    ? { ...calcRaw, first_period_base: firstBaseOverride, second_period_base: -firstBaseOverride,
+        first_period_net: firstBaseOverride - (form.first_period_advance || 0) - firstDiscountTotal - absenceFirst,
+        second_period_net: -firstBaseOverride - secondDiscountTotal - absenceSecond }
+    : calcRaw;
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -242,6 +274,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       first_discounts: firstDiscounts,
       second_discounts: secondDiscounts,
       first_period_split: firstPeriodSplit,
+      first_period_base: calc.first_period_base,
+      second_period_base: calc.second_period_base,
       reference_month: referenceMonth,
     });
   };
@@ -505,48 +539,44 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           <TabsContent value="quinzenal" className="space-y-5 mt-4">
             {/* Rateio editável */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/30 rounded-lg px-4 py-3">
-                <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-                {readOnly ? (
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
-                ) : (
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="font-mono font-bold text-lg h-9"
-                    value={calc.first_period_base ?? calc.net_total / 2}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value) || 0;
-                      if (calc.net_total !== 0) {
-                        setFirstPeriodSplit(v / calc.net_total);
-                      }
-                    }}
-                    onFocus={e => setTimeout(() => e.target.select(), 0)}
-                  />
-                )}
-                <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
-              </div>
-              <div className="bg-muted/30 rounded-lg px-4 py-3">
-                <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-                {readOnly ? (
-                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
-                ) : (
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="font-mono font-bold text-lg h-9"
-                    value={calc.second_period_base ?? calc.net_total / 2}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value) || 0;
-                      if (calc.net_total !== 0) {
-                        setFirstPeriodSplit(1 - v / calc.net_total);
-                      }
-                    }}
-                    onFocus={e => setTimeout(() => e.target.select(), 0)}
-                  />
-                )}
-                <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
-              </div>
+            <div className="bg-muted/30 rounded-lg px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
+            {readOnly ? (
+              <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
+            ) : (
+              <PeriodBaseInput
+                value={calc.net_total !== 0 ? (calc.first_period_base ?? calc.net_total / 2) : (firstBaseOverride ?? 0)}
+                onChange={v => {
+                  if (calc.net_total !== 0) {
+                    setFirstPeriodSplit(v / calc.net_total);
+                    setFirstBaseOverride(null);
+                  } else {
+                    setFirstBaseOverride(v);
+                  }
+                }}
+              />
+            )}
+            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round(firstPeriodSplit * 100)}% do líquido` : 'valor fixo'}</p>
+            </div>
+            <div className="bg-muted/30 rounded-lg px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
+            {readOnly ? (
+              <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
+            ) : (
+              <PeriodBaseInput
+                value={calc.net_total !== 0 ? (calc.second_period_base ?? calc.net_total / 2) : (firstBaseOverride !== null ? -firstBaseOverride : 0)}
+                onChange={v => {
+                  if (calc.net_total !== 0) {
+                    setFirstPeriodSplit(1 - v / calc.net_total);
+                    setFirstBaseOverride(null);
+                  } else {
+                    setFirstBaseOverride(-v);
+                  }
+                }}
+              />
+            )}
+            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round((1 - firstPeriodSplit) * 100)}% do líquido` : 'valor fixo'}</p>
+            </div>
             </div>
             {firstPeriodSplit !== 0.5 && (
               <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

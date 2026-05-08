@@ -45,6 +45,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
   // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
+  const [firstBaseRaw, setFirstBaseRaw] = useState(null);
+  const [secondBaseRaw, setSecondBaseRaw] = useState(null);
   const [pointAdjustments, setPointAdjustments] = useState([]);
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
 
@@ -411,14 +413,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       type="number"
                       step="0.01"
                       className="font-mono font-bold text-lg h-9"
-                      value={calc.first_period_base ?? calc.net_total / 2}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value) || 0;
-                        if (calc.net_total !== 0) {
-                          setFirstPeriodSplit(v / calc.net_total);
-                        }
+                      value={firstBaseRaw !== null ? firstBaseRaw : (calc.first_period_base ?? calc.net_total / 2)}
+                      onChange={e => setFirstBaseRaw(e.target.value)}
+                      onBlur={e => {
+                        const v = parseFloat(e.target.value);
+                        const val = isNaN(v) ? 0 : v;
+                        if (calc.net_total !== 0) setFirstPeriodSplit(val / calc.net_total);
+                        setFirstBaseRaw(null);
                       }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                      onFocus={e => {
+                        setFirstBaseRaw(String(calc.first_period_base ?? calc.net_total / 2));
+                        setTimeout(() => e.target.select(), 0);
+                      }}
                     />
                   )}
                   <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
@@ -432,14 +438,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       type="number"
                       step="0.01"
                       className="font-mono font-bold text-lg h-9"
-                      value={calc.second_period_base ?? calc.net_total / 2}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value) || 0;
-                        if (calc.net_total !== 0) {
-                          setFirstPeriodSplit(1 - v / calc.net_total);
-                        }
+                      value={secondBaseRaw !== null ? secondBaseRaw : (calc.second_period_base ?? calc.net_total / 2)}
+                      onChange={e => setSecondBaseRaw(e.target.value)}
+                      onBlur={e => {
+                        const v = parseFloat(e.target.value);
+                        const val = isNaN(v) ? 0 : v;
+                        if (calc.net_total !== 0) setFirstPeriodSplit(1 - val / calc.net_total);
+                        setSecondBaseRaw(null);
                       }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                      onFocus={e => {
+                        setSecondBaseRaw(String(calc.second_period_base ?? calc.net_total / 2));
+                        setTimeout(() => e.target.select(), 0);
+                      }}
                     />
                   )}
                   <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
