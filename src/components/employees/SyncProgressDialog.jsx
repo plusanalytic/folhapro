@@ -1,32 +1,43 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, XCircle, Loader2, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Users, UserCheck, UserX } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 export default function SyncProgressDialog({ open, onClose, onFinished }) {
   const [status, setStatus] = useState('idle'); // idle | running | done | error
+  const [phase, setPhase] = useState(''); // 'active' | 'fired' | ''
   const [progress, setProgress] = useState({ total: 0, done: 0, created: 0, updated: 0, failed: 0 });
+  const [phaseResults, setPhaseResults] = useState({ active: null, fired: null });
   const [errorMsg, setErrorMsg] = useState('');
   const pollingRef = useRef(null);
 
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
-  // Polling simples: invoca a função e aguarda o resultado
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset ao fechar
+      setStatus('idle');
+      setPhase('');
+      setProgress({ total: 0, done: 0, created: 0, updated: 0, failed: 0 });
+      setPhaseResults({ active: null, fired: null });
+      setErrorMsg('');
+      return;
+    }
 
     setStatus('running');
+    setPhase('active');
     setProgress({ total: 0, done: 0, created: 0, updated: 0, failed: 0 });
+    setPhaseResults({ active: null, fired: null });
     setErrorMsg('');
 
-    // Simula progresso enquanto aguarda a resposta (a função é síncrona mas demorada)
-    let fakeTotal = 200;
+    // Progresso animado enquanto aguarda (a função é longa)
+    let fakeTotal = 250;
     let fakeDone = 0;
     pollingRef.current = setInterval(() => {
-      fakeDone = Math.min(fakeDone + Math.floor(Math.random() * 4) + 1, fakeTotal - 1);
+      fakeDone = Math.min(fakeDone + Math.floor(Math.random() * 3) + 1, fakeTotal - 5);
       setProgress(p => ({ ...p, total: fakeTotal, done: fakeDone }));
-    }, 500);
+    }, 600);
 
     base44.functions.invoke('syncEmployees', {})
       .then(res => {
@@ -39,17 +50,26 @@ export default function SyncProgressDialog({ open, onClose, onFinished }) {
           updated: d.updated ?? 0,
           failed: d.failed ?? 0,
         });
+        setPhaseResults({ active: d.active ?? null, fired: d.fired ?? null });
+        setPhase('');
         setStatus('done');
         onFinished?.();
       })
       .catch(err => {
         clearInterval(pollingRef.current);
         setErrorMsg(err.message || 'Erro desconhecido');
+        setPhase('');
         setStatus('error');
       });
 
     return () => clearInterval(pollingRef.current);
   }, [open]);
+
+  const phaseLabel = phase === 'active'
+    ? 'Sincronizando colaboradores ativos...'
+    : phase === 'fired'
+    ? 'Sincronizando colaboradores demitidos...'
+    : '';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && status !== 'running') onClose(); }}>
@@ -75,7 +95,7 @@ export default function SyncProgressDialog({ open, onClose, onFinished }) {
             </div>
           </div>
 
-          {/* Detalhes */}
+          {/* Totais combinados */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-border bg-green-50 p-3 text-center">
               <p className="text-2xl font-bold text-green-600">{progress.created}</p>
@@ -91,12 +111,38 @@ export default function SyncProgressDialog({ open, onClose, onFinished }) {
             </div>
           </div>
 
+          {/* Resultados por fase (só quando concluído) */}
+          {status === 'done' && phaseResults.active && phaseResults.fired && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-muted/20 p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-xs font-semibold text-foreground">Ativos</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  +{phaseResults.active.created} criados • {phaseResults.active.updated} atualizados
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <UserX className="w-3.5 h-3.5 text-red-500" />
+                  <span className="text-xs font-semibold text-foreground">Demitidos</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  +{phaseResults.fired.created} criados • {phaseResults.fired.updated} atualizados
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Status */}
           <div className="flex items-center gap-2 rounded-lg border border-border p-3">
             {status === 'running' && (
               <>
                 <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-                <span className="text-sm text-muted-foreground">Sincronizando registros com o Solides Tangerino... Não feche esta janela.</span>
+                <span className="text-sm text-muted-foreground">
+                  {phaseLabel || 'Sincronizando registros com o Solides Tangerino...'} Não feche esta janela.
+                </span>
               </>
             )}
             {status === 'done' && (

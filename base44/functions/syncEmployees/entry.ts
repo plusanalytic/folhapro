@@ -1,146 +1,46 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const TANGERINO_AUTH = "Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=";
-
-function tsToDate(ts) {
-  if (!ts) return '';
-  return new Date(ts).toISOString().split('T')[0];
-}
+// Orquestrador manual: chama ativos primeiro, depois demitidos, com delay entre as duas chamadas.
+// Usado pelo botão "Sincronizar Solides" na tela de colaboradores.
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-// Requisição com retry automático em caso de rate limit (429)
-async function withRetry(fn, retries = 5, delay = 1000) {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const is429 = err?.message?.includes('429') || err?.message?.includes('Rate limit');
-      if (is429 && attempt < retries - 1) {
-        await sleep(delay * (attempt + 1));
-        continue;
-      }
-      throw err;
-    }
-  }
-}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'admin') return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
 
-    // Busca todos os colaboradores do Tangerino — incluindo demitidos (showFired=1)
-    const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/employee/find-all?showFired=1&size=1000`, {
-      headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
-    });
-    if (!apiRes.ok) return Response.json({ error: `Tangerino API error: ${apiRes.status}` }, { status: 500 });
+    console.log('[syncEmployees] Iniciando fase 1: ativos...');
+    const resActive = await base44.functions.invoke('syncEmployeesActive', {});
+    const activeData = resActive.data;
+    if (!activeData?.success) throw new Error(activeData?.error || 'Erro na sincronização de ativos');
 
-    const raw = await apiRes.json();
-    const remoteEmployees = Array.isArray(raw) ? raw : (raw.content || []);
+    console.log('[syncEmployees] Fase 1 concluída. Aguardando antes da fase 2...');
+    // Pausa entre as duas chamadas para evitar sobrecarga na API do Tangerino
+    await sleep(2000);
 
-    // Busca empresas e colaboradores locais
-    const [localCompanies, localEmployees] = await Promise.all([
-      base44.asServiceRole.entities.Company.list(),
-      base44.asServiceRole.entities.Employee.list(),
-    ]);
+    console.log('[syncEmployees] Iniciando fase 2: demitidos...');
+    const resFired = await base44.functions.invoke('syncEmployeesFired', {});
+    const firedData = resFired.data;
+    if (!firedData?.success) throw new Error(firedData?.error || 'Erro na sincronização de demitidos');
 
-    // Mapeia tangerino_id -> company local
-    const companyByTangerinoId = {};
-    for (const c of localCompanies) {
-      if (c.tangerino_id) companyByTangerinoId[String(c.tangerino_id)] = c;
-    }
-
-    // Mapeia tangerino_id -> employee local (mantém apenas o mais antigo por ID)
-    const localByTangerinoId = {};
-    for (const e of localEmployees) {
-      if (!e.tangerino_id) continue;
-      const tid = String(e.tangerino_id);
-      if (!localByTangerinoId[tid]) {
-        localByTangerinoId[tid] = e;
-      } else {
-        if (new Date(e.created_date) < new Date(localByTangerinoId[tid].created_date)) {
-          localByTangerinoId[tid] = e;
-        }
-      }
-    }
-
-    let created = 0;
-    let updated = 0;
-    let failed = 0;
-
-    // Processa UM por vez com pausa entre cada um para evitar rate limit
-    for (const re of remoteEmployees) {
-      const tangerinoId = String(re.id ?? '');
-      if (!tangerinoId) continue;
-
-      const companyTangerinoId = String(re.company?.id ?? '');
-      const localCompany = companyByTangerinoId[companyTangerinoId];
-
-      const workplaceList = (re.workplaceList ?? [])
-        .map(w => String(w.id ?? ''))
-        .filter(Boolean);
-
-      const jobRoleTangerinoId = re.jobRoleDTO?.id ? String(re.jobRoleDTO.id) : '';
-
-      // Determina se está demitido: fired=true OU status != 0
-      const isFired = re.fired === true || re.status !== 0;
-
-      // Data de demissão: resignationDate quando fired=true, senão vazio
-      const terminationDate = isFired ? tsToDate(re.resignationDate) : '';
-
-      // Motivo de demissão
-      const terminationReason = re.motivoDemissao ?? '';
-
-      const payload = {
-        tangerino_id: tangerinoId,
-        name: re.name ?? '',
-        email: re.email ?? '',
-        cpf_cnpj: re.cpf ?? re.document ?? '',
-        pis: re.pis ?? '',
-        gender: re.gender ?? '',
-        admission_date: tsToDate(re.admissionDate),
-        birth_date: tsToDate(re.birthDate),
-        contract_type: re.contractType === 'PJ' ? 'PJ' : 'CLT',
-        company_id: localCompany?.id ?? '',
-        tangerino_company_id: companyTangerinoId,
-        is_active: !isFired,
-        termination_date: terminationDate,
-        termination_reason: terminationReason,
-        base_salary: re.salary ?? re.baseSalary ?? 0,
-        position: re.jobRoleDTO?.description ?? re.jobRoleDTO?.name ?? re.position ?? '',
-        job_role_tangerino_id: jobRoleTangerinoId,
-        workplace_list: workplaceList,
-      };
-
-      try {
-        const existing = localByTangerinoId[tangerinoId];
-        if (existing) {
-          await withRetry(() => base44.asServiceRole.entities.Employee.update(existing.id, payload));
-          updated++;
-        } else {
-          await withRetry(() => base44.asServiceRole.entities.Employee.create(payload));
-          created++;
-        }
-      } catch (err) {
-        console.error(`Falhou para ${re.name} (${tangerinoId}):`, err.message);
-        failed++;
-      }
-
-      // Pausa entre cada registro para respeitar o rate limit
-      await sleep(300);
-    }
+    console.log('[syncEmployees] Fase 2 concluída. Sincronização completa.');
 
     return Response.json({
       success: true,
-      synced: created + updated,
-      created,
-      updated,
-      failed,
-      total_from_api: remoteEmployees.length,
+      // Totais combinados para o dialog de progresso
+      created: (activeData.created ?? 0) + (firedData.created ?? 0),
+      updated: (activeData.updated ?? 0) + (firedData.updated ?? 0),
+      failed: (activeData.failed ?? 0) + (firedData.failed ?? 0),
+      total_from_api: (activeData.total ?? 0) + (firedData.total ?? 0),
+      // Detalhes por fase
+      active: activeData,
+      fired: firedData,
     });
   } catch (error) {
+    console.error('[syncEmployees] Erro:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
