@@ -12,8 +12,8 @@ import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
 import ProLaboreForm from '@/components/payroll/ProLaboreForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
+import BulkPDFDialog from '@/components/payroll/BulkPDFDialog';
 import ConfirmDialog from '@/components/payroll/ConfirmDialog';
-import BatchPDFDialog from '@/components/payroll/BatchPDFDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -39,7 +39,7 @@ export default function Payroll() {
   const [cloning, setCloning] = useState(false);
   const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
-  const [batchPDF, setBatchPDF] = useState(null); // company object
+  const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
 
   const load = async () => {
     const [e, c, w, jr, p, m] = await Promise.all([
@@ -257,14 +257,14 @@ export default function Payroll() {
                     {closed ? 'Fechado' : 'Aberto'}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">Total: <strong className="text-foreground">{formatCurrency(totalNet)}</strong></span>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5"
-                    onClick={() => setBatchPDF(company)}
-                    title="Gerar PDFs em lote para todos os colaboradores desta empresa"
+                    className="gap-1.5 text-violet-700 border-violet-200 hover:bg-violet-50"
+                    title="Gerar PDF em lote para todos os colaboradores desta empresa"
+                    onClick={() => setBulkPDF({ company, employees: companyEmps })}
                   >
                     <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
                   </Button>
@@ -432,14 +432,14 @@ export default function Payroll() {
         }}
       />
 
-      {batchPDF && (
-        <BatchPDFDialog
-          company={batchPDF}
-          employees={employees}
+      {bulkPDF && (
+        <BulkPDFDialog
+          company={bulkPDF.company}
+          employees={bulkPDF.employees}
           entries={entries}
           jobRoles={jobRoles}
           referenceMonth={selectedMonth}
-          onClose={() => setBatchPDF(null)}
+          onClose={() => setBulkPDF(null)}
         />
       )}
 
