@@ -10,6 +10,7 @@ import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth }
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
+import ProvisionCalculator from './ProvisionCalculator';
 import { base44 } from '@/api/base44Client';
 
 // Regras de visibilidade de campos por modelo de folha
@@ -293,12 +294,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         </DialogHeader>
 
         <Tabs defaultValue="proventos">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
             <TabsTrigger value="proventos">Proventos</TabsTrigger>
             <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
             <TabsTrigger value="faltas">
               Ajuste de Ponto {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
             </TabsTrigger>
+            <TabsTrigger value="provisao">Provisão</TabsTrigger>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
           </TabsList>
 
@@ -682,6 +684,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 payrollForm={form}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="provisao" className="mt-4">
+            <ProvisionCalculator calc={calc} form={form} />
           </TabsContent>
 
           <TabsContent value="resumo" className="mt-4">
