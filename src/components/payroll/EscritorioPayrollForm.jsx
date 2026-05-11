@@ -7,10 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Calculator } from 'lucide-react';
 import { calculateEscritorioPayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
+import ProvisionCalculator from './ProvisionCalculator';
 import { base44 } from '@/api/base44Client';
 
 // Componentes extraídos para FORA do componente pai para evitar perda de foco ao redigitar
@@ -253,7 +255,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
           </DialogHeader>
 
           <Tabs defaultValue="convencao">
-            <TabsList className="grid grid-cols-4 w-full mt-4">
+            <TabsList className="grid grid-cols-5 w-full mt-4">
               <TabsTrigger value="convencao">Proventos</TabsTrigger>
               <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
               <TabsTrigger value="ajuste_ponto">
@@ -262,6 +264,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 )}
               </TabsTrigger>
               <TabsTrigger value="resumo">Resumo</TabsTrigger>
+              <TabsTrigger value="provisao" className="gap-1.5">
+                <Calculator className="w-3.5 h-3.5" /> Provisão
+              </TabsTrigger>
             </TabsList>
 
             {/* ── ABA: Convenção Coletiva ── */}
@@ -656,6 +661,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <span className="font-mono font-semibold text-secondary">{formatCurrency(calc.fgts)}</span>
                 </div>
               </div>
+            </TabsContent>
+            {/* ── ABA: Calculadora de Provisão ── */}
+            <TabsContent value="provisao" className="mt-4">
+              <ProvisionCalculator
+                items={[
+                  { label: 'Piso Salarial', value: form.base_salary },
+                  { label: 'Vale Refeição', value: calc.meal_voucher },
+                  { label: 'Vale Transporte', value: calc.transport_voucher },
+                  { label: 'Seguro Odontológico', value: form.dental_plan },
+                  { label: 'Vale Alimentação', value: form.food_voucher },
+                ]}
+              />
             </TabsContent>
           </Tabs>
         </div>

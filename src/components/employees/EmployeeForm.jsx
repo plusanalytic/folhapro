@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +7,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link2, MapPin, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+
+// Inputs definidos FORA do componente pai para evitar perda de foco por remount
+function StableInput({ value, onChange, placeholder, className = '' }) {
+  return (
+    <input
+      className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 ${className}`}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+    />
+  );
+}
 
 export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload }) {
   const detectPixKeyType = (key) => {
@@ -32,7 +43,8 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
   const [syncingWP, setSyncingWP] = useState(false);
   const [localWorkplaceList, setLocalWorkplaceList] = useState(employee?.workplace_list ?? []);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  // Atualização atômica — evita dois setState em sequência (que causaria remount dos inputs)
+  const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
 
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
@@ -167,30 +179,29 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Banco</Label>
-                <Input className="mt-1" value={form.bank_name} onChange={e => set('bank_name', e.target.value)} placeholder="Nome do banco" />
+                <StableInput value={form.bank_name} onChange={e => set('bank_name', e.target.value)} placeholder="Nome do banco" />
               </div>
               <div>
                 <Label>Agência</Label>
-                <Input className="mt-1" value={form.bank_agency} onChange={e => set('bank_agency', e.target.value)} placeholder="0000" />
+                <StableInput value={form.bank_agency} onChange={e => set('bank_agency', e.target.value)} placeholder="0000" />
               </div>
               <div>
                 <Label>Conta</Label>
-                <Input className="mt-1" value={form.bank_account} onChange={e => set('bank_account', e.target.value)} placeholder="00000-0" />
+                <StableInput value={form.bank_account} onChange={e => set('bank_account', e.target.value)} placeholder="00000-0" />
               </div>
               <div>
                 <Label>Favorecido</Label>
-                <Input className="mt-1" value={form.bank_beneficiary} onChange={e => set('bank_beneficiary', e.target.value)} placeholder="Nome do favorecido" />
+                <StableInput value={form.bank_beneficiary} onChange={e => set('bank_beneficiary', e.target.value)} placeholder="Nome do favorecido" />
               </div>
               <div>
                 <Label>Chave PIX</Label>
-                <Input
-                  className="mt-1"
+                <StableInput
                   value={form.pix_key}
                   onChange={e => {
                     const val = e.target.value;
-                    set('pix_key', val);
+                    // Detecta o tipo e atualiza tudo em um único setState para evitar remount
                     const detected = detectPixKeyType(val);
-                    if (detected) set('pix_key_type', detected);
+                    setForm(f => ({ ...f, pix_key: val, pix_key_type: detected || f.pix_key_type }));
                   }}
                   placeholder="CPF, e-mail, telefone ou chave aleatória"
                 />

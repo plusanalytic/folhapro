@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +13,7 @@ import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
 import ProLaboreForm from '@/components/payroll/ProLaboreForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 import ConfirmDialog from '@/components/payroll/ConfirmDialog';
+import BatchPDFDialog from '@/components/payroll/BatchPDFDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -38,6 +39,7 @@ export default function Payroll() {
   const [cloning, setCloning] = useState(false);
   const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
+  const [batchPDF, setBatchPDF] = useState(null); // company object
 
   const load = async () => {
     const [e, c, w, jr, p, m] = await Promise.all([
@@ -257,6 +259,15 @@ export default function Payroll() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Total: <strong className="text-foreground">{formatCurrency(totalNet)}</strong></span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5"
+                    onClick={() => setBatchPDF(company)}
+                    title="Gerar PDFs em lote para todos os colaboradores desta empresa"
+                  >
+                    <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
+                  </Button>
                   {closed ? (
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmReopen({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Unlock className="w-3.5 h-3.5" /> Reabrir Mês
@@ -420,6 +431,17 @@ export default function Payroll() {
           else handleReopenEmployeeEntry(confirmReopen.entry);
         }}
       />
+
+      {batchPDF && (
+        <BatchPDFDialog
+          company={batchPDF}
+          employees={employees}
+          entries={entries}
+          jobRoles={jobRoles}
+          referenceMonth={selectedMonth}
+          onClose={() => setBatchPDF(null)}
+        />
+      )}
 
       {printReceipt && (
         <PDFReceiptDialog
