@@ -687,7 +687,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           </TabsContent>
 
           <TabsContent value="provisao" className="mt-4">
-            <ProvisionCalculator calc={calc} form={form} />
+            <ProvisionCalculator
+              items={[
+                { label: 'Salário Base', value: form.base_salary },
+                { label: 'Vale Refeição', value: calc.meal_voucher },
+                { label: 'Vale Alimentação', value: form.food_voucher },
+                { label: 'Vale Transporte', value: form.transport_voucher },
+                { label: 'KM Adicional', value: calc.km_bonus || 0 },
+                { label: 'Ajuda de Custo', value: form.cost_allowance },
+                { label: 'Aluguel da Motocicleta', value: form.motorcycle_rental },
+                { label: 'Periculosidade', value: form.hazard_pay },
+                { label: 'Bonificação / Prêmio', value: form.bonus },
+                { label: 'Outros Benefícios', value: form.other_benefits },
+              ]}
+            />
           </TabsContent>
 
           <TabsContent value="resumo" className="mt-4">
