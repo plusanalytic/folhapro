@@ -6,22 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { FileArchive, Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { formatCurrency, getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
 import { absenceDiscountByPeriod } from '@/components/payroll/AbsenceDiscountsTable';
-import { base44 } from '@/api/base44Client';
 
-// Importa jsPDF e JSZip dinamicamente para não pesar o bundle principal
-async function loadLibs() {
-  const [{ jsPDF }, JSZip] = await Promise.all([
-    import('jspdf'),
-    import('jszip'),
-  ]);
-  return { jsPDF, JSZip: JSZip.default };
-}
-
-// Renderiza o HTML de um recibo para um iframe oculto e captura via print
-// Em vez disso usamos jsPDF com html() — mas como não temos html2canvas configurado,
-// a abordagem mais simples é abrir uma janela oculta, imprimir para PDF via window.print() 
-// com Blob. Porém a única API disponível client-side para gerar PDFs em blob sem servidor
-// é html2canvas + jsPDF. Como html2canvas está instalado, usamos essa abordagem.
+// Renderiza o HTML de um recibo para um iframe oculto e captura via html2canvas + jsPDF
 
 async function generatePDFBlob(htmlContent, employeeName, month) {
   // Cria iframe invisível para renderizar o HTML
@@ -200,7 +186,6 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
   const [progress, setProgress] = useState(0);
   const [log, setLog] = useState([]);
   const [downloadUrl, setDownloadUrl] = useState(null);
-  const zipRef = useRef(null);
 
   // Colaboradores com lançamento
   const empWithEntries = employees.filter(emp => {
@@ -210,17 +195,17 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
 
   const addLog = (msg, type = 'info') => setLog(prev => [...prev, { msg, type }]);
 
+  const blobsRef = useRef([]);
+
   const handleGenerate = async () => {
     if (empWithEntries.length === 0) return;
     setStatus('generating');
     setProgress(0);
     setLog([]);
     setDownloadUrl(null);
+    blobsRef.current = [];
 
     try {
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-
       for (let i = 0; i < empWithEntries.length; i++) {
         const emp = empWithEntries[i];
         const entry = entries.find(e => e.employee_id === emp.id && e.reference_month === referenceMonth);
@@ -232,15 +217,22 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
 
         const html = buildReceiptHTML(empWithPos, entry, company, payrollType, referenceMonth);
         const blob = await generatePDFBlob(html, emp.name, referenceMonth);
-
         const safeName = emp.name.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').trim().replace(/\s+/g, '_');
-        zip.file(`${safeName}.pdf`, blob);
+        blobsRef.current.push({ blob, name: `${safeName}.pdf` });
 
         addLog(`✓ ${emp.name}`, 'success');
         setProgress(Math.round(((i + 1) / empWithEntries.length) * 100));
       }
 
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      // Usa fflate (dependência transitiva do vite) para criar o ZIP
+      const { zipSync } = await import('https://esm.sh/fflate@0.8.2');
+      const files = {};
+      for (const { blob, name } of blobsRef.current) {
+        const buf = await blob.arrayBuffer();
+        files[name] = new Uint8Array(buf);
+      }
+      const zipped = zipSync(files, { level: 0 });
+      const zipBlob = new Blob([zipped], { type: 'application/zip' });
       const url = URL.createObjectURL(zipBlob);
       setDownloadUrl(url);
       setStatus('done');
