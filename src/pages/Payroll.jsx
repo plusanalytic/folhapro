@@ -80,6 +80,8 @@ export default function Payroll() {
     return mc?.status === 'closed';
   };
 
+  const getEntry = (empId) => entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
+
   const filteredEmployees = employees.filter(emp => {
     const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
@@ -96,8 +98,6 @@ export default function Payroll() {
     }
     return matchCompany && matchSearch && matchWorkplace && matchJobRole;
   });
-
-  const getEntry = (empId) => entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
   const handleSaveEntry = async (data) => {
