@@ -1,201 +1,197 @@
 import { useState, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FileArchive, Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
-import { formatCurrency, getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
+import { getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
 import { absenceDiscountByPeriod } from '@/components/payroll/AbsenceDiscountsTable';
+import { base44 } from '@/api/base44Client';
 
-// Renderiza o HTML de um recibo para um iframe oculto e captura via html2canvas + jsPDF
+// Importa os mesmos componentes de conteúdo usados no PDFReceiptDialog
+// Eles são exportados de um arquivo compartilhado
+import { HoleriteContent, MeiHoleriteContent, EscritorioHoleriteContent } from '@/components/reports/ReceiptContents';
+import ProLaboreReceiptContent from '@/components/reports/ProLaboreReceiptContent';
 
-async function generatePDFBlob(htmlContent, employeeName, month) {
-  // Cria iframe invisível para renderizar o HTML
-  return new Promise((resolve, reject) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '100vw';
-    iframe.style.bottom = '100vh';
-    iframe.style.width = '794px'; // A4 largura em px a 96dpi
-    iframe.style.height = '1122px';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
+/**
+ * Renderiza um componente React em um container offscreen e captura como PDF blob.
+ * Usa os MESMOS componentes do botão "Imprimir Recibo".
+ */
+async function renderComponentToPDFBlob(ReactComponent, props) {
+  return new Promise(async (resolve, reject) => {
+    // Container offscreen
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '794px';
+    container.style.background = '#fff';
+    container.style.zIndex = '-1';
+    document.body.appendChild(container);
 
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open();
-    doc.write(`<!DOCTYPE html><html><head>
-      <style>* { margin:0; padding:0; box-sizing:border-box; } body { background:#fff; }</style>
-    </head><body>${htmlContent}</body></html>`);
-    doc.close();
+    const root = createRoot(container);
+    root.render(<ReactComponent {...props} />);
 
-    setTimeout(async () => {
-      try {
-        const html2canvas = (await import('html2canvas')).default;
-        const { jsPDF } = await import('jspdf');
+    // Aguarda renderização
+    await new Promise(r => setTimeout(r, 800));
 
-        const canvas = await html2canvas(doc.body, {
-          scale: 1.5,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          width: 794,
-          windowWidth: 794,
-        });
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pdfW = pdf.internal.pageSize.getWidth();
-        const pdfH = (canvas.height * pdfW) / canvas.width;
+      const canvas = await html2canvas(container, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 794,
+        windowWidth: 794,
+      });
 
-        // Se o conteúdo for maior que uma página, adiciona páginas extras
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        let yPos = 0;
-        while (yPos < pdfH) {
-          if (yPos > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfW, pdfH);
-          yPos += pageHeight;
-        }
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = (canvas.height * pdfW) / canvas.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
 
-        const blob = pdf.output('blob');
-        document.body.removeChild(iframe);
-        resolve(blob);
-      } catch (err) {
-        document.body.removeChild(iframe);
-        reject(err);
+      let yPos = 0;
+      while (yPos < pdfH) {
+        if (yPos > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfW, pdfH);
+        yPos += pageHeight;
       }
-    }, 600);
+
+      const blob = pdf.output('blob');
+      root.unmount();
+      document.body.removeChild(container);
+      resolve(blob);
+    } catch (err) {
+      root.unmount();
+      document.body.removeChild(container);
+      reject(err);
+    }
   });
 }
 
-// Constrói o HTML do recibo baseado no tipo de folha
-function buildReceiptHTML(employee, entry, company, payrollType, referenceMonth) {
-  const monthName = getMonthName(referenceMonth);
-  const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+/**
+ * Resolve o mergedEntry para um colaborador, exatamente como o PDFReceiptDialog faz.
+ */
+async function buildMergedEntry(employee, entry, payrollType) {
+  const cashOuts = await base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: entry.reference_month });
 
-  const firstNet = entry?.first_period_net ?? 0;
-  const secondNet = entry?.second_period_net ?? 0;
-  const total = firstNet + secondNet;
+  const firstFromCash  = cashOuts.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+  const secondFromCash = cashOuts.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
 
-  const rows = [];
-  if (entry?.base_salary) rows.push(['Salário/Remuneração Base', fmt(entry.base_salary)]);
-  if ((entry?.meal_voucher ?? 0) > 0) rows.push(['Vale Refeição', fmt(entry.meal_voucher)]);
-  if ((entry?.food_voucher ?? 0) > 0) rows.push(['Vale Alimentação', fmt(entry.food_voucher)]);
-  if ((entry?.transport_voucher ?? 0) > 0) rows.push(['Vale Transporte', fmt(entry.transport_voucher)]);
-  if ((entry?.motorcycle_rental ?? 0) > 0) rows.push(['Aluguel da Motocicleta', fmt(entry.motorcycle_rental)]);
-  if ((entry?.hazard_pay ?? 0) > 0) rows.push(['Periculosidade', fmt(entry.hazard_pay)]);
-  if ((entry?.life_insurance ?? 0) > 0) rows.push(['Seguro de Vida', fmt(entry.life_insurance)]);
-  if ((entry?.cost_allowance ?? 0) > 0) rows.push(['Ajuda de Custo', fmt(entry.cost_allowance)]);
-  if ((entry?.bonus ?? 0) > 0) rows.push(['Bonificação / Prêmio', fmt(entry.bonus)]);
+  const savedFirst  = (entry?.first_discounts  ?? []).filter(x => !x.fromCashOut);
+  const savedSecond = (entry?.second_discounts ?? []).filter(x => !x.fromCashOut);
 
-  const tableRows = rows.map(([label, val]) =>
-    `<tr><td style="padding:5px 10px;border-bottom:1px solid #e8e4f5">${label}</td><td style="padding:5px 10px;text-align:right;border-bottom:1px solid #e8e4f5;color:#2563eb;font-family:monospace">${val}</td></tr>`
-  ).join('');
+  const firstDiscounts  = [...savedFirst,  ...firstFromCash];
+  const secondDiscounts = [...savedSecond, ...secondFromCash];
 
-  return `
-  <div style="width:210mm;min-height:297mm;padding:12mm;font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;background:#fff;box-sizing:border-box;">
-    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #6a3eaf;padding-bottom:10px;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:44px;height:44px;background:linear-gradient(135deg,#6a3eaf,#239BB6);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;">${(company?.name||'FP').slice(0,2).toUpperCase()}</div>
-        <div>
-          <div style="font-weight:bold;font-size:14px;color:#6a3eaf">${company?.name||''}</div>
-          ${company?.cnpj ? `<div style="color:#666;font-size:10px">CNPJ: ${company.cnpj}</div>` : ''}
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-weight:bold;font-size:15px;color:#6a3eaf;text-transform:uppercase;letter-spacing:1px">Recibo de Pagamento</div>
-        <div style="color:#666;font-size:11px;margin-top:2px">${monthName}</div>
-        <div style="color:#888;font-size:10px;margin-top:1px">${payrollType}</div>
-      </div>
-    </div>
+  const firstTotal  = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const secondTotal = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;background:#f5f3ff;border-radius:8px;padding:10px 14px;margin-bottom:14px;">
-      <div><div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:2px">Colaborador</div><div style="font-weight:bold">${employee.name}</div></div>
-      <div><div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:2px">CPF/CNPJ</div><div style="font-weight:bold">${employee.cpf_cnpj||'—'}</div></div>
-      <div><div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:2px">Cargo</div><div style="font-weight:bold">${employee.position||'—'}</div></div>
-      <div><div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:2px">Contrato</div><div style="font-weight:bold">${employee.contract_type||'—'}</div></div>
-    </div>
+  const absenceMap = entry?.absence_discounts ?? {};
+  const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
-    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11px;">
-      <thead>
-        <tr>
-          <th style="background:#6a3eaf;color:#fff;padding:7px 10px;text-align:left;border-radius:6px 0 0 0;width:62%">Descrição</th>
-          <th style="background:#6a3eaf;color:#fff;padding:7px 10px;text-align:right;border-radius:0 6px 0 0;width:38%">Valor (R$)</th>
-        </tr>
-      </thead>
-      <tbody>${tableRows}</tbody>
-    </table>
+  if (payrollType === 'ESCRITORIO') {
+    const calcEsc = calculateEscritorioPayroll({
+      base_salary: entry?.base_salary ?? 0,
+      meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+      meal_voucher_days: entry?.meal_voucher_days ?? 0,
+      meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+      transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
+      transport_voucher_days: entry?.transport_voucher_days ?? 0,
+      transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
+      inss_pct: entry?.inss_pct ?? 0,
+      inss_deduction: entry?.inss_deduction ?? 0,
+      dental_plan: entry?.dental_plan ?? 0,
+      food_voucher: entry?.food_voucher ?? 0,
+      bonus: entry?.bonus ?? 0,
+      birthday_bonus: entry?.birthday_bonus ?? 0,
+      absence_discount_first: absenceFirst,
+      absence_discount_second: absenceSecond,
+      first_period_advance: entry?.first_period_advance ?? 0,
+      first_period_discount: firstTotal,
+      second_period_discount: secondTotal,
+      first_period_split: entry?.first_period_split ?? 0.5,
+    });
+    return {
+      ...entry,
+      first_discounts: firstDiscounts, second_discounts: secondDiscounts,
+      first_period_discount: firstTotal, second_period_discount: secondTotal,
+      absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
+      first_period_net: calcEsc.first_period_net, second_period_net: calcEsc.second_period_net,
+    };
+  }
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      <div style="border:2px solid #6a3eaf;border-radius:8px;overflow:hidden;">
-        <div style="background:#6a3eaf;color:#fff;padding:6px 12px;font-size:10px;font-weight:bold;text-transform:uppercase">1ª Quinzena (1–15)</div>
-        <div style="padding:8px 12px;display:flex;justify-content:space-between;font-weight:bold;font-size:12px">
-          <span style="color:#6a3eaf">A Receber</span>
-          <span style="font-family:monospace;color:#6a3eaf">${fmt(firstNet)}</span>
-        </div>
-      </div>
-      <div style="border:2px solid #6a3eaf;border-radius:8px;overflow:hidden;">
-        <div style="background:#6a3eaf;color:#fff;padding:6px 12px;font-size:10px;font-weight:bold;text-transform:uppercase">2ª Quinzena (16–30)</div>
-        <div style="padding:8px 12px;display:flex;justify-content:space-between;font-weight:bold;font-size:12px">
-          <span style="color:#6a3eaf">A Receber</span>
-          <span style="font-family:monospace;color:#6a3eaf">${fmt(secondNet)}</span>
-        </div>
-      </div>
-    </div>
+  if (payrollType === 'MOTOCICLISTA_MEI') {
+    const diasQ1    = entry?.working_days_first  ?? 0;
+    const diasQ2    = entry?.working_days_second ?? 0;
+    const totalDias = diasQ1 + diasQ2 || 1;
+    const grossTotal = entry?.gross_total ?? 0;
+    const firstBase  = entry?.first_period_base  != null ? entry.first_period_base  : Math.round(grossTotal * (diasQ1 / totalDias) * 100) / 100;
+    const secondBase = entry?.second_period_base != null ? entry.second_period_base : Math.round(grossTotal * (diasQ2 / totalDias) * 100) / 100;
+    const foodVoucher = entry?.food_voucher ?? 0;
+    const lifeIns     = entry?.life_insurance ?? 0;
+    const firstAdv    = entry?.first_period_advance ?? 0;
+    const kmBonus     = entry?.km_bonus ?? Math.round(((entry?.km_bonus_qty||0)*(entry?.km_bonus_value||0))*100)/100;
+    const costAllow   = entry?.cost_allowance ?? 0;
 
-    <div style="background:linear-gradient(135deg,#6a3eaf,#239BB6);border-radius:10px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;color:#fff;">
-      <div style="font-size:10px;opacity:0.85;text-transform:uppercase;letter-spacing:1px">TOTAL A RECEBER (1ª + 2ª Quinzena)</div>
-      <div style="font-size:24px;font-weight:bold;font-family:monospace">${fmt(total)}</div>
-    </div>
+    return {
+      ...entry,
+      first_discounts: firstDiscounts, second_discounts: secondDiscounts,
+      first_period_discount: firstTotal, second_period_discount: secondTotal,
+      first_period_base: firstBase, second_period_base: secondBase,
+      first_period_net:  Math.round((firstBase + foodVoucher - lifeIns - firstAdv - firstTotal) * 100) / 100,
+      second_period_net: Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100,
+    };
+  }
 
-    ${(employee.bank_name || employee.pix_key) ? `
-    <div style="border:1px solid #e8e4f5;border-radius:8px;padding:10px 14px;margin-bottom:16px;background:#fafafa;">
-      <div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:6px">Dados para Pagamento</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10px;">
-        ${employee.bank_name ? `<div><span style="color:#888">Banco: </span><strong>${employee.bank_name}</strong></div>` : ''}
-        ${employee.bank_agency ? `<div><span style="color:#888">Agência: </span><strong>${employee.bank_agency}</strong></div>` : ''}
-        ${employee.bank_account ? `<div><span style="color:#888">Conta: </span><strong>${employee.bank_account}</strong></div>` : ''}
-        ${employee.pix_key ? `<div><span style="color:#888">PIX: </span><strong>${employee.pix_key}</strong></div>` : ''}
-      </div>
-    </div>` : ''}
+  // Padrão CLT / SOCIO
+  const calcStd = calculatePayroll({
+    base_salary: entry?.base_salary ?? 0,
+    absence_discount: 0,
+    absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
+    meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+    meal_voucher_days: entry?.meal_voucher_days ?? 0,
+    food_voucher: entry?.food_voucher ?? 0,
+    transport_voucher: entry?.transport_voucher ?? 0,
+    km_bonus_qty: entry?.km_bonus_qty ?? 0, km_bonus_value: entry?.km_bonus_value ?? 0,
+    cost_allowance: entry?.cost_allowance ?? 0,
+    motorcycle_rental: entry?.motorcycle_rental ?? 0,
+    hazard_pay: entry?.hazard_pay ?? 0,
+    bonus: entry?.bonus ?? 0, other_benefits: entry?.other_benefits ?? 0,
+    union_contribution_value: entry?.union_contribution_value ?? 35,
+    meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+    life_insurance: entry?.life_insurance ?? 0,
+    inss_pct: entry?.inss_pct ?? 0, inss_discount: entry?.inss_discount ?? 0,
+    pj_retention: entry?.pj_retention ?? 0,
+    first_period_advance: entry?.first_period_advance ?? 0,
+    first_period_discount: firstTotal, second_period_discount: secondTotal,
+    first_period_split: entry?.first_period_split ?? 0.5,
+  }, employee.contract_type, payrollType);
 
-    ${entry?.notes ? `
-    <div style="border:1px solid #e8e4f5;border-radius:8px;padding:8px 14px;margin-bottom:14px;background:#fdf9ff;">
-      <div style="color:#6a3eaf;font-size:9px;text-transform:uppercase;margin-bottom:4px;font-weight:bold">Observação</div>
-      <div style="font-size:10px;color:#444">${entry.notes}</div>
-    </div>` : ''}
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;">
-      <div style="text-align:center">
-        <div style="border-top:1px solid #999;padding-top:6px;margin-top:32px">
-          <div style="font-weight:bold;font-size:11px">${company?.name||'______________________________'}</div>
-          <div style="color:#888;font-size:10px">Empregador / Responsável</div>
-        </div>
-      </div>
-      <div style="text-align:center">
-        <div style="border-top:1px solid #999;padding-top:6px;margin-top:32px">
-          <div style="font-weight:bold;font-size:11px">${employee.name}</div>
-          <div style="color:#888;font-size:10px">Colaborador — ${employee.cpf_cnpj||''}</div>
-        </div>
-        <div style="margin-top:8px;color:#888;font-size:10px">Data: _____ / _____ / _________</div>
-      </div>
-    </div>
-  </div>`;
+  return {
+    ...entry,
+    first_discounts: firstDiscounts, second_discounts: secondDiscounts,
+    first_period_discount: firstTotal, second_period_discount: secondTotal,
+    absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
+    first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net,
+  };
 }
 
 export default function BulkPDFDialog({ company, employees, entries, jobRoles, referenceMonth, onClose }) {
-  const [status, setStatus] = useState('idle'); // idle | generating | done | error
+  const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(0);
   const [log, setLog] = useState([]);
   const [downloadUrl, setDownloadUrl] = useState(null);
+  const blobsRef = useRef([]);
 
-  // Colaboradores com lançamento
-  const empWithEntries = employees.filter(emp => {
-    const entry = entries.find(e => e.employee_id === emp.id && e.reference_month === referenceMonth);
-    return !!entry;
-  });
+  const empWithEntries = employees.filter(emp =>
+    entries.find(e => e.employee_id === emp.id && e.reference_month === referenceMonth)
+  );
 
   const addLog = (msg, type = 'info') => setLog(prev => [...prev, { msg, type }]);
-
-  const blobsRef = useRef([]);
 
   const handleGenerate = async () => {
     if (empWithEntries.length === 0) return;
@@ -215,8 +211,24 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
 
         addLog(`Gerando PDF: ${emp.name}...`);
 
-        const html = buildReceiptHTML(empWithPos, entry, company, payrollType, referenceMonth);
-        const blob = await generatePDFBlob(html, emp.name, referenceMonth);
+        // Usa a mesma lógica de merge do PDFReceiptDialog
+        const mergedEntry = await buildMergedEntry(emp, entry, payrollType);
+
+        // Seleciona o mesmo componente que o PDFReceiptDialog usa
+        let Component;
+        const componentProps = { employee: empWithPos, entry: mergedEntry, month: referenceMonth, company };
+
+        if (payrollType === 'ESCRITORIO') {
+          Component = EscritorioHoleriteContent;
+        } else if (payrollType === 'MOTOCICLISTA_MEI') {
+          Component = MeiHoleriteContent;
+        } else if (payrollType === 'SOCIO') {
+          Component = ProLaboreReceiptContent;
+        } else {
+          Component = HoleriteContent;
+        }
+
+        const blob = await renderComponentToPDFBlob(Component, componentProps);
         const safeName = emp.name.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').trim().replace(/\s+/g, '_');
         blobsRef.current.push({ blob, name: `${safeName}.pdf` });
 
@@ -224,7 +236,7 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
         setProgress(Math.round(((i + 1) / empWithEntries.length) * 100));
       }
 
-      // Usa fflate (dependência transitiva do vite) para criar o ZIP
+      // ZIP com fflate (sem dependência de bundle)
       const { zipSync } = await import('https://esm.sh/fflate@0.8.2');
       const files = {};
       for (const { blob, name } of blobsRef.current) {
@@ -233,8 +245,7 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
       }
       const zipped = zipSync(files, { level: 0 });
       const zipBlob = new Blob([zipped], { type: 'application/zip' });
-      const url = URL.createObjectURL(zipBlob);
-      setDownloadUrl(url);
+      setDownloadUrl(URL.createObjectURL(zipBlob));
       setStatus('done');
       addLog(`Concluído! ${empWithEntries.length} PDF(s) gerados.`, 'success');
     } catch (err) {
@@ -265,11 +276,12 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
           <div className="bg-muted/40 rounded-lg px-4 py-3 text-sm space-y-1">
             <p className="font-medium">Mês de referência: <span className="text-primary">{getMonthName(referenceMonth)}</span></p>
             <p className="text-muted-foreground">
-              {empWithEntries.length} colaborador(es) com lançamento encontrado(s).
+              {empWithEntries.length} colaborador(es) com lançamento.
               {employees.length - empWithEntries.length > 0 && (
                 <span className="ml-1 text-yellow-600">({employees.length - empWithEntries.length} sem lançamento serão ignorados)</span>
               )}
             </p>
+            <p className="text-xs text-muted-foreground">Os PDFs gerados são idênticos ao botão "Imprimir Recibo" de cada colaborador.</p>
           </div>
 
           {empWithEntries.length === 0 ? (
@@ -296,7 +308,7 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
               )}
 
               {status === 'done' && (
-                <Button className="w-full gap-2" onClick={handleDownload} variant="default">
+                <Button className="w-full gap-2" onClick={handleDownload}>
                   <Download className="w-4 h-4" />
                   Baixar ZIP com {empWithEntries.length} PDF(s)
                 </Button>
