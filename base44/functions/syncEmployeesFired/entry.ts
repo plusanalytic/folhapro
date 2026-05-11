@@ -1,26 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Sincroniza colaboradores DEMITIDOS (showFired=1) do Tangerino
-// Pode ser chamada via botão (com auth de usuário) ou via automação (service role via payload interno)
-
 const TANGERINO_AUTH = "Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=";
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-async function withRetry(fn, retries = 5, baseDelay = 1200) {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const is429 = err?.message?.includes('429') || err?.message?.includes('Rate limit');
-      if (is429 && attempt < retries - 1) {
-        await sleep(baseDelay * (attempt + 1));
-        continue;
-      }
-      throw err;
-    }
-  }
-}
 
 function tsToDate(ts) {
   if (!ts) return '';
@@ -28,7 +10,6 @@ function tsToDate(ts) {
 }
 
 async function doSync(serviceRole) {
-  // Busca colaboradores demitidos na API
   const apiRes = await fetch(
     `https://api.tangerino.com.br/api/employer/employee/find-all?showFired=1&size=1000`,
     { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
@@ -37,9 +18,6 @@ async function doSync(serviceRole) {
 
   const raw = await apiRes.json();
   const remoteEmployees = Array.isArray(raw) ? raw : (raw.content || []);
-
-  // Pausa após chamada à API
-  await sleep(600);
 
   const [localCompanies, localEmployees] = await Promise.all([
     serviceRole.entities.Company.list(),
@@ -51,7 +29,7 @@ async function doSync(serviceRole) {
     if (c.tangerino_id) companyByTangerinoId[String(c.tangerino_id)] = c;
   }
 
-  // Mapeia tangerino_id -> registro mais antigo (canônico, evita duplicatas)
+  // Mapeia tangerino_id -> registro mais antigo (canônico)
   const localByTangerinoId = {};
   for (const e of localEmployees) {
     if (!e.tangerino_id) continue;
@@ -61,7 +39,8 @@ async function doSync(serviceRole) {
     }
   }
 
-  let created = 0, updated = 0, failed = 0;
+  const toCreate = [];
+  const toUpdate = [];
 
   for (const re of remoteEmployees) {
     const tangerinoId = String(re.id ?? '');
@@ -71,7 +50,6 @@ async function doSync(serviceRole) {
     const workplaceList = (re.workplaceList ?? []).map(w => String(w.id ?? '')).filter(Boolean);
     const jobRoleTangerinoId = re.jobRoleDTO?.id ? String(re.jobRoleDTO.id) : '';
 
-    // Para demitidos, sempre marca is_active=false e preenche data/motivo
     const isFired = re.fired === true || re.status !== 0;
     const terminationDate = isFired ? tsToDate(re.resignationDate) : '';
     const terminationReason = re.motivoDemissao ?? '';
@@ -97,21 +75,40 @@ async function doSync(serviceRole) {
       workplace_list: workplaceList,
     };
 
-    try {
-      const existing = localByTangerinoId[tangerinoId];
-      if (existing) {
-        await withRetry(() => serviceRole.entities.Employee.update(existing.id, payload));
-        updated++;
-      } else {
-        await withRetry(() => serviceRole.entities.Employee.create(payload));
-        created++;
-      }
-    } catch (err) {
-      console.error(`[syncEmployeesFired] Falhou ${re.name} (${tangerinoId}):`, err.message);
-      failed++;
+    const existing = localByTangerinoId[tangerinoId];
+    if (existing) {
+      toUpdate.push({ id: existing.id, ...payload });
+    } else {
+      toCreate.push(payload);
     }
+  }
 
-    await sleep(350);
+  // Processar em batches para evitar timeout
+  const BATCH = 50;
+  let created = 0, updated = 0, failed = 0;
+
+  for (let i = 0; i < toCreate.length; i += BATCH) {
+    const batch = toCreate.slice(i, i + BATCH);
+    try {
+      await serviceRole.entities.Employee.bulkCreate(batch);
+      created += batch.length;
+    } catch (err) {
+      console.error(`[syncEmployeesFired] Erro no batch de criação (${i}-${i + BATCH}):`, err.message);
+      failed += batch.length;
+    }
+    if (i + BATCH < toCreate.length) await sleep(300);
+  }
+
+  for (let i = 0; i < toUpdate.length; i += BATCH) {
+    const batch = toUpdate.slice(i, i + BATCH);
+    try {
+      await Promise.all(batch.map(({ id, ...data }) => serviceRole.entities.Employee.update(id, data)));
+      updated += batch.length;
+    } catch (err) {
+      console.error(`[syncEmployeesFired] Erro no batch de atualização (${i}-${i + BATCH}):`, err.message);
+      failed += batch.length;
+    }
+    if (i + BATCH < toUpdate.length) await sleep(300);
   }
 
   return { created, updated, failed, total: remoteEmployees.length };
@@ -120,14 +117,12 @@ async function doSync(serviceRole) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-
-    // Aceita tanto chamada de usuário admin quanto de automação (sem usuário)
     const user = await base44.auth.me().catch(() => null);
     if (user && user.role !== 'admin') {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    console.log('[syncEmployeesFired] Iniciando sincronização de demitidos...');
+    console.log('[syncEmployeesFired] Iniciando...');
     const result = await doSync(base44.asServiceRole);
     console.log('[syncEmployeesFired] Concluído:', result);
 

@@ -30,6 +30,7 @@ export default function Payroll() {
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [selectedJobRole, setSelectedJobRole] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -84,6 +85,15 @@ export default function Payroll() {
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
+    if (selectedStatus !== 'all') {
+      const entry = getEntry(emp.id);
+      const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+      if (!empJobRole?.payroll_type) {
+        if (selectedStatus !== 'pending') return false;
+      } else if (selectedStatus === 'closed' && entry?.status !== 'closed') return false;
+      else if (selectedStatus === 'launched' && (!entry || entry.status === 'closed')) return false;
+      else if (selectedStatus === 'pending' && entry) return false;
+    }
     return matchCompany && matchSearch && matchWorkplace && matchJobRole;
   });
 
@@ -231,6 +241,17 @@ export default function Payroll() {
             {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
               <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="launched">Lançado</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="closed">Fechado</SelectItem>
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-40">

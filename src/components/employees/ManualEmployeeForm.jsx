@@ -41,6 +41,16 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
     if (!form.company_id) { toast.error('Selecione a empresa.'); setTab('dados'); return; }
     if (!form.contract_type) { toast.error('Selecione o tipo de contrato.'); setTab('dados'); return; }
 
+    // Bloqueio de CPF duplicado
+    if (form.cpf_cnpj.trim()) {
+      const existing = await base44.entities.Employee.filter({ cpf_cnpj: form.cpf_cnpj.trim() });
+      if (existing && existing.length > 0) {
+        toast.error(`Já existe um colaborador cadastrado com este CPF: ${existing[0].name}`);
+        setTab('dados');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const selectedRole = jobRoles.find(jr => String(jr.id) === form.job_role_tangerino_id);
