@@ -103,14 +103,10 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
   const diasTrabalhados = form.working_days_worked || diasMes;
   const remuneracao = Math.round((form.base_salary / diasMes) * diasTrabalhados * 100) / 100;
 
-  // Quinzenal split por dias
-  const diasQ1 = form.working_days_first || 0;
-  const diasQ2 = form.working_days_second || 0;
-  const totalQDias = diasQ1 + diasQ2 || 1;
-  const splitFirst = diasQ1 / totalQDias;
-  const splitSecond = diasQ2 / totalQDias;
-  const firstBase = Math.round(calc.net_labore * splitFirst * 100) / 100;
-  const secondBase = Math.round(calc.net_labore * splitSecond * 100) / 100;
+  // Quinzenal split por valor total (igual ao CLT moto) — padrão 50/50
+  const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
+  const firstBase = Math.round(calc.net_labore * firstPeriodSplit * 100) / 100;
+  const secondBase = Math.round(calc.net_labore * (1 - firstPeriodSplit) * 100) / 100;
   const firstPeriodNet = Math.round((firstBase - firstTotal) * 100) / 100;
   const secondPeriodNet = Math.round((secondBase + form.profit_distribution - form.other_discounts - secondTotal) * 100) / 100;
 
@@ -153,8 +149,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
       irrf:                   calc.irrf,
       working_days_month:     form.working_days_month,
       working_days_worked:    form.working_days_worked,
-      working_days_first:     form.working_days_first,
-      working_days_second:    form.working_days_second,
+      first_period_split:     firstPeriodSplit,
       first_period_net:       firstPeriodNet,
       second_period_net:      secondPeriodNet,
       first_period_base:      firstBase,
@@ -265,37 +260,49 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
 
             {/* ── Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
-              {/* Rateio por dias úteis */}
-              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dias Úteis por Quinzena — Rateio da Remuneração</p>
-                <p className="text-xs text-muted-foreground">Referência: {form.working_days_worked} dias trabalhados. Edite livremente.</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
-                    <DayInput value={form.working_days_first} disabled={readOnly} onChange={v => set('working_days_first', v)} />
-                  </div>
-                  <div>
-                    <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
-                    <DayInput value={form.working_days_second} disabled={readOnly} onChange={v => set('working_days_second', v)} />
-                  </div>
+              {/* Rateio por valor total (igual CLT moto) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
+                  {readOnly ? (
+                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(firstBase)}</p>
+                  ) : (
+                    <Input
+                      type="number" step="0.01" className="font-mono font-bold text-lg h-9"
+                      value={firstBase === 0 ? '' : String(firstBase)}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        if (calc.net_labore !== 0) setFirstPeriodSplit(v / calc.net_labore);
+                      }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Base 1ª Quinzena</p>
-                      <p className="text-xs text-muted-foreground">{diasQ1}/{diasQ1 + diasQ2} dias ({Math.round(splitFirst * 100)}%)</p>
-                    </div>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(firstBase)}</p>
-                  </div>
-                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Base 2ª Quinzena</p>
-                      <p className="text-xs text-muted-foreground">{diasQ2}/{diasQ1 + diasQ2} dias ({Math.round(splitSecond * 100)}%)</p>
-                    </div>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(secondBase)}</p>
-                  </div>
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
+                  {readOnly ? (
+                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(secondBase)}</p>
+                  ) : (
+                    <Input
+                      type="number" step="0.01" className="font-mono font-bold text-lg h-9"
+                      value={secondBase === 0 ? '' : String(secondBase)}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        if (calc.net_labore !== 0) setFirstPeriodSplit(1 - v / calc.net_labore);
+                      }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
                 </div>
               </div>
+              {firstPeriodSplit !== 0.5 && (
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
+                  {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3 border border-border rounded-xl p-4">

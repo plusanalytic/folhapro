@@ -9,6 +9,16 @@ import { UserPlus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
+// Definido FORA do componente para evitar remount a cada keystroke
+function Field({ label, children }) {
+  return (
+    <div>
+      <Label className="mb-1 block">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 const EMPTY = {
   name: '',
   cpf_cnpj: '',
@@ -85,13 +95,6 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
       setSaving(false);
     }
   };
-
-  const Field = ({ label, children }) => (
-    <div>
-      <Label className="mb-1 block">{label}</Label>
-      {children}
-    </div>
-  );
 
   const sortedRoles = [...jobRoles].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const sortedCompanies = [...companies].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));

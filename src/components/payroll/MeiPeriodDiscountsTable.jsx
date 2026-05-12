@@ -17,7 +17,7 @@ export default function MeiPeriodDiscountsTable({ items = [], onChange, readOnly
       date: newRow.date,
       description: desc,
       amount: parseFloat(newRow.amount) || 0,
-      type: 'debit', // faltas e outros descontos são sempre débito
+      type: newRow.category === 'falta' ? 'debit' : newRow.type,
       category: newRow.category,
       id: Date.now(),
     }]);

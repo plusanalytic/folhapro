@@ -443,9 +443,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                         : 'Padrão: 30'}
                     </p>
                     <Input
-                      type="number" step="1" min="1" max="30" disabled={readOnly} className="mt-1 font-mono"
+                      type="number" step="1" min="0" max="30" disabled={readOnly} className="mt-1 font-mono"
                       value={form.clt_moto_worked_days === 0 ? '' : String(form.clt_moto_worked_days)}
-                      onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_worked_days: e.target.value === '' ? 30 : parseInt(e.target.value) || 30 })); }}
+                      onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_worked_days: e.target.value === '' ? 0 : parseInt(e.target.value) ?? 0 })); }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                   </div>
@@ -548,21 +548,25 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Input {...numericField('motorcycle_rental')} />
               </div>}
               {show('hazard_pay') && <div>
-                <Label>Periculosidade (30% do salário base)</Label>
+                <Label>Periculosidade (30% do salário efetivo)</Label>
                 <Input
                   {...numericField('hazard_pay')}
                   onFocus={(e) => {
-                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === Math.round(form.base_salary * 0.3 * 100) / 100)) {
-                      const auto = Math.round(form.base_salary * 0.3 * 100) / 100;
-                      set('hazard_pay', auto);
+                    const effectiveSal = isCLTMoto ? cltMotoEffectiveSalary : form.base_salary;
+                    const autoVal = Math.round(effectiveSal * 0.3 * 100) / 100;
+                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === autoVal)) {
+                      set('hazard_pay', autoVal);
                     }
                     setTimeout(() => e.target.select(), 0);
                   }}
                 />
-                {form.base_salary > 0 && (
+                {(isCLTMoto ? cltMotoEffectiveSalary : form.base_salary) > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Auto: {formatCurrency(Math.round(form.base_salary * 0.3 * 100) / 100)} (30% de {formatCurrency(form.base_salary)})
-                    {!readOnly && form.hazard_pay !== Math.round(form.base_salary * 0.3 * 100) / 100 && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}
+                    {(() => {
+                      const effectiveSal = isCLTMoto ? cltMotoEffectiveSalary : form.base_salary;
+                      const autoVal = Math.round(effectiveSal * 0.3 * 100) / 100;
+                      return <>Auto: {formatCurrency(autoVal)} (30% de {formatCurrency(effectiveSal)}){!readOnly && form.hazard_pay !== autoVal && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}</>;
+                    })()}
                   </p>
                 )}
               </div>}
