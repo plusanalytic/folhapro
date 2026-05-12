@@ -41,8 +41,8 @@ export default function CashOut() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.CashOut.list('-date', 500),
-      base44.entities.Employee.list('name', 500),
+      base44.entities.CashOut.list('-date', 1000),
+      base44.entities.Employee.list('name', 2000),
       base44.entities.Company.list('name', 100),
     ]).then(([co, em, cp]) => { setCashOuts(co); setEmployees(em); setCompanies(cp.filter(c => c.is_active !== false)); });
   }, []);
