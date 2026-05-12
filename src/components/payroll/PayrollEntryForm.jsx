@@ -127,16 +127,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     ? Math.round(cltMotoDailyValue * form.clt_moto_worked_days * 100) / 100
     : form.base_salary;
 
-  // Quando mudança no CLT moto, atualiza base_salary efetivo (somente se mudou de fato)
-  useEffect(() => {
-    if (!isCLTMoto) return;
-    if (cltMotoEffectiveSalary > 0) {
-      setForm(f => {
-        if (f.base_salary === cltMotoEffectiveSalary) return f;
-        return { ...f, base_salary: cltMotoEffectiveSalary };
-      });
-    }
-  }, [cltMotoEffectiveSalary, isCLTMoto]);
+  // Para CLT moto: base_salary NÃO é sobrescrito pelo efetivo durante a edição.
+  // O salário efetivo é apenas calculado para exibição e usado nos cálculos,
+  // mas o campo base_salary armazenado permanece sendo o valor do contrato (clt_moto_base_salary).
 
   // INSS automático para CLT moto (se não foi editado manualmente)
   const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
@@ -147,7 +140,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   }, [cltMotoEffectiveSalary, isCLTMoto, inssManuallyEdited]);
 
   // Desconto taxa sindical automático para admissão no mês (CLT moto)
+  // Só é adicionado quando o usuário confirma o salário base (blur no campo)
   const [unionTaxAutoAdded, setUnionTaxAutoAdded] = useState(false);
+  // Guarda o valor dia confirmado (após blur) para não disparar antes do usuário confirmar
+  const [confirmedDailyValue, setConfirmedDailyValue] = useState(
+    entry?.clt_moto_base_salary > 0 ? Math.round((entry.clt_moto_base_salary / 30) * 100) / 100 : 0
+  );
 
   // Descontos quinzenais (lista de {date, description, amount, id})
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
@@ -166,7 +164,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // Mapa de desconto por ajuste: { [tangerino_id_do_ajuste]: valor }
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
 
-  // Adiciona taxa sindical automaticamente para admissão no mês (somente se não há lançamento salvo)
+  // Adiciona taxa sindical automaticamente para admissão no mês (somente após confirmar o salário base)
+  // Disparado pelo confirmedDailyValue (atualizado no blur do campo salário base)
   useEffect(() => {
     if (!isCLTMoto || unionTaxAutoAdded || readOnly) return;
     if (!employee?.admission_date) return;
@@ -179,18 +178,19 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       d.description && d.description.toLowerCase().includes('taxa sindical')
     );
     if (alreadyHas) { setUnionTaxAutoAdded(true); return; }
-    if (cltMotoDailyValue <= 0) return;
+    // Aguarda o valor dia confirmado (após o usuário sair do campo)
+    if (confirmedDailyValue <= 0) return;
     const taxEntry = {
       date: employee.admission_date,
       description: 'Taxa Sindical (Admissão)',
-      amount: cltMotoDailyValue,
+      amount: confirmedDailyValue,
       type: 'debit',
       id: Date.now(),
     };
     if (isFirstQ) setFirstDiscounts(prev => [...prev, taxEntry]);
     else setSecondDiscounts(prev => [...prev, taxEntry]);
     setUnionTaxAutoAdded(true);
-  }, [isCLTMoto, cltMotoDailyValue, unionTaxAutoAdded, employee?.admission_date, referenceMonth, readOnly]);
+  }, [isCLTMoto, confirmedDailyValue, unionTaxAutoAdded, employee?.admission_date, referenceMonth, readOnly]);
 
   useEffect(() => {
     if (!employee.tangerino_id) return;
@@ -290,7 +290,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value, first_period_split: firstPeriodSplit };
+  // Para CLT moto: os cálculos usam o salário EFETIVO (proporcional), não o base do contrato
+  const calcForm = {
+    ...form,
+    base_salary: isCLTMoto ? cltMotoEffectiveSalary : form.base_salary,
+    absence_discount: totalDiscount,
+    absence_discount_first: absenceFirst,
+    absence_discount_second: absenceSecond,
+    first_period_discount: firstDiscountTotal,
+    second_period_discount: secondDiscountTotal,
+    union_contribution_value: form.union_contribution_value,
+    first_period_split: firstPeriodSplit,
+  };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
   // Quando net_total = 0, aplica override direto do valor da 1ª base
   const calc = (calcRaw.net_total === 0 && firstBaseOverride !== null)
@@ -333,7 +344,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     onSave({
       ...form,
       ...calc,
-      base_salary: isCLTMoto ? cltMotoEffectiveSalary : form.base_salary,
+      // Para CLT moto: base_salary salvo é o valor do contrato (clt_moto_base_salary), NÃO o efetivo
+      // O salário efetivo fica em clt_moto_effective_salary apenas para referência
+      base_salary: form.clt_moto_base_salary > 0 && isCLTMoto ? form.clt_moto_base_salary : form.base_salary,
+      clt_moto_effective_salary: isCLTMoto ? cltMotoEffectiveSalary : undefined,
       clt_moto_base_salary: form.clt_moto_base_salary,
       clt_moto_worked_days: form.clt_moto_worked_days,
       meal_voucher_day_value: form.meal_voucher_day_value,
@@ -406,6 +420,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       type="number" step="any" disabled={readOnly} className="mt-1 font-mono"
                       value={form.clt_moto_base_salary === 0 ? '' : String(form.clt_moto_base_salary)}
                       onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_base_salary: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 })); }}
+                      onBlur={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        setConfirmedDailyValue(Math.round((v / 30) * 100) / 100);
+                      }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                       placeholder="0,00"
                     />
