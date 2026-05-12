@@ -401,7 +401,18 @@ export default function Payroll() {
                                    size="sm"
                                    disabled={closed || !hasPayrollType || entry?.status === 'closed'}
                                    title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
-                                   onClick={() => { setEditingEmployee(emp); setEditingEntry(entry || null); setViewOnly(false); setShowForm(true); }}
+                                   onClick={() => {
+                                     setEditingEmployee(emp);
+                                     // Pré-preenche salário base do cargo SOMENTE se não há lançamento ainda
+                                     // (se já existe entry com base_salary > 0, não sobrepõe)
+                                     const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                     const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
+                                       ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
+                                       : null;
+                                     setEditingEntry(entry || prefilled);
+                                     setViewOnly(false);
+                                     setShowForm(true);
+                                   }}
                                  >
                                    {entry ? 'Editar' : 'Lançar'}
                                  </Button>

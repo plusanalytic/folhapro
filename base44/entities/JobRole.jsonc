@@ -24,6 +24,10 @@
       ],
       "description": "Modelo de folha de pagamento associado ao cargo"
     },
+    "base_salary": {
+      "type": "number",
+      "description": "Sal\u00e1rio base padr\u00e3o do cargo (pr\u00e9-preenche folhas novas)"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
