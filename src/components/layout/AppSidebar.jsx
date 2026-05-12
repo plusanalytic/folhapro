@@ -9,9 +9,9 @@ const navItems = [
   { path: '/workplaces', icon: MapPin, label: 'Locais de Trabalho' },
   { path: '/job-roles', icon: Briefcase, label: 'Cargos / Folha' },
   { path: '/payroll', icon: Banknote, label: 'Folha de Pagamento' },
-  { path: '/payments', icon: CreditCard, label: 'Pagamentos' },
   { path: '/cashout', icon: ArrowDownCircle, label: 'Saída de Caixa' },
   { path: '/point-adjustments', icon: ClipboardCheck, label: 'Ajustes de Ponto' },
+  { path: '/payments', icon: CreditCard, label: 'Pagamentos' },
   { path: '/reports', icon: FileText, label: 'Relatórios' },
 ];
 

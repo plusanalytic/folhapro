@@ -221,9 +221,6 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
               <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="hidden">
-                    {/* base_salary mantido para compatibilidade */}
-                  </div>
                   <div>
                     <Label className="text-xs">Reajuste de Cota (R$)</Label>
                     <NumInput value={form.quota_adjustment} disabled={readOnly} onChange={v => set('quota_adjustment', v)} />
@@ -354,7 +351,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                   <span className="font-mono">{formatCurrency(calc.net_labore)}</span>
                 </div>
                 {form.profit_distribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">+ Distribuição de Lucros</span><span className="font-mono">{formatCurrency(form.profit_distribution)}</span></div>}
-                {form.first_period_advance > 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Adiantamento 1ª Quinzena</span><span className="font-mono">- {formatCurrency(form.first_period_advance)}</span></div>}
+                {/* Adiantamento removido da folha Sócio */}
                 {form.other_discounts > 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Outros Descontos</span><span className="font-mono">- {formatCurrency(form.other_discounts)}</span></div>}
                 {(firstTotal + secondTotal) !== 0 && <div className="flex justify-between py-2 border-b border-border text-destructive"><span>Descontos Quinzenais</span><span className="font-mono">- {formatCurrency(firstTotal + secondTotal)}</span></div>}
                 <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">

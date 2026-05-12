@@ -40,23 +40,7 @@ function isFieldVisible(payrollType, field) {
   return true;
 }
 
-// Tabela INSS CLT simplificada conforme solicitado
-function autoInssFromSalary(salary) {
-  if (salary <= 1621) return { pct: 7.5, discount: 0 };
-  if (salary <= 2902.84) return { pct: 9, discount: 24.32 };
-  if (salary <= 4354.27) return { pct: 12, discount: 111.40 };
-  return { pct: 13, discount: 198.49 };
-}
-
-// Calcula dias trabalhados considerando data de admissão
-function calcDefaultWorkingDays(referenceMonth, admissionDate) {
-  if (!admissionDate) return 30;
-  const admMonth = admissionDate.slice(0, 7);
-  if (admMonth !== referenceMonth) return 30;
-  const admDay = parseInt(admissionDate.slice(8, 10));
-  return Math.max(1, 30 - admDay);
-}
-
+// Input para valor de base quinzenal — permite digitação livre sem travar o cursor
 function PeriodBaseInput({ value, onChange }) {
   const [raw, setRaw] = useState(null);
   const display = raw !== null ? raw : (value === 0 ? '0' : String(value ?? 0));
@@ -80,122 +64,182 @@ function PeriodBaseInput({ value, onChange }) {
   );
 }
 
+// Calcula dias trabalhados default para CLT: se admitido no mês da folha, 30 - dia da admissão
+function calcDefaultWorkedDays(employee, referenceMonth) {
+  if (!employee?.admission_date) return 30;
+  const admMonth = employee.admission_date.slice(0, 7);
+  if (admMonth === referenceMonth) {
+    const admDay = parseInt(employee.admission_date.slice(8, 10), 10);
+    return Math.max(1, 30 - admDay);
+  }
+  return 30;
+}
+
+// Calcula % e desconto INSS CLT automático com base no salário efetivo
+function calcAutoINSS(salaryEfetivo) {
+  if (salaryEfetivo <= 1621) return { pct: 7.5, discount: 0 };
+  if (salaryEfetivo <= 2902.84) return { pct: 9, discount: 24.32 };
+  if (salaryEfetivo <= 4354.27) return { pct: 12, discount: 111.40 };
+  return { pct: 13, discount: 198.49 };
+}
+
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   const payrollType = jobRole?.payroll_type || null;
-  const show = (field) => isFieldVisible(payrollType, field);
   const isCLTMoto = payrollType === 'MOTOCICLISTA_CLT';
+  const show = (field) => isFieldVisible(payrollType, field);
 
-  // Dias trabalhados padrão: 30 ou proporcional para admitidos no mês
-  const defaultWorkingDays = calcDefaultWorkingDays(referenceMonth, employee?.admission_date);
+  // Para CLT moto: dias trabalhados (default 30 ou proporcional na admissão)
+  const defaultWorkedDays = calcDefaultWorkedDays(employee, referenceMonth);
 
-  // Para MOTOCICLISTA_CLT: salário efetivo = (base_salary / 30) * working_days_worked
-  // working_days_worked é editável pelo usuário; base_salary é o piso contratual
-  const [workingDaysWorked, setWorkingDaysWorked] = useState(() => {
-    if (!isCLTMoto) return 30;
-    return entry?.working_days_worked ?? defaultWorkingDays;
-  });
-  const [workingDaysWorkedStr, setWorkingDaysWorkedStr] = useState(() => String(entry?.working_days_worked ?? defaultWorkingDays));
-
-  const [form, setForm] = useState(() => {
-    const baseSalary = entry?.base_salary ?? employee?.base_salary ?? 0;
-    // INSS: se já existe entrada, usa os valores salvos; se não, calcula automaticamente
-    let inss_pct = entry?.inss_pct ?? 0;
-    let inss_discount = entry?.inss_discount ?? 0;
-    if (!entry && isCLTMoto && baseSalary > 0) {
-      const autoInss = autoInssFromSalary(baseSalary);
-      inss_pct = autoInss.pct;
-      inss_discount = autoInss.discount;
-    }
-    return {
-      company_id: employee.company_id,
-      base_salary: baseSalary,
-      absences_days: entry?.absences_days ?? 0,
-      meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
-      meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
-      food_voucher: entry?.food_voucher ?? 0,
-      transport_voucher: entry?.transport_voucher ?? 0,
-      km_bonus_qty: entry?.km_bonus_qty ?? 0,
-      km_bonus_value: entry?.km_bonus_value ?? 0,
-      cost_allowance: entry?.cost_allowance ?? 0,
-      motorcycle_rental: entry?.motorcycle_rental ?? 0,
-      hazard_pay: entry?.hazard_pay ?? 0,
-      bonus: entry?.bonus ?? 0,
-      other_benefits: entry?.other_benefits ?? 0,
-      union_contribution_value: entry?.union_contribution_value ?? 35,
-      meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
-      life_insurance: entry?.life_insurance ?? 0,
-      inss_pct,
-      inss_discount,
-      pj_retention: entry?.pj_retention ?? 0,
-      first_period_advance: entry?.first_period_advance ?? 0,
-      notes: entry?.notes ?? '',
-      working_days_worked: entry?.working_days_worked ?? defaultWorkingDays,
-    };
+  const [form, setForm] = useState({
+    company_id: employee.company_id,
+    base_salary: entry?.base_salary ?? 0,
+    // Para CLT moto: dias trabalhados e salário base informado
+    // Se tem lançamento salvo, usa os campos CLT moto salvos; se não, inicializa com base_salary como referência
+    clt_moto_base_salary: entry?.clt_moto_base_salary != null ? entry.clt_moto_base_salary : (entry?.base_salary > 0 ? entry.base_salary : 0),
+    clt_moto_worked_days: entry?.clt_moto_worked_days != null ? entry.clt_moto_worked_days : defaultWorkedDays,
+    absences_days: entry?.absences_days ?? 0,
+    meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+    meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
+    food_voucher: entry?.food_voucher ?? 0,
+    transport_voucher: entry?.transport_voucher ?? 0,
+    km_bonus_qty: entry?.km_bonus_qty ?? 0,
+    km_bonus_value: entry?.km_bonus_value ?? 0,
+    cost_allowance: entry?.cost_allowance ?? 0,
+    motorcycle_rental: entry?.motorcycle_rental ?? 0,
+    hazard_pay: entry?.hazard_pay ?? 0,
+    bonus: entry?.bonus ?? 0,
+    other_benefits: entry?.other_benefits ?? 0,
+    union_contribution_value: entry?.union_contribution_value ?? 35,
+    meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
+    life_insurance: entry?.life_insurance ?? 0,
+    inss_pct: entry?.inss_pct ?? 0,
+    inss_discount: entry?.inss_discount ?? 0,
+    pj_retention: entry?.pj_retention ?? 0,
+    first_period_advance: entry?.first_period_advance ?? 0,
+    notes: entry?.notes ?? '',
   });
 
-  // Salário efetivo CLT = (base / 30) * dias trabalhados
-  const dailyRate = isCLTMoto ? Math.round((form.base_salary / 30) * 100) / 100 : 0;
-  const effectiveSalary = isCLTMoto ? Math.round(dailyRate * workingDaysWorked * 100) / 100 : form.base_salary;
+  // Para CLT moto: base_salary efetivo = (clt_moto_base_salary / 30) * clt_moto_worked_days
+  const cltMotoDailyValue = isCLTMoto ? Math.round((form.clt_moto_base_salary / 30) * 100) / 100 : 0;
+  const cltMotoEffectiveSalary = isCLTMoto
+    ? Math.round(cltMotoDailyValue * form.clt_moto_worked_days * 100) / 100
+    : form.base_salary;
 
-  // Quando base_salary ou workingDaysWorked muda, auto-sugere INSS se não foi customizado
-  const [inssCustomized, setInssCustomized] = useState(!!entry);
-
+  // Quando mudança no CLT moto, atualiza base_salary efetivo (somente se mudou de fato)
   useEffect(() => {
-    if (!isCLTMoto || inssCustomized) return;
-    const autoInss = autoInssFromSalary(effectiveSalary);
-    setForm(f => ({ ...f, inss_pct: autoInss.pct, inss_discount: autoInss.discount }));
-  }, [effectiveSalary, isCLTMoto, inssCustomized]);
+    if (!isCLTMoto) return;
+    if (cltMotoEffectiveSalary > 0) {
+      setForm(f => {
+        if (f.base_salary === cltMotoEffectiveSalary) return f;
+        return { ...f, base_salary: cltMotoEffectiveSalary };
+      });
+    }
+  }, [cltMotoEffectiveSalary, isCLTMoto]);
 
-  // Descontos quinzenais
+  // INSS automático para CLT moto (se não foi editado manualmente)
+  const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
+  useEffect(() => {
+    if (!isCLTMoto || inssManuallyEdited) return;
+    const { pct, discount } = calcAutoINSS(cltMotoEffectiveSalary);
+    setForm(f => ({ ...f, inss_pct: pct, inss_discount: discount }));
+  }, [cltMotoEffectiveSalary, isCLTMoto, inssManuallyEdited]);
+
+  // Desconto taxa sindical automático para admissão no mês (CLT moto)
+  const [unionTaxAutoAdded, setUnionTaxAutoAdded] = useState(false);
+
+  // Descontos quinzenais (lista de {date, description, amount, id})
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
 
-  // Rateio quinzenal
+  // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
+  // Override direto do valor base da 1ª quinzena (usado quando net_total = 0)
   const [firstBaseOverride, setFirstBaseOverride] = useState(entry?.first_period_base ?? null);
 
-  const [installmentDialog, setInstallmentDialog] = useState(null);
+  // Parcelas
+  const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
 
+  // Ajustes de ponto (faltas) do colaborador no mês
   const [pointAdjustments, setPointAdjustments] = useState([]);
+  // Mapa de desconto por ajuste: { [tangerino_id_do_ajuste]: valor }
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
+
+  // Adiciona taxa sindical automaticamente para admissão no mês (somente se não há lançamento salvo)
+  useEffect(() => {
+    if (!isCLTMoto || unionTaxAutoAdded || readOnly) return;
+    if (!employee?.admission_date) return;
+    const admMonth = employee.admission_date.slice(0, 7);
+    if (admMonth !== referenceMonth) return;
+    // Só adiciona se não existe já taxa sindical nos descontos salvos
+    const admDay = parseInt(employee.admission_date.slice(8, 10), 10);
+    const isFirstQ = admDay <= 15;
+    const alreadyHas = (isFirstQ ? firstDiscounts : secondDiscounts).some(d =>
+      d.description && d.description.toLowerCase().includes('taxa sindical')
+    );
+    if (alreadyHas) { setUnionTaxAutoAdded(true); return; }
+    if (cltMotoDailyValue <= 0) return;
+    const taxEntry = {
+      date: employee.admission_date,
+      description: 'Taxa Sindical (Admissão)',
+      amount: cltMotoDailyValue,
+      type: 'debit',
+      id: Date.now(),
+    };
+    if (isFirstQ) setFirstDiscounts(prev => [...prev, taxEntry]);
+    else setSecondDiscounts(prev => [...prev, taxEntry]);
+    setUnionTaxAutoAdded(true);
+  }, [isCLTMoto, cltMotoDailyValue, unionTaxAutoAdded, employee?.admission_date, referenceMonth, readOnly]);
 
   useEffect(() => {
     if (!employee.tangerino_id) return;
+    // Busca ajustes que se sobrepõem ao mês de referência (inclui mês anterior e próximo)
     const [year, month] = referenceMonth.split('-').map(Number);
     const start = `${referenceMonth}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
-
+    
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
+      // Filtra ajustes que se sobrepõem ao mês OU ao mês anterior/próximo
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0);
+      
+      // Expande intervalo para incluir mês anterior e próximo (para capturar faltas que impactam múltiplos períodos)
       const prevMonthStart = new Date(year, month - 2, 1);
       const nextMonthEnd = new Date(year, month + 1, 0);
-
+      
       const overlapping = all.filter(a => {
         const adjStart = new Date(a.start_date);
         const adjEnd = new Date(a.end_date);
         return adjEnd >= prevMonthStart && adjStart <= nextMonthEnd;
       });
-
+      
+      // Expande cada ajuste para cada dia do seu período
       const expanded = [];
       for (const adj of overlapping) {
         const adjStart = new Date(adj.start_date);
         const adjEnd = new Date(adj.end_date);
         let current = new Date(adjStart);
+        
         while (current <= adjEnd) {
-          expanded.push({ ...adj, date: current.toISOString().split('T')[0] });
+          expanded.push({
+            ...adj,
+            date: current.toISOString().split('T')[0],
+          });
           current.setDate(current.getDate() + 1);
         }
       }
-
+      
+      // Filtra apenas dias do mês de referência
       const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
       forMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
+      
       setPointAdjustments(forMonth);
     });
   }, [employee.tangerino_id, referenceMonth]);
 
+  // Carregar CashOuts do colaborador no mês
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
       const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
@@ -205,6 +249,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       const fromCashSecond = toDeduct.filter(c => c.period === 'second').map(c => ({
         id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
       }));
+      // Mescla: mantém manuais já existentes + CashOuts (evita duplicatas por id)
       setFirstDiscounts(prev => {
         const manual = prev.filter(x => !x.fromCashOut);
         return [...manual, ...fromCashFirst];
@@ -216,31 +261,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     });
   }, [employee.id, referenceMonth]);
 
-  // Taxa sindical automática na quinzena de admissão (apenas CLT moto, valor = dailyRate)
-  useEffect(() => {
-    if (!isCLTMoto || readOnly || !employee.admission_date) return;
-    const admMonth = employee.admission_date.slice(0, 7);
-    if (admMonth !== referenceMonth) return;
-    const admDay = parseInt(employee.admission_date.slice(8, 10));
-    const isFirstQ = admDay <= 15;
-    const taxaDesc = 'Taxa Sindical Admissão';
-
-    if (isFirstQ) {
-      setFirstDiscounts(prev => {
-        if (prev.find(x => x.description === taxaDesc)) return prev;
-        return [...prev, { date: employee.admission_date, description: taxaDesc, amount: dailyRate, id: 'taxa-sind-adm', type: 'debit' }];
-      });
-    } else {
-      setSecondDiscounts(prev => {
-        if (prev.find(x => x.description === taxaDesc)) return prev;
-        return [...prev, { date: employee.admission_date, description: taxaDesc, amount: dailyRate, id: 'taxa-sind-adm', type: 'debit' }];
-      });
-    }
-  }, [isCLTMoto, employee.admission_date, referenceMonth, dailyRate]);
-
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
 
+  // Helper para criar props de input numérico com UX melhorada:
+  // - Não sai do campo ao digitar (usa set() em vez de setNum() no onChange)
+  // - Converte para número só no blur
+  // - Permite zerar (mostra "" quando o valor é 0)
   const numericField = useCallback((key) => {
     const externalVal = form[key] ?? 0;
     return {
@@ -255,17 +282,17 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     };
   }, [form, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // crédito reduz o total de desconto, débito aumenta
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
 
+  // Total desconto faltas vindo dos ajustes de ponto (nova estrutura multi-coluna)
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  // Para cálculo, usa o salário efetivo (dias trabalhados × valor dia) no CLT moto
-  const formForCalc = isCLTMoto ? { ...form, base_salary: effectiveSalary } : form;
-
-  const calcForm = { ...formForCalc, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value, first_period_split: firstPeriodSplit };
+  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, union_contribution_value: form.union_contribution_value, first_period_split: firstPeriodSplit };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
+  // Quando net_total = 0, aplica override direto do valor da 1ª base
   const calc = (calcRaw.net_total === 0 && firstBaseOverride !== null)
     ? { ...calcRaw, first_period_base: firstBaseOverride, second_period_base: -firstBaseOverride,
         first_period_net: firstBaseOverride - (form.first_period_advance || 0) - firstDiscountTotal - absenceFirst,
@@ -274,12 +301,16 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
+
+    // 1ª parcela: adiciona ao desconto da quinzena atual
     const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
     if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
     else setSecondDiscounts(prev => [...prev, firstEntry]);
 
+    // Parcelas seguintes: cria CashOuts nos meses posteriores
     for (let i = 1; i < preview.length; i++) {
       const p = preview[i];
+      const [y, m] = p.month.split('-').map(Number);
       const day = isFirst ? 15 : 28;
       const date = `${p.month}-${String(day).padStart(2, '0')}`;
       await base44.entities.CashOut.create({
@@ -294,15 +325,17 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         deduct_from_payroll: true,
       });
     }
+
     setInstallmentDialog(null);
   };
 
   const handleSave = () => {
     onSave({
       ...form,
-      base_salary: effectiveSalary, // salvo o valor efetivo calculado
-      working_days_worked: workingDaysWorked,
       ...calc,
+      base_salary: isCLTMoto ? cltMotoEffectiveSalary : form.base_salary,
+      clt_moto_base_salary: form.clt_moto_base_salary,
+      clt_moto_worked_days: form.clt_moto_worked_days,
       meal_voucher_day_value: form.meal_voucher_day_value,
       meal_voucher_days: form.meal_voucher_days,
       meal_voucher: calc.meal_voucher,
@@ -361,80 +394,72 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 Modo visualização — nenhuma alteração pode ser realizada.
               </div>
             )}
-
-            {/* ── MOTOCICLISTA CLT: Valor Dia + Dias Trabalhados ── */}
+            {/* Salário e Faltas — CLT Moto: campos de dias trabalhados */}
             {isCLTMoto && (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide">Remuneração CLT</p>
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Remuneração</p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label>Salário Base Contratual (R$)</Label>
-                    <Input {...numericField('base_salary')} onBlur={e => { setNum('base_salary', e.target.value); setInssCustomized(false); }} />
-                    <p className="text-xs text-muted-foreground mt-0.5">Piso salarial mensal</p>
+                    <Label>Salário Base Informado (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor do contrato</p>
+                    <Input
+                      type="number" step="any" disabled={readOnly} className="mt-1 font-mono"
+                      value={form.clt_moto_base_salary === 0 ? '' : String(form.clt_moto_base_salary)}
+                      onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_base_salary: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 })); }}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                      placeholder="0,00"
+                    />
                   </div>
                   <div>
                     <Label>Valor Dia (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Salário base ÷ 30</p>
                     <div className="mt-1 px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm font-semibold text-primary">
-                      {formatCurrency(dailyRate)}
+                      {formatCurrency(cltMotoDailyValue)}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Salário ÷ 30</p>
                   </div>
                   <div>
                     <Label>Dias Trabalhados</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {employee?.admission_date?.slice(0,7) === referenceMonth
+                        ? `Auto: 30 - ${parseInt(employee.admission_date.slice(8,10))} = ${defaultWorkedDays}`
+                        : 'Padrão: 30'}
+                    </p>
                     <Input
-                      type="number" step="1" min="1" max="31"
-                      disabled={readOnly}
-                      className="mt-1 font-mono"
-                      value={workingDaysWorkedStr}
-                      onChange={e => {
-                        setWorkingDaysWorkedStr(e.target.value);
-                        const n = parseInt(e.target.value);
-                        if (!isNaN(n)) setWorkingDaysWorked(n);
-                      }}
+                      type="number" step="1" min="1" max="30" disabled={readOnly} className="mt-1 font-mono"
+                      value={form.clt_moto_worked_days === 0 ? '' : String(form.clt_moto_worked_days)}
+                      onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_worked_days: e.target.value === '' ? 30 : parseInt(e.target.value) || 30 })); }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {defaultWorkingDays < 30 && !entry ? <span className="text-amber-600 font-medium">Auto: {defaultWorkingDays} dias (admissão no mês)</span> : 'Padrão: 30 dias'}
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
-                  <span className="text-xs text-muted-foreground">Salário Efetivo = {formatCurrency(dailyRate)} × {workingDaysWorked} dias</span>
-                  <span className="font-mono font-bold text-primary text-lg">{formatCurrency(effectiveSalary)}</span>
+                  <p className="text-xs text-muted-foreground">
+                    Salário Efetivo = {formatCurrency(cltMotoDailyValue)} × {form.clt_moto_worked_days} dias
+                  </p>
+                  <p className="font-mono font-bold text-primary text-lg">{formatCurrency(cltMotoEffectiveSalary)}</p>
                 </div>
               </div>
             )}
 
-            {/* Salário padrão (não CLT moto) */}
-            {!isCLTMoto && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Salário Base / Valor Fixo</Label>
-                  <Input {...numericField('base_salary')} />
-                </div>
-                <div>
-                  <Label>Desconto de Faltas (R$)</Label>
-                  {totalDiscount > 0 ? (
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="flex-1 bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2 font-mono text-sm font-semibold text-destructive">
-                        {formatCurrency(totalDiscount)}
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">via Ajuste de Ponto</span>
+            <div className="grid grid-cols-2 gap-4">
+              {!isCLTMoto && <div>
+                <Label>Salário Base / Valor Fixo</Label>
+                <Input {...numericField('base_salary')} />
+              </div>}
+              <div>
+                <Label>Desconto de Faltas (R$)</Label>
+                {totalDiscount > 0 ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="flex-1 bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2 font-mono text-sm font-semibold text-destructive">
+                      {formatCurrency(totalDiscount)}
                     </div>
-                  ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">Preencha os descontos na aba Ajuste de Ponto</p>
-                  )}
-                </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">via Ajuste de Ponto</span>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">Preencha os descontos na aba Ajuste de Ponto</p>
+                )}
               </div>
-            )}
-
-            {isCLTMoto && totalDiscount > 0 && (
-              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                <span className="text-xs text-destructive font-medium">Desconto de Faltas:</span>
-                <span className="font-mono text-xs font-semibold text-destructive">{formatCurrency(totalDiscount)}</span>
-                <span className="text-xs text-muted-foreground ml-1">— veja aba Ajuste de Ponto</span>
-              </div>
-            )}
+            </div>
 
             <Separator />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Benefícios</p>
@@ -444,6 +469,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </div>
             )}
 
+            {/* Vale Refeição com valor dia + dias */}
             {show('meal_voucher') && <div>
               <Label>Vale Refeição</Label>
               <div className="flex gap-2 mt-1 items-center">
@@ -508,17 +534,17 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Input
                   {...numericField('hazard_pay')}
                   onFocus={(e) => {
-                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === Math.round(effectiveSalary * 0.3 * 100) / 100)) {
-                      const auto = Math.round(effectiveSalary * 0.3 * 100) / 100;
+                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === Math.round(form.base_salary * 0.3 * 100) / 100)) {
+                      const auto = Math.round(form.base_salary * 0.3 * 100) / 100;
                       set('hazard_pay', auto);
                     }
                     setTimeout(() => e.target.select(), 0);
                   }}
                 />
-                {effectiveSalary > 0 && (
+                {form.base_salary > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Auto: {formatCurrency(Math.round(effectiveSalary * 0.3 * 100) / 100)} (30%)
-                    {!readOnly && form.hazard_pay !== Math.round(effectiveSalary * 0.3 * 100) / 100 && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}
+                    Auto: {formatCurrency(Math.round(form.base_salary * 0.3 * 100) / 100)} (30% de {formatCurrency(form.base_salary)})
+                    {!readOnly && form.hazard_pay !== Math.round(form.base_salary * 0.3 * 100) / 100 && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}
                   </p>
                 )}
               </div>}
@@ -569,41 +595,45 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <>
                 <Separator />
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">INSS</p>
+                {isCLTMoto && !inssManuallyEdited && (
+                  <div className="text-xs px-3 py-1.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
+                    % e desconto calculados automaticamente pela tabela do salário efetivo. Edite para personalizar.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>INSS % {isCLTMoto && <span className="text-xs text-primary font-normal">(auto pela tabela)</span>}</Label>
+                    <Label>INSS %</Label>
                     <div className="flex gap-2 mt-1 items-center">
                       <Input
-                        type="number" step="any" disabled={readOnly}
+                        {...numericField('inss_pct')}
                         className="font-mono"
-                        value={form.inss_pct === 0 ? '' : String(form.inss_pct)}
-                        onChange={e => { set('inss_pct', e.target.value); setInssCustomized(true); }}
-                        onBlur={e => { setNum('inss_pct', e.target.value); }}
-                        onFocus={e => setTimeout(() => e.target.select(), 0)}
                         placeholder="% INSS"
+                        onChange={e => { set('inss_pct', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
+                        onBlur={e => { setNum('inss_pct', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
                       />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.inss)}</span>
                     </div>
-                    {isCLTMoto && effectiveSalary > 0 && (
-                      <p className="text-xs text-primary mt-1 font-medium">
-                        {(() => { const a = autoInssFromSalary(effectiveSalary); return `Tabela: ${a.pct}% (desc. ${formatCurrency(a.discount)}) — base ${formatCurrency(effectiveSalary)}`; })()}
+                    {isCLTMoto && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Auto: {calcAutoINSS(cltMotoEffectiveSalary).pct}% — base {formatCurrency(cltMotoEffectiveSalary)}
+                        {inssManuallyEdited && !readOnly && <button className="ml-2 text-primary underline" onClick={() => { const a = calcAutoINSS(cltMotoEffectiveSalary); setForm(f => ({ ...f, inss_pct: a.pct, inss_discount: a.discount })); setInssManuallyEdited(false); }}>Resetar</button>}
                       </p>
                     )}
+                    {!isCLTMoto && <p className="text-xs text-muted-foreground mt-0.5">Deixe 0 para usar tabela progressiva INSS 2026</p>}
                   </div>
                   <div>
                     <Label>Desconto INSS (R$)</Label>
                     <div className="flex gap-2 mt-1 items-center">
                       <Input
-                        type="number" step="any" disabled={readOnly}
+                        {...numericField('inss_discount')}
                         className="font-mono"
-                        value={form.inss_discount === 0 ? '' : String(form.inss_discount)}
-                        onChange={e => { set('inss_discount', e.target.value); setInssCustomized(true); }}
-                        onBlur={e => setNum('inss_discount', e.target.value)}
-                        onFocus={e => setTimeout(() => e.target.select(), 0)}
-                        placeholder="Dedução da tabela"
+                        placeholder="Desconto"
+                        onChange={e => { set('inss_discount', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
+                        onBlur={e => { setNum('inss_discount', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
                       />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">líquido: {formatCurrency(calc.inss_net)}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Líq: {formatCurrency(calc.inss_net)}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Reduz o INSS calculado</p>
                   </div>
                 </div>
               </>
@@ -618,6 +648,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
             </div>
 
+            {/* Detalhe dos descontos entre bruto e líquido */}
             {(() => {
               const items = [];
               if (calc.inss_net > 0) items.push({ label: `INSS${form.inss_discount > 0 ? ` (desc. ${formatCurrency(form.inss_discount)})` : ''}`, value: calc.inss_net });
@@ -625,6 +656,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               if (calc.union_contribution > 0) items.push({ label: 'Contribuição Assistencial', value: calc.union_contribution });
               if (calc.meal_voucher_discount > 0) items.push({ label: `Desconto VR (${form.meal_voucher_discount_pct}%)`, value: calc.meal_voucher_discount });
               if (form.life_insurance > 0) items.push({ label: 'Seguro de Vida', value: form.life_insurance });
+              // Faltas são exibidas nas quinzenas — não entram no bloco de descontos da aba Proventos
               if (items.length === 0) return null;
               const totalDesc = items.reduce((s, i) => s + i.value, 0);
               return (
@@ -654,6 +686,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           </TabsContent>
 
           <TabsContent value="quinzenal" className="space-y-5 mt-4">
+            {/* Rateio editável */}
             <div className="grid grid-cols-2 gap-4">
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
@@ -795,7 +828,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 setAbsenceDiscounts={setAbsenceDiscounts}
                 readOnly={readOnly}
                 isMotocyclist={payrollType === 'MOTOCICLISTA_CLT'}
-                payrollForm={formForCalc}
+                payrollForm={form}
               />
             )}
           </TabsContent>
@@ -803,7 +836,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           <TabsContent value="provisao" className="mt-4">
             <ProvisionCalculator
               items={[
-                { label: 'Salário Base', value: effectiveSalary },
+                { label: 'Salário Base', value: form.base_salary },
                 { label: 'Vale Refeição', value: calc.meal_voucher },
                 { label: 'Vale Alimentação', value: form.food_voucher },
                 { label: 'Vale Transporte', value: form.transport_voucher },
@@ -819,28 +852,26 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
           <TabsContent value="resumo" className="mt-4">
             <div className="space-y-3">
-              {isCLTMoto && (
-                <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Salário ({dailyRate > 0 ? `${formatCurrency(dailyRate)}/dia × ${workingDaysWorked} dias` : '—'})</span>
-                  <span className="font-mono">{formatCurrency(effectiveSalary)}</span>
+              {form.notes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Observação</p>
+                  <p className="text-sm text-amber-800">{form.notes}</p>
                 </div>
               )}
-              {!isCLTMoto && (
-                <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Salário Base</span>
-                  <span className="font-mono">{formatCurrency(form.base_salary)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center py-2 border-b border-border">
+                <span className="text-muted-foreground">Salário Base</span>
+                <span className="font-mono">{formatCurrency(form.base_salary)}</span>
+              </div>
               {calc.absence_discount > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Desc. Faltas</span>
+                  <span className="text-muted-foreground">Desc. Faltas ({form.absences_days}d)</span>
                   <span className="font-mono text-destructive">- {formatCurrency(calc.absence_discount)}</span>
                 </div>
               )}
-              {calc.meal_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Refeição</span><span className="font-mono">{formatCurrency(calc.meal_voucher)}</span></div>}
+              {calc.meal_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Refeição ({form.meal_voucher_days}d × {formatCurrency(form.meal_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.meal_voucher)}</span></div>}
               {show('food_voucher') && form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
               {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
-              {show('km_bonus') && calc.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">KM Adicional</span><span className="font-mono">{formatCurrency(calc.km_bonus)}</span></div>}
+              {show('km_bonus') && calc.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">KM Adicional ({form.km_bonus_qty} km × {formatCurrency(form.km_bonus_value)})</span><span className="font-mono">{formatCurrency(calc.km_bonus)}</span></div>}
               {show('km_bonus') && form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
               {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
               {form.hazard_pay > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Periculosidade</span><span className="font-mono">{formatCurrency(form.hazard_pay)}</span></div>}
@@ -852,7 +883,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </div>
               {employee.contract_type === 'CLT' && <>
                 {calc.inss > 0 && <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-destructive">INSS ({form.inss_pct}%{form.inss_discount > 0 ? `, desc. ${formatCurrency(form.inss_discount)}` : ''})</span>
+                  <span className="text-destructive">INSS{form.inss_discount > 0 ? ` (desc. ${formatCurrency(form.inss_discount)})` : ''}</span>
                   <span className="font-mono text-destructive">- {formatCurrency(calc.inss_net)}</span>
                 </div>}
                 {calc.irrf > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">IRRF</span><span className="font-mono text-destructive">- {formatCurrency(calc.irrf)}</span></div>}
@@ -861,6 +892,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {calc.union_contribution > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Contribuição Assistencial</span><span className="font-mono text-destructive">- {formatCurrency(calc.union_contribution)}</span></div>}
               {calc.meal_voucher_discount > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Desconto VR ({form.meal_voucher_discount_pct}%)</span><span className="font-mono text-destructive">- {formatCurrency(calc.meal_voucher_discount)}</span></div>}
               {form.life_insurance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-destructive">Seguro de Vida</span><span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span></div>}
+
+              {/* Descontos Quinzenais */}
               {(firstDiscounts.length > 0 || form.first_period_advance > 0) && (
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Descontos 1ª Quinzena</p>
@@ -889,6 +922,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   ))}
                 </div>
               )}
+
               <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
                 <span className="font-bold text-lg">Total Líquido</span>
                 <span className="font-mono font-bold text-primary text-xl">{formatCurrency(calc.net_total)}</span>
