@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
-import FinancialGrid from '@/components/reports/FinancialGrid';
+import FinancialGrid from '@/components/reports/FinancialGrid.jsx';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 
 export default function Reports() {
