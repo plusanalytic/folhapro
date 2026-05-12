@@ -186,6 +186,7 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
     }
+    // Aplica desconto da tabela progressiva CLT
     const inssDiscount = Math.min(entry.inss_discount || 0, inss);
     const inssNet = Math.max(0, inss - inssDiscount);
     const fgts = calculateFGTS(salary);

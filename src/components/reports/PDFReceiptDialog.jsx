@@ -76,8 +76,14 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           second_period_net: Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100,
         });
       } else {
+        // Para CLT moto: recalcula salário efetivo a partir de clt_moto_base_salary * dias
+        const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
+        const cltMotoDays = entry?.clt_moto_worked_days ?? 30;
+        const cltMotoDaily = cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * 100) / 100 : 0;
+        const cltMotoEffective = cltMotoBase > 0 ? Math.round(cltMotoDaily * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0);
+        const baseSalaryForCalc = (payrollType === 'MOTOCICLISTA_CLT' && cltMotoBase > 0) ? cltMotoEffective : (entry?.base_salary ?? 0);
         const calcStd = calculatePayroll({
-          base_salary: entry?.base_salary ?? 0,
+          base_salary: baseSalaryForCalc,
           absence_discount: 0,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0, meal_voucher_days: entry?.meal_voucher_days ?? 0,

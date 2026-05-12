@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Save } from 'lucide-react';
-import { formatCurrency, calculateProLabore, getMonthName } from '@/lib/payrollCalculations';
+import { formatCurrency, calculateProLabore, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 
@@ -28,14 +28,33 @@ function NumInput({ value, onChange, disabled, placeholder = '0,00', step = '0.0
   );
 }
 
+function DayInput({ value, onChange, disabled }) {
+  const [raw, setRaw] = useState(null);
+  const display = raw !== null ? raw : (value === 0 ? '' : String(value));
+  return (
+    <Input
+      type="number" step="1" min="0" disabled={disabled}
+      className="font-mono"
+      value={display}
+      onChange={e => setRaw(e.target.value)}
+      onBlur={e => { onChange(parseInt(e.target.value) || 0); setRaw(null); }}
+      onFocus={e => { setRaw(value === 0 ? '' : String(value)); setTimeout(() => e.target.select(), 0); }}
+      placeholder="0"
+    />
+  );
+}
+
 const DEFAULTS = {
   base_salary: 0,
+  working_days_month: 0,
+  working_days_worked: 0,
+  working_days_first: 0,
+  working_days_second: 0,
   quota_adjustment: 0,
   birthday_bonus: 0,
   profit_distribution: 0,
   inss_pct: 11,
   irrf: 0,
-  first_period_advance: 0,
   other_discounts: 0,
   first_discounts: [],
   second_discounts: [],
@@ -43,7 +62,16 @@ const DEFAULTS = {
 };
 
 export default function ProLaboreForm({ employee, entry, referenceMonth, readOnly, onSave, onClose }) {
-  const [form, setForm] = useState({ ...DEFAULTS, company_id: employee.company_id, ...entry });
+  const totalWorkingDays = getWorkingDaysInMonth(referenceMonth);
+  const [form, setForm] = useState({
+    ...DEFAULTS,
+    company_id: employee.company_id,
+    working_days_month: entry?.working_days_month ?? totalWorkingDays,
+    working_days_worked: entry?.working_days_worked ?? totalWorkingDays,
+    working_days_first: entry?.working_days_first ?? 0,
+    working_days_second: entry?.working_days_second ?? 0,
+    ...entry,
+  });
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
@@ -70,6 +98,47 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
     second_period_discount: secondTotal,
   });
 
+  // Remuneração proporcional
+  const diasMes = form.working_days_month || 1;
+  const diasTrabalhados = form.working_days_worked || diasMes;
+  const remuneracao = Math.round((form.base_salary / diasMes) * diasTrabalhados * 100) / 100;
+
+  // Quinzenal split por dias
+  const diasQ1 = form.working_days_first || 0;
+  const diasQ2 = form.working_days_second || 0;
+  const totalQDias = diasQ1 + diasQ2 || 1;
+  const splitFirst = diasQ1 / totalQDias;
+  const splitSecond = diasQ2 / totalQDias;
+  const firstBase = Math.round(calc.net_labore * splitFirst * 100) / 100;
+  const secondBase = Math.round(calc.net_labore * splitSecond * 100) / 100;
+  const firstPeriodNet = Math.round((firstBase - firstTotal) * 100) / 100;
+  const secondPeriodNet = Math.round((secondBase + form.profit_distribution - form.other_discounts - secondTotal) * 100) / 100;
+
+  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
+    const isFirst = installmentDialog === 'first';
+    const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
+    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
+    else setSecondDiscounts(prev => [...prev, firstEntry]);
+
+    for (let i = 1; i < preview.length; i++) {
+      const p = preview[i];
+      const day = isFirst ? 15 : 28;
+      const date = `${p.month}-${String(day).padStart(2, '0')}`;
+      await base44.entities.CashOut.create({
+        employee_id: employee.id,
+        company_id: employee.company_id,
+        date,
+        description: `${description} (${i + 1}/${installments})`,
+        amount: installmentValue,
+        reference_month: p.month,
+        period: isFirst ? 'first' : 'second',
+        notes: `Parcela gerada automaticamente`,
+        deduct_from_payroll: true,
+      });
+    }
+    setInstallmentDialog(null);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     const payload = {
@@ -82,9 +151,14 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
       net_total:              calc.net_total,
       inss:                   calc.inss,
       irrf:                   calc.irrf,
-      // Store quinzenal nets for PDF
-      first_period_net:  Math.round((calc.net_labore / 2) * 100) / 100,
-      second_period_net: Math.round(((calc.net_labore / 2) + calc.profit_distribution - form.first_period_advance - form.other_discounts - firstTotal - secondTotal) * 100) / 100,
+      working_days_month:     form.working_days_month,
+      working_days_worked:    form.working_days_worked,
+      working_days_first:     form.working_days_first,
+      working_days_second:    form.working_days_second,
+      first_period_net:       firstPeriodNet,
+      second_period_net:      secondPeriodNet,
+      first_period_base:      firstBase,
+      second_period_base:     secondBase,
     };
     await onSave(payload);
     setSaving(false);
@@ -121,11 +195,34 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
               )}
 
               <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Remuneração</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Valor Base (R$)</Label>
+                    <NumInput value={form.base_salary} disabled={readOnly} onChange={v => set('base_salary', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Dias Úteis no Mês</Label>
+                    <DayInput value={form.working_days_month} disabled={readOnly} onChange={v => set('working_days_month', v)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Dias Úteis Trabalhados</Label>
+                    <DayInput value={form.working_days_worked} disabled={readOnly} onChange={v => set('working_days_worked', v)} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Remuneração = ({formatCurrency(form.base_salary)} ÷ {diasMes}) × {diasTrabalhados} dias
+                  </p>
+                  <p className="font-mono font-bold text-primary text-lg">{formatCurrency(remuneracao)}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Pró-Labore Base (R$)</Label>
-                    <NumInput value={form.base_salary} disabled={readOnly} onChange={v => set('base_salary', v)} />
+                  <div className="hidden">
+                    {/* base_salary mantido para compatibilidade */}
                   </div>
                   <div>
                     <Label className="text-xs">Reajuste de Cota (R$)</Label>
@@ -171,24 +268,56 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
 
             {/* ── Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Adiantamento 1ª Quinzena (R$)</Label>
-                  <NumInput value={form.first_period_advance} disabled={readOnly} onChange={v => set('first_period_advance', v)} />
+              {/* Rateio por dias úteis */}
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dias Úteis por Quinzena — Rateio da Remuneração</p>
+                <p className="text-xs text-muted-foreground">Referência: {form.working_days_worked} dias trabalhados. Edite livremente.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
+                    <DayInput value={form.working_days_first} disabled={readOnly} onChange={v => set('working_days_first', v)} />
+                  </div>
+                  <div>
+                    <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
+                    <DayInput value={form.working_days_second} disabled={readOnly} onChange={v => set('working_days_second', v)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Base 1ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{diasQ1}/{diasQ1 + diasQ2} dias ({Math.round(splitFirst * 100)}%)</p>
+                    </div>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(firstBase)}</p>
+                  </div>
+                  <div className="bg-primary/10 rounded-lg px-4 py-2 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Base 2ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{diasQ2}/{diasQ1 + diasQ2} dias ({Math.round(splitSecond * 100)}%)</p>
+                    </div>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(secondBase)}</p>
+                  </div>
                 </div>
               </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3 border border-border rounded-xl p-4">
-                  <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(firstBase)}</span>
+                  </div>
                   <p className="text-xs font-medium text-muted-foreground">Descontos / Créditos</p>
                   <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(Math.round((calc.net_labore / 2 - form.first_period_advance - firstTotal) * 100) / 100)}</p>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(firstPeriodNet)}</p>
                   </div>
                 </div>
                 <div className="space-y-3 border border-border rounded-xl p-4">
-                  <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(secondBase)}</span>
+                  </div>
                   {form.profit_distribution > 0 && (
                     <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
                       <span className="text-xs text-secondary font-medium">+ Distribuição de Lucros</span>
@@ -199,7 +328,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                   <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
                   <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">Á Receber 2ª Quinzena</p>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(Math.round((calc.net_labore / 2 + form.profit_distribution - form.other_discounts - secondTotal) * 100) / 100)}</p>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(secondPeriodNet)}</p>
                   </div>
                 </div>
               </div>
@@ -252,12 +381,10 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
 
         {installmentDialog && (
           <InstallmentDialog
+            open={!!installmentDialog}
             period={installmentDialog}
-            onAdd={(item) => {
-              if (installmentDialog === 'first') setFirstDiscounts(p => [...p, item]);
-              else setSecondDiscounts(p => [...p, item]);
-              setInstallmentDialog(null);
-            }}
+            referenceMonth={referenceMonth}
+            onConfirm={handleInstallmentConfirm}
             onClose={() => setInstallmentDialog(null)}
           />
         )}

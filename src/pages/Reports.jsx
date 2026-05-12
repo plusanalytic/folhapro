@@ -12,21 +12,30 @@ import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 export default function Reports() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [workplaces, setWorkplaces] = useState([]);
+  const [jobRoles, setJobRoles] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [receiptType, setReceiptType] = useState(null);
 
   const load = async () => {
-    const [e, c, p] = await Promise.all([
+    const [e, c, w, jr, p, pay] = await Promise.all([
       base44.entities.Employee.list(),
       base44.entities.Company.list(),
+      base44.entities.Workplace.list(),
+      base44.entities.JobRole.list(),
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
+      base44.entities.PayrollPayment.filter({ reference_month: selectedMonth }),
     ]);
     setEmployees(e.filter(x => x.is_active !== false));
     setCompanies(c.filter(x => x.is_active !== false));
+    setWorkplaces(w);
+    setJobRoles(jr);
     setEntries(p);
+    setPayments(pay);
   };
 
   useEffect(() => { load(); }, [selectedMonth]);
@@ -71,6 +80,9 @@ export default function Reports() {
         entries={filteredEntries}
         employees={employees}
         companies={companies}
+        jobRoles={jobRoles}
+        workplaces={workplaces}
+        payments={payments}
         selectedMonth={selectedMonth}
         onGenerateReceipt={(emp, type) => { setSelectedEmployee(emp); setReceiptType(type); }}
       />

@@ -1,0 +1,57 @@
+{
+  "name": "PaymentStatus",
+  "type": "object",
+  "properties": {
+    "payroll_entry_id": {
+      "type": "string",
+      "description": "ID do lan\u00e7amento de folha"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID do colaborador"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "reference_month": {
+      "type": "string",
+      "description": "M\u00eas de refer\u00eancia (YYYY-MM)"
+    },
+    "status_q1": {
+      "type": "string",
+      "enum": [
+        "PENDENTE",
+        "AGENDADO",
+        "PAGO",
+        "BLOQUEADO"
+      ],
+      "default": "PENDENTE",
+      "description": "Status do pagamento da 1\u00aa quinzena"
+    },
+    "obs_q1": {
+      "type": "string",
+      "description": "Observa\u00e7\u00e3o da 1\u00aa quinzena"
+    },
+    "status_q2": {
+      "type": "string",
+      "enum": [
+        "PENDENTE",
+        "AGENDADO",
+        "PAGO",
+        "BLOQUEADO"
+      ],
+      "default": "PENDENTE",
+      "description": "Status do pagamento da 2\u00aa quinzena"
+    },
+    "obs_q2": {
+      "type": "string",
+      "description": "Observa\u00e7\u00e3o da 2\u00aa quinzena"
+    }
+  },
+  "required": [
+    "payroll_entry_id",
+    "employee_id",
+    "reference_month"
+  ]
+}
