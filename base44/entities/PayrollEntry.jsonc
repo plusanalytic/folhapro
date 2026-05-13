@@ -18,6 +18,21 @@
       "type": "number",
       "description": "Sal\u00e1rio base / Piso salarial / Pr\u00f3-Labore base"
     },
+    "clt_moto_base_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "CLT Moto: sal\u00e1rio base do contrato (valor mensal cheio)"
+    },
+    "clt_moto_worked_days": {
+      "type": "number",
+      "default": 30,
+      "description": "CLT Moto: dias trabalhados no m\u00eas (0\u201330)"
+    },
+    "clt_moto_effective_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "CLT Moto: sal\u00e1rio efetivo calculado (base/30 \u00d7 dias)"
+    },
     "working_days_month": {
       "type": "number",
       "default": 0
