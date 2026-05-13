@@ -124,7 +124,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4. Deleta os órfãos em lotes
+    // 4. Coleta employee_ids afetados ANTES de deletar
+    const affectedEmployeeIds = new Set(toDelete.map(r => r.employee_id).filter(Boolean));
+
+    // 5. Deleta os órfãos em lotes
     const BATCH = 50;
     let deleted = 0;
     let errors = 0;
@@ -144,6 +147,17 @@ Deno.serve(async (req) => {
 
     console.log(`[cleanup] Concluído. Deletados: ${deleted}, Erros: ${errors}`);
 
+    // 6. Aciona recálculo de descontos de faltas para os colaboradores afetados
+    if (affectedEmployeeIds.size > 0) {
+      console.log(`[cleanup] Acionando recálculo para ${affectedEmployeeIds.size} colaborador(es) afetados...`);
+      try {
+        await base44.asServiceRole.functions.invoke('recalcAbsenceDiscounts', { scheduled: true, full: true });
+        console.log('[cleanup] Recálculo acionado com sucesso.');
+      } catch (e) {
+        console.error('[cleanup] Erro ao acionar recálculo:', e.message);
+      }
+    }
+
     return Response.json({
       success: true,
       tangerino_active: tangerinoIds.size,
@@ -151,6 +165,7 @@ Deno.serve(async (req) => {
       orphans_found: toDelete.length,
       deleted,
       errors,
+      recalc_triggered: affectedEmployeeIds.size > 0,
     });
 
   } catch (error) {
