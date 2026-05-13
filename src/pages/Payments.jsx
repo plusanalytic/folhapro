@@ -40,10 +40,10 @@ function InlineObs({ value, onSave, disabled }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
 
-  if (disabled) return <span className="text-xs text-muted-foreground block w-full" title={value || ''}>{value || '—'}</span>;
+  if (disabled) return <span className="text-xs text-muted-foreground block w-full text-center" title={value || ''}>{value || '—'}</span>;
   if (!editing) return (
     <span
-      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline block w-full"
+      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline block w-full text-center"
       onClick={() => { setDraft(value || ''); setEditing(true); }}
       title={value || 'Clique para adicionar observação'}
     >
