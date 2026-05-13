@@ -53,7 +53,8 @@ function InlineObs({ value, onSave, disabled }) {
   return (
     <input
       autoFocus
-      className="text-xs border border-primary rounded px-2 py-1 w-full"
+      className="text-xs border border-primary rounded px-2 py-1 w-full min-w-0 block"
+      style={{ boxSizing: 'border-box' }}
       value={draft}
       onChange={e => setDraft(e.target.value)}
       onBlur={() => { onSave(draft); setEditing(false); }}
@@ -270,20 +271,20 @@ export default function Payments() {
       </div>
 
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1300px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1460px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
             <col style={{ width: '90px' }} />
             <col style={{ width: '130px' }} />
-            <col style={{ width: '120px' }} />
             <col style={{ width: '110px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '180px' }} />
-            <col style={{ width: '120px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '200px' }} />
+            <col style={{ width: '130px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '110px' }} />
-            <col style={{ width: '180px' }} />
-            <col style={{ width: '120px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '200px' }} />
+            <col style={{ width: '130px' }} />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b border-border">
@@ -327,7 +328,7 @@ export default function Payments() {
                       disabled={isPago1}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q1 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q1', v)}
@@ -346,7 +347,7 @@ export default function Payments() {
                       disabled={isPago2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q2 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q2', v)}
