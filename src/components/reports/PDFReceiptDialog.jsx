@@ -76,13 +76,15 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           second_period_net: Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100,
         });
       } else {
-        // Para CLT moto: recalcula salário efetivo a partir de clt_moto_base_salary * dias
+        // Para CLT moto: usa clt_moto_effective_salary salvo, ou recalcula a partir dos campos salvos
         const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
-        const cltMotoDays = entry?.clt_moto_worked_days ?? 30;
+        const cltMotoDays = entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : 30;
         const cltMotoDaily = cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * 100) / 100 : 0;
-        const cltMotoEffective = cltMotoBase > 0 ? Math.round(cltMotoDaily * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0);
-        // Usa base_salary salvo (que já contém o valor efetivo calculado no form) — clt_moto campos são apenas para recalculo de emergência
-        const baseSalaryForCalc = entry?.base_salary ?? 0;
+        const cltMotoEffective = entry?.clt_moto_effective_salary
+          ?? (cltMotoBase > 0 ? Math.round(cltMotoDaily * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0));
+        // Para CLT moto usa o salário efetivo; para outros usa base_salary
+        const isCLTMotoPayroll = payrollType === 'MOTOCICLISTA_CLT';
+        const baseSalaryForCalc = isCLTMotoPayroll ? cltMotoEffective : (entry?.base_salary ?? 0);
         const calcStd = calculatePayroll({
           base_salary: baseSalaryForCalc,
           absence_discount: 0,

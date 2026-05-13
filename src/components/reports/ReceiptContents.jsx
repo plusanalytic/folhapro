@@ -81,8 +81,15 @@ export function MotoReceiptContent({ employee, entry, month }) {
 // ─── Holerite CLT (Motociclista / padrão) ─────────────────────────────────────
 export function HoleriteContent({ employee, entry, month, company }) {
   const isCLT = employee.contract_type === 'CLT';
+  // Para CLT moto: usa salário efetivo salvo, ou recalcula a partir dos campos clt_moto_*
+  const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
+  const cltMotoDays = entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : 30;
+  const cltMotoEffective = entry?.clt_moto_effective_salary
+    ?? (cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0));
+  const effectiveBaseSalary = cltMotoBase > 0 ? cltMotoEffective : (entry?.base_salary ?? 0);
+
   const calc = calculatePayroll({
-    base_salary:               entry?.base_salary ?? 0,
+    base_salary:               effectiveBaseSalary,
     absence_discount:          0,
     absence_discount_first:    entry?.absence_discount_first ?? 0,
     absence_discount_second:   entry?.absence_discount_second ?? 0,
@@ -108,7 +115,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
     second_period_discount:    entry?.second_period_discount ?? 0,
   }, employee.contract_type, null);
 
-  const baseSalary    = entry?.base_salary ?? 0;
+  const baseSalary    = effectiveBaseSalary;
   const mealVDays     = entry?.meal_voucher_days ?? 0;
   const mealVDay      = entry?.meal_voucher_day_value ?? 0;
   const foodVoucher   = entry?.food_voucher ?? 0;
@@ -137,7 +144,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
   const monthName = getMonthName(month);
 
   const proventos = [
-    { label: 'Salário Base', value: baseSalary, show: true },
+    { label: cltMotoBase > 0 ? `Salário Efetivo (${cltMotoDays}/30 dias)` : 'Salário Base', value: baseSalary, show: true },
     { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
     { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
     { label: 'Vale Transporte', value: transport, show: transport > 0 },
