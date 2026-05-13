@@ -2,9 +2,9 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Link2, MapPin, RefreshCw } from 'lucide-react';
+import { Link2, MapPin, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ function StableInput({ value, onChange, placeholder, className = '' }) {
   );
 }
 
-export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload }) {
+export default function EmployeeForm({ employee, companies, workplaces = [], jobRoles = [], onSave, onClose, onReload, onDeleted }) {
   const detectPixKeyType = (key) => {
     if (!key) return '';
     const cleaned = key.replace(/\D/g, '');
@@ -42,6 +42,40 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
   });
   const [syncingWP, setSyncingWP] = useState(false);
   const [localWorkplaceList, setLocalWorkplaceList] = useState(employee?.workplace_list ?? []);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  const isManual = !employee?.tangerino_id;
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      // Verificar se tem folhas de pagamento
+      const payrolls = await base44.entities.PayrollEntry.filter({ employee_id: employee.id });
+      if (payrolls.length > 0) {
+        setDeleteError(`Este colaborador possui ${payrolls.length} lançamento(s) de folha de pagamento. Remova os lançamentos antes de excluir.`);
+        setDeleting(false);
+        return;
+      }
+      // Verificar se tem saídas de caixa
+      const cashouts = await base44.entities.CashOut.filter({ employee_id: employee.id });
+      if (cashouts.length > 0) {
+        setDeleteError(`Este colaborador possui ${cashouts.length} lançamento(s) de saída de caixa. Remova os lançamentos antes de excluir.`);
+        setDeleting(false);
+        return;
+      }
+      // Excluir
+      await base44.entities.Employee.delete(employee.id);
+      toast.success(`Colaborador "${employee.name}" excluído com sucesso.`);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      setDeleteError('Erro ao excluir colaborador. Tente novamente.');
+      setDeleting(false);
+    }
+  };
 
   // Atualização atômica — evita dois setState em sequência (que causaria remount dos inputs)
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
@@ -229,12 +263,50 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
         </Tabs>
 
         <div className="flex gap-3 pt-2">
+          {isManual && (
+            <Button
+              variant="outline"
+              className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1.5"
+              onClick={() => { setDeleteError(null); setDeleteConfirm(true); }}
+            >
+              <Trash2 className="w-4 h-4" /> Excluir
+            </Button>
+          )}
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1" onClick={() => onSave({ ...employee, ...form })}>
             Salvar Dados Bancários
           </Button>
         </div>
       </DialogContent>
+
+      {/* Dialog de confirmação de exclusão */}
+      {deleteConfirm && (
+        <Dialog open onOpenChange={() => setDeleteConfirm(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" /> Excluir Colaborador
+              </DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir <strong>{employee?.name}</strong>? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            {deleteError && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 text-sm text-destructive">
+                {deleteError}
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setDeleteConfirm(false)} disabled={deleting}>Cancelar</Button>
+              {!deleteError && (
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }

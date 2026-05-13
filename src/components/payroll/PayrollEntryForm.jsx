@@ -349,7 +349,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       base_salary: form.clt_moto_base_salary > 0 && isCLTMoto ? form.clt_moto_base_salary : form.base_salary,
       clt_moto_effective_salary: isCLTMoto ? cltMotoEffectiveSalary : undefined,
       clt_moto_base_salary: form.clt_moto_base_salary,
-      clt_moto_worked_days: form.clt_moto_worked_days,
+      clt_moto_worked_days: parseInt(form.clt_moto_worked_days) || 0,
       meal_voucher_day_value: form.meal_voucher_day_value,
       meal_voucher_days: form.meal_voucher_days,
       meal_voucher: calc.meal_voucher,
@@ -436,7 +436,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     </div>
                   </div>
                   <div>
-                    <Label>Dias Trabalhados</Label>
+                    <Label>Dias Trabalhados (0–30)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {employee?.admission_date?.slice(0,7) === referenceMonth
                         ? `Auto: 30 - ${parseInt(employee.admission_date.slice(8,10))} = ${defaultWorkedDays}`
@@ -444,8 +444,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     </p>
                     <Input
                       type="number" step="1" min="0" max="30" disabled={readOnly} className="mt-1 font-mono"
-                      value={form.clt_moto_worked_days === 0 ? '' : String(form.clt_moto_worked_days)}
-                      onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_worked_days: e.target.value === '' ? 0 : parseInt(e.target.value) ?? 0 })); }}
+                      value={form.clt_moto_worked_days_str ?? String(form.clt_moto_worked_days)}
+                      onChange={e => {
+                        if (!readOnly) {
+                          const str = e.target.value;
+                          const num = str === '' ? 0 : Math.min(30, Math.max(0, parseInt(str) || 0));
+                          setForm(f => ({ ...f, clt_moto_worked_days: num, clt_moto_worked_days_str: str }));
+                        }
+                      }}
+                      onBlur={e => {
+                        const num = Math.min(30, Math.max(0, parseInt(e.target.value) || 0));
+                        setForm(f => ({ ...f, clt_moto_worked_days: num, clt_moto_worked_days_str: String(num) }));
+                      }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                   </div>

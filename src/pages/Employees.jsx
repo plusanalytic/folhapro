@@ -342,6 +342,7 @@ export default function Employees() {
           onSave={handleSave}
           onReload={load}
           onClose={() => { setShowForm(false); setEditing(null); }}
+          onDeleted={() => { setShowForm(false); setEditing(null); load(); }}
         />
       )}
 
