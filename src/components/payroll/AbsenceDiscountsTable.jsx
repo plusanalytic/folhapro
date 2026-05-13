@@ -70,7 +70,7 @@ function calcBaseValues(payrollForm) {
   const motoRental = parseFloat(payrollForm?.motorcycle_rental) || 0;
   const hazardPay = parseFloat(payrollForm?.hazard_pay) || 0;
 
-  const daily = baseSalary > 0 ? Math.round((baseSalary / 30) * 100) / 100 : 0;
+  const daily = baseSalary > 0 ? Math.round((baseSalary / 30) * 10000) / 10000 : 0;
   const dsr = daily;
   const vr = vrPerDay;
   const vt = vtPerDay > 0
@@ -129,6 +129,12 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
       absenceRows.forEach(a => {
         const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
         const existing = prev[key];
+        // Domingo nunca gera desconto
+        const dow = a.date ? new Date(a.date + 'T00:00:00').getDay() : -1;
+        if (dow === 0) {
+          next[key] = { daily: 0, vt: 0, vr: 0, dsr: 0, moto: 0, hazard: 0, _sunday: true };
+          return;
+        }
         // Só auto-preenche se: nunca preenchido OU totalmente zerado E não foi editado manualmente
         const isBlank = !existing || rowTotal(existing) === 0;
         const wasManuallyEdited = existing?._manual === true;
@@ -160,8 +166,14 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
   };
 
   // Recalcula automaticamente uma linha específica (reseta flag manual)
-  const recalcRow = (key, reasonId) => {
+  // Domingo nunca gera desconto
+  const recalcRow = (key, reasonId, date) => {
     if (readOnly || !payrollForm) return;
+    const dow = date ? new Date(date + 'T00:00:00').getDay() : -1;
+    if (dow === 0) {
+      setAbsenceDiscounts(prev => ({ ...prev, [key]: { daily: 0, vt: 0, vr: 0, dsr: 0, moto: 0, hazard: 0, _sunday: true } }));
+      return;
+    }
     setAbsenceDiscounts(prev => ({
       ...prev,
       [key]: { ...calcAutoForReason(reasonId, payrollForm, isMotocyclist), _manual: false },
@@ -178,6 +190,11 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
   );
 
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+  const DOW_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const getDow = (d) => {
+    if (!d) return null;
+    return new Date(d + 'T00:00:00').getDay(); // 0=Dom ... 6=Sáb
+  };
 
   const absenceRows = pointAdjustments.filter(a => ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id)));
   const otherRows = pointAdjustments.filter(a => !ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id)));
@@ -205,6 +222,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           <thead>
             <tr className="bg-muted/40 border-b border-border">
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Data</th>
+              <th className="text-left px-2 py-2 font-medium text-muted-foreground">Dia</th>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Motivo</th>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Obs.</th>
               <th className="text-center px-3 py-2 font-medium text-muted-foreground">D. Int.</th>
@@ -226,9 +244,17 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
                const total = rowTotal(absenceDiscounts[key]);
                const isManual = absenceDiscounts[key]?._manual === true;
+              const dow = getDow(a.date || a.start_date);
+              const isSunday = dow === 0;
               return (
-                <tr key={`${a.id}-${a.date || a.start_date}`} className={`border-b border-border last:border-0 ${isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
+                <tr key={`${a.id}-${a.date || a.start_date}`} className={`border-b border-border last:border-0 ${isSunday ? 'bg-muted/20 opacity-60' : isAbsence ? 'bg-destructive/5' : (i % 2 === 0 ? '' : 'bg-muted/10')}`}>
                   <td className="px-3 py-2 font-mono whitespace-nowrap">{fmtDate(a.date || a.start_date)}</td>
+                  <td className="px-2 py-2 text-xs font-medium whitespace-nowrap">
+                    <span className={isSunday ? 'text-muted-foreground line-through' : dow === 6 ? 'text-amber-600' : 'text-foreground'}>
+                      {dow !== null ? DOW_LABELS[dow] : '—'}
+                    </span>
+                    {isSunday && <span className="ml-1 text-[10px] text-muted-foreground">(sem desc.)</span>}
+                  </td>
                   <td className="px-3 py-2">
                     <Badge variant={isAbsence ? 'destructive' : 'outline'} className="text-xs font-normal whitespace-nowrap">
                       {a.adjustment_reason_description || '—'}
@@ -241,9 +267,16 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                     {a.full_day ? <span className="text-destructive font-semibold">Sim</span> : <span className="text-muted-foreground">Não</span>}
                   </td>
 
-                  {isAbsence ? (
+                  {isAbsence && isSunday ? (
                     <>
-                      <td className="px-2 py-1.5">{renderCell(key, 'daily')}</td>
+                      <td className="px-2 py-2 text-center text-muted-foreground text-xs" colSpan={isMotocyclist ? (readOnly ? 6 : 7) : (readOnly ? 4 : 5)}>
+                        Domingo — sem desconto
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-muted-foreground bg-muted/30">—</td>
+                    </>
+                  ) : isAbsence ? (
+                     <>
+                       <td className="px-2 py-1.5">{renderCell(key, 'daily')}</td>
                       <td className="px-2 py-1.5">{renderCell(key, 'vt')}</td>
                       <td className="px-2 py-1.5">{renderCell(key, 'vr')}</td>
                       <td className="px-2 py-1.5">{renderCell(key, 'dsr')}</td>
@@ -259,7 +292,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                             size="icon"
                             className={`h-7 w-7 ${isManual ? 'text-amber-500 hover:text-primary' : 'text-muted-foreground hover:text-primary'}`}
                             title={isManual ? 'Editado manualmente — clique para recalcular automaticamente' : 'Recalcular automaticamente'}
-                            onClick={() => recalcRow(key, a.adjustment_reason_id)}
+                            onClick={() => recalcRow(key, a.adjustment_reason_id, a.date)}
                           >
                             <Wand2 className="w-3.5 h-3.5" />
                           </Button>
@@ -270,6 +303,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                       </td>
                     </>
                   ) : (
+                    // Linha não é falta (ajuste informativo)
                     <>
                       <td className="px-2 py-2 text-center text-muted-foreground">—</td>
                       <td className="px-2 py-2 text-center text-muted-foreground">—</td>
@@ -290,7 +324,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           {absenceRows.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 border-t-2 border-border font-semibold">
-                <td colSpan={isMotocyclist ? (readOnly ? 8 : 9) : (readOnly ? 6 : 7)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
+                <td colSpan={isMotocyclist ? (readOnly ? 9 : 10) : (readOnly ? 7 : 8)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
                   Total Desconto Faltas
                 </td>
                 <td className="px-3 py-2 text-right font-mono text-destructive">

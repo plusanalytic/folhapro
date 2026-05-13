@@ -124,7 +124,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   });
 
   // Para CLT moto: base_salary efetivo = (clt_moto_base_salary / 30) * clt_moto_worked_days
-  const cltMotoDailyValue = isCLTMoto ? Math.round((form.clt_moto_base_salary / 30) * 100) / 100 : 0;
+  // Valor dia usa 4 casas decimais para evitar erro de arredondamento no salário efetivo
+  const cltMotoDailyValue = isCLTMoto ? Math.round((form.clt_moto_base_salary / 30) * 10000) / 10000 : 0;
   const cltMotoEffectiveSalary = isCLTMoto
     ? Math.round(cltMotoDailyValue * form.clt_moto_worked_days * 100) / 100
     : form.base_salary;
@@ -146,7 +147,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const [unionTaxAutoAdded, setUnionTaxAutoAdded] = useState(false);
   // Guarda o valor dia confirmado (após blur) para não disparar antes do usuário confirmar
   const [confirmedDailyValue, setConfirmedDailyValue] = useState(
-    entry?.clt_moto_base_salary > 0 ? Math.round((entry.clt_moto_base_salary / 30) * 100) / 100 : 0
+    entry?.clt_moto_base_salary > 0 ? Math.round((entry.clt_moto_base_salary / 30) * 10000) / 10000 : 0
   );
 
   // Descontos quinzenais (lista de {date, description, amount, id})
@@ -177,14 +178,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     const admDay = parseInt(employee.admission_date.slice(8, 10), 10);
     const isFirstQ = admDay <= 15;
     const alreadyHas = (isFirstQ ? firstDiscounts : secondDiscounts).some(d =>
-      d.description && d.description.toLowerCase().includes('taxa sindical')
+      d.description && (d.description.toLowerCase().includes('taxa sindical') || d.description.toLowerCase().includes('contribuição sindical'))
     );
     if (alreadyHas) { setUnionTaxAutoAdded(true); return; }
     // Aguarda o valor dia confirmado (após o usuário sair do campo)
     if (confirmedDailyValue <= 0) return;
     const taxEntry = {
       date: employee.admission_date,
-      description: 'Taxa Sindical (Admissão)',
+      description: 'Contribuição Sindical',
       amount: confirmedDailyValue,
       type: 'debit',
       id: Date.now(),
@@ -235,7 +236,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       
       // Filtra apenas dias do mês de referência
       const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
-      forMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
+      forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       
       setPointAdjustments(forMonth);
     });
@@ -424,7 +425,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_base_salary: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 })); }}
                       onBlur={e => {
                         const v = parseFloat(e.target.value) || 0;
-                        setConfirmedDailyValue(Math.round((v / 30) * 100) / 100);
+                        setConfirmedDailyValue(Math.round((v / 30) * 10000) / 10000);
                       }}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                       placeholder="0,00"
@@ -434,7 +435,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>Valor Dia (R$)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Salário base ÷ 30</p>
                     <div className="mt-1 px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm font-semibold text-primary">
-                      {formatCurrency(cltMotoDailyValue)}
+                      {cltMotoDailyValue.toFixed(4).replace('.', ',')}
                     </div>
                   </div>
                   <div>
@@ -464,7 +465,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
                   <p className="text-xs text-muted-foreground">
-                    Salário Efetivo = {formatCurrency(cltMotoDailyValue)} × {form.clt_moto_worked_days} dias
+                    Salário Efetivo = R$ {cltMotoDailyValue.toFixed(4).replace('.', ',')} × {form.clt_moto_worked_days} dias
                   </p>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(cltMotoEffectiveSalary)}</p>
                 </div>

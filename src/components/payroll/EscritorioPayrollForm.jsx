@@ -140,7 +140,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       
       // Filtra apenas dias do mês de referência
       const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
-      forMonth.sort((a, b) => (a.adjustment_reason_description || '').localeCompare(b.adjustment_reason_description || '', 'pt-BR'));
+      forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       
       setPointAdjustments(forMonth);
     });
