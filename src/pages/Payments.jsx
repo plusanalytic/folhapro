@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, CreditCard } from 'lucide-react';
+import { Search, CreditCard, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
 
 const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO'];
 const STATUS_COLORS = {
@@ -32,10 +40,10 @@ function InlineObs({ value, onSave, disabled }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
 
-  if (disabled) return <span className="text-xs text-muted-foreground">{value || '—'}</span>;
+  if (disabled) return <span className="text-xs text-muted-foreground block w-full" title={value || ''}>{value || '—'}</span>;
   if (!editing) return (
     <span
-      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline truncate block max-w-[120px]"
+      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline block w-full"
       onClick={() => { setDraft(value || ''); setEditing(true); }}
       title={value || 'Clique para adicionar observação'}
     >
@@ -45,7 +53,7 @@ function InlineObs({ value, onSave, disabled }) {
   return (
     <input
       autoFocus
-      className="text-xs border border-primary rounded px-2 py-1 w-32"
+      className="text-xs border border-primary rounded px-2 py-1 w-full"
       value={draft}
       onChange={e => setDraft(e.target.value)}
       onBlur={() => { onSave(draft); setEditing(false); }}
@@ -66,6 +74,8 @@ export default function Payments() {
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [search, setSearch] = useState('');
+  const [filterStatusQ1, setFilterStatusQ1] = useState('all');
+  const [filterStatusQ2, setFilterStatusQ2] = useState('all');
   const [saving, setSaving] = useState({});
 
   const load = async () => {
@@ -125,15 +135,43 @@ export default function Payments() {
     months.push(d.toISOString().slice(0, 7));
   }
 
+  const exportXLSX = () => {
+    const rows = sortedEntries.map(entry => {
+      const emp = getEmployee(entry.employee_id);
+      const ps = getPayStatus(entry.id);
+      return {
+        'Colaborador': emp?.name || '—',
+        'Admissão': formatDate(emp?.admission_date),
+        'Cargo': getJobRoleName(emp),
+        'Local': getWorkplaceNames(emp),
+        '1ª Quinzena - Á Receber': entry.first_period_net || 0,
+        '1ª Quinzena - Status': ps?.status_q1 || 'PENDENTE',
+        '1ª Quinzena - OBS': ps?.obs_q1 || '',
+        '1ª Quinzena - Banco/PIX': emp?.pix_key || emp?.bank_account || '',
+        '2ª Quinzena - Á Receber': entry.second_period_net || 0,
+        '2ª Quinzena - Status': ps?.status_q2 || 'PENDENTE',
+        '2ª Quinzena - OBS': ps?.obs_q2 || '',
+        '2ª Quinzena - Banco/PIX': emp?.pix_key || emp?.bank_account || '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pagamentos');
+    XLSX.writeFile(wb, `pagamentos_${selectedMonth}.xlsx`);
+  };
+
   // Somente folhas fechadas
   const filteredEntries = entries.filter(entry => {
     const emp = getEmployee(entry.employee_id);
     if (!emp) return false;
+    const ps = getPayStatus(entry.id);
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
-    return matchSearch && matchCompany && matchJobRole && matchWorkplace;
+    const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
+    const matchStatusQ2 = filterStatusQ2 === 'all' || (ps?.status_q2 || 'PENDENTE') === filterStatusQ2;
+    return matchSearch && matchCompany && matchJobRole && matchWorkplace && matchStatusQ1 && matchStatusQ2;
   });
 
   const sortedEntries = [...filteredEntries].sort((a, b) => {
@@ -189,6 +227,20 @@ export default function Payments() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterStatusQ1} onValueChange={setFilterStatusQ1}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Status 1ª Q" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Status 1ª Quinzena</SelectItem>
+            {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatusQ2} onValueChange={setFilterStatusQ2}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Status 2ª Q" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Status 2ª Quinzena</SelectItem>
+            {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar colaborador..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -211,27 +263,32 @@ export default function Payments() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{sortedEntries.length} folhas fechadas</span>
+          <Button variant="outline" size="sm" onClick={exportXLSX} className="gap-2">
+            <Download className="w-4 h-4" /> Exportar XLSX
+          </Button>
         </div>
       </div>
 
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1300px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
-            <col style={{ width: '140px' }} />
+            <col style={{ width: '90px' }} />
+            <col style={{ width: '130px' }} />
             <col style={{ width: '120px' }} />
             <col style={{ width: '110px' }} />
             <col style={{ width: '110px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '120px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '130px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '110px' }} />
-            <col style={{ width: '130px' }} />
-            <col style={{ width: '110px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '120px' }} />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b border-border">
               <th className="p-2 text-left font-bold text-white bg-primary" rowSpan={2}>COLABORADOR</th>
+              <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>ADMISSÃO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>CARGO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
               <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
@@ -258,6 +315,7 @@ export default function Payments() {
               return (
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
                   <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
+                  <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(emp.admission_date)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
@@ -269,7 +327,7 @@ export default function Payments() {
                       disabled={isPago1}
                     />
                   </td>
-                  <td className="p-2 text-center">
+                  <td className="p-2">
                     <InlineObs
                       value={ps?.obs_q1 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q1', v)}
@@ -288,7 +346,7 @@ export default function Payments() {
                       disabled={isPago2}
                     />
                   </td>
-                  <td className="p-2 text-center">
+                  <td className="p-2">
                     <InlineObs
                       value={ps?.obs_q2 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q2', v)}
@@ -302,7 +360,7 @@ export default function Payments() {
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={11} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={12} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>
