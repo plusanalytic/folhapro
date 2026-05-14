@@ -247,7 +247,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -261,7 +261,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
           </div>
         </div>
       </div>
@@ -451,7 +451,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -466,7 +466,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
           </div>
         </div>
       </div>
@@ -684,7 +684,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -696,7 +696,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: '#6a3eaf' }}>A Receber</span><span style={{ fontFamily: 'monospace', color: '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
           </div>
         </div>
       </div>

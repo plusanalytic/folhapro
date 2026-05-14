@@ -1,13 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
-import { Building2, Users, Banknote, TrendingUp, ChevronRight } from 'lucide-react';
+import { Building2, Users, Banknote, TrendingUp, ChevronRight, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList
 } from 'recharts';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const FIRST_MONTH = '2026-04';
 
@@ -34,14 +39,17 @@ export default function Dashboard() {
   const [allEntries, setAllEntries] = useState([]);
 
   // Filters
-  const [filterMonth, setFilterMonth] = useState(() => {
+  const [filterMonths, setFilterMonths] = useState(() => {
     const cur = new Date().toISOString().slice(0, 7);
-    return cur >= FIRST_MONTH ? cur : FIRST_MONTH;
+    return [cur >= FIRST_MONTH ? cur : FIRST_MONTH];
   });
   const [filterCompany, setFilterCompany] = useState('all');
   const [filterJobRole, setFilterJobRole] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterPayrollType, setFilterPayrollType] = useState('all');
+
+  // For backwards compat: single month used in chart contexts
+  const filterMonth = filterMonths[0] || FIRST_MONTH;
 
   const months = useMemo(buildMonthList, []);
 
@@ -62,7 +70,7 @@ export default function Dashboard() {
   // Filtered entries
   const filteredEntries = useMemo(() => {
     return allEntries.filter(entry => {
-      if (entry.reference_month !== filterMonth) return false;
+      if (filterMonths.length > 0 && !filterMonths.includes(entry.reference_month)) return false;
 
       const emp = employees.find(e => e.id === entry.employee_id);
       if (!emp) return false;
@@ -81,30 +89,32 @@ export default function Dashboard() {
 
       return true;
     });
-  }, [allEntries, filterMonth, filterCompany, filterEmployee, filterJobRole, filterPayrollType, employees, jobRoles]);
+  }, [allEntries, filterMonths, filterCompany, filterEmployee, filterJobRole, filterPayrollType, employees, jobRoles]);
 
-  // KPIs
+  // KPIs filtered
   const totalBruto = filteredEntries.reduce((s, e) => s + (e.gross_total || 0), 0);
   const total1Q = filteredEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
   const total2Q = filteredEntries.reduce((s, e) => s + (e.second_period_net || 0), 0);
   const totalLiquido = total1Q + total2Q;
 
-  // Chart 1: Líquido por empresa
-  const chartByCompany = useMemo(() => {
-    return companies.map(c => {
-      const compEntries = filteredEntries.filter(e => {
-        const emp = employees.find(em => em.id === e.employee_id);
-        return emp?.company_id === c.id;
-      });
-      const liquido = compEntries.reduce((s, e) => s + (e.first_period_net || 0) + (e.second_period_net || 0), 0);
-      return {
-        name: c.name.length > 14 ? c.name.slice(0, 14) + '…' : c.name,
-        liquido,
-      };
-    }).filter(d => d.liquido > 0);
-  }, [filteredEntries, companies, employees]);
+  // KPI: empresas e colaboradores filtrados
+  const filteredCompanyIds = useMemo(() => {
+    if (filterCompany !== 'all') return new Set([filterCompany]);
+    const ids = new Set();
+    filteredEntries.forEach(e => {
+      const emp = employees.find(em => em.id === e.employee_id);
+      if (emp?.company_id) ids.add(emp.company_id);
+    });
+    return ids;
+  }, [filteredEntries, filterCompany, employees]);
 
-  // Chart 2: Valor por quinzena (últimos meses)
+  const filteredEmployeeIds = useMemo(() => {
+    const ids = new Set();
+    filteredEntries.forEach(e => { if (e.employee_id) ids.add(e.employee_id); });
+    return ids;
+  }, [filteredEntries]);
+
+  // Chart: Valor por quinzena (últimos meses)
   const chartByPeriod = useMemo(() => {
     const result = [];
     months.slice(0, 6).reverse().forEach(month => {
@@ -152,60 +162,150 @@ export default function Dashboard() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {months.map(m => <SelectItem key={m} value={m}>{getMonthName(m)}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {/* Multi-select Mês */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-52 justify-between font-normal">
+              <span className="truncate">
+                {filterMonths.length === 0 ? 'Selecionar Meses' :
+                  filterMonths.length === 1 ? getMonthName(filterMonths[0]) :
+                  `${filterMonths.length} meses`}
+              </span>
+              <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-52 p-0">
+            <div className="max-h-64 overflow-auto">
+              {months.map(m => (
+                <div
+                  key={m}
+                  className={cn('flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-accent', filterMonths.includes(m) && 'bg-accent/50')}
+                  onClick={() => setFilterMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                >
+                  <Check className={cn('w-4 h-4', filterMonths.includes(m) ? 'opacity-100 text-primary' : 'opacity-0')} />
+                  {getMonthName(m)}
+                </div>
+              ))}
+            </div>
+            {filterMonths.length > 0 && (
+              <div className="border-t p-2">
+                <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => setFilterMonths([])}>Limpar seleção</Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
 
-        <Select value={filterCompany} onValueChange={v => { setFilterCompany(v); setFilterEmployee('all'); }}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Empresa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Empresas</SelectItem>
-            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {/* Empresa com busca */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-48 justify-between font-normal">
+              <span className="truncate">{filterCompany === 'all' ? 'Todas as Empresas' : companies.find(c => c.id === filterCompany)?.name || 'Empresa'}</span>
+              <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar empresa..." />
+              <CommandEmpty>Nenhuma encontrada</CommandEmpty>
+              <CommandGroup className="max-h-52 overflow-auto">
+                <CommandItem value="all" onSelect={() => { setFilterCompany('all'); setFilterEmployee('all'); }}>
+                  <Check className={cn('mr-2 w-4 h-4', filterCompany === 'all' ? 'opacity-100' : 'opacity-0')} />
+                  Todas as Empresas
+                </CommandItem>
+                {[...companies].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(c => (
+                  <CommandItem key={c.id} value={c.name} onSelect={() => { setFilterCompany(c.id); setFilterEmployee('all'); }}>
+                    <Check className={cn('mr-2 w-4 h-4', filterCompany === c.id ? 'opacity-100' : 'opacity-0')} />
+                    {c.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
-        <Select value={filterJobRole} onValueChange={setFilterJobRole}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Cargo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Cargos</SelectItem>
-            {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
-              <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Cargo com busca */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-48 justify-between font-normal">
+              <span className="truncate">{filterJobRole === 'all' ? 'Todos os Cargos' : jobRoles.find(jr => String(jr.tangerino_id) === filterJobRole)?.name || 'Cargo'}</span>
+              <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar cargo..." />
+              <CommandEmpty>Nenhum encontrado</CommandEmpty>
+              <CommandGroup className="max-h-52 overflow-auto">
+                <CommandItem value="all" onSelect={() => setFilterJobRole('all')}>
+                  <Check className={cn('mr-2 w-4 h-4', filterJobRole === 'all' ? 'opacity-100' : 'opacity-0')} />
+                  Todos os Cargos
+                </CommandItem>
+                {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
+                  <CommandItem key={jr.id} value={jr.name} onSelect={() => setFilterJobRole(String(jr.tangerino_id))}>
+                    <Check className={cn('mr-2 w-4 h-4', filterJobRole === String(jr.tangerino_id) ? 'opacity-100' : 'opacity-0')} />
+                    {jr.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
-        <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Colaborador" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Colaboradores</SelectItem>
-            {employeesForFilter.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(e => (
-              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Colaborador com busca */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-48 justify-between font-normal">
+              <span className="truncate">{filterEmployee === 'all' ? 'Todos os Colaboradores' : employeesForFilter.find(e => e.id === filterEmployee)?.name || 'Colaborador'}</span>
+              <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar colaborador..." />
+              <CommandEmpty>Nenhum encontrado</CommandEmpty>
+              <CommandGroup className="max-h-52 overflow-auto">
+                <CommandItem value="all" onSelect={() => setFilterEmployee('all')}>
+                  <Check className={cn('mr-2 w-4 h-4', filterEmployee === 'all' ? 'opacity-100' : 'opacity-0')} />
+                  Todos os Colaboradores
+                </CommandItem>
+                {[...employeesForFilter].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(e => (
+                  <CommandItem key={e.id} value={e.name} onSelect={() => setFilterEmployee(e.id)}>
+                    <Check className={cn('mr-2 w-4 h-4', filterEmployee === e.id ? 'opacity-100' : 'opacity-0')} />
+                    {e.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
-        <Select value={filterPayrollType} onValueChange={setFilterPayrollType}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Tipo de Folha" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Tipos</SelectItem>
-            {payrollTypes.map(pt => (
-              <SelectItem key={pt.value} value={pt.value}>{pt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Tipo com busca */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-48 justify-between font-normal">
+              <span className="truncate">{filterPayrollType === 'all' ? 'Todos os Tipos' : payrollTypes.find(pt => pt.value === filterPayrollType)?.label || 'Tipo'}</span>
+              <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-52 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar tipo..." />
+              <CommandEmpty>Nenhum encontrado</CommandEmpty>
+              <CommandGroup>
+                <CommandItem value="all" onSelect={() => setFilterPayrollType('all')}>
+                  <Check className={cn('mr-2 w-4 h-4', filterPayrollType === 'all' ? 'opacity-100' : 'opacity-0')} />
+                  Todos os Tipos
+                </CommandItem>
+                {payrollTypes.map(pt => (
+                  <CommandItem key={pt.value} value={pt.label} onSelect={() => setFilterPayrollType(pt.value)}>
+                    <Check className={cn('mr-2 w-4 h-4', filterPayrollType === pt.value ? 'opacity-100' : 'opacity-0')} />
+                    {pt.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* KPI Cards */}
@@ -215,7 +315,8 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Empresas Ativas</p>
-                <p className="text-2xl font-bold text-foreground mt-1">{companies.length}</p>
+                <p className="text-2xl font-bold text-foreground mt-1">{filteredCompanyIds.size || companies.length}</p>
+                {filterCompany !== 'all' && <p className="text-xs text-muted-foreground mt-1">filtrado</p>}
               </div>
               <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-blue-500" />
@@ -229,7 +330,8 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Colaboradores</p>
-                <p className="text-2xl font-bold text-foreground mt-1">{employees.length}</p>
+                <p className="text-2xl font-bold text-foreground mt-1">{filteredEmployeeIds.size || employees.length}</p>
+                {(filterCompany !== 'all' || filterEmployee !== 'all' || filterJobRole !== 'all' || filterPayrollType !== 'all' || filterMonths.length > 0) && <p className="text-xs text-muted-foreground mt-1">filtrado</p>}
               </div>
               <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
                 <Users className="w-5 h-5 text-purple-500" />
@@ -271,59 +373,32 @@ export default function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Chart 1: Líquido por empresa */}
-        <Card className="border-border">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold">Valor Líquido por Empresa — {getMonthName(filterMonth)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chartByCompany.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={chartByCompany} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="liquido" name="Líquido" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="liquido" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[240px] flex items-center justify-center text-muted-foreground text-sm">Nenhum lançamento neste período</div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Chart 2: Valor por quinzena */}
-        <Card className="border-border">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold">Valor Líquido por Quinzena</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chartByPeriod.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={chartByPeriod} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="1ª Quinzena" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="1ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
-                  </Bar>
-                  <Bar dataKey="2ª Quinzena" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="2ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[240px] flex items-center justify-center text-muted-foreground text-sm">Nenhum lançamento encontrado</div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-border">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">Valor Líquido por Quinzena</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartByPeriod.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={chartByPeriod} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="1ª Quinzena" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="1ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
+                </Bar>
+                <Bar dataKey="2ª Quinzena" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="2ª Quinzena" position="top" formatter={v => `R$${(v/1000).toFixed(1)}k`} style={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[240px] flex items-center justify-center text-muted-foreground text-sm">Nenhum lançamento encontrado</div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Access */}
       <Card className="border-border">

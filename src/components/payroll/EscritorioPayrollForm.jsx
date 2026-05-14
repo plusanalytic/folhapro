@@ -499,12 +499,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
                     <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
                   </div>
-                  <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div className={`${calc.first_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
-                      <p className="text-xs text-muted-foreground">Á Receber 1ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{calc.first_period_net < 0 ? 'Saldo Negativo 1ª Quinzena' : 'Á Receber 1ª Quinzena'}</p>
                       <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + form.first_period_advance + absenceFirst)}</p>
                     </div>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.first_period_net)}</p>
+                    <p className={`font-mono font-bold text-lg ${calc.first_period_net < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(calc.first_period_net)}</p>
                   </div>
                 </div>
 
@@ -529,12 +529,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
                     <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
                   </div>
-                  <div className="bg-primary/10 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div className={`${calc.second_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
-                      <p className="text-xs text-muted-foreground">Á Receber 2ª Quinzena</p>
+                      <p className="text-xs text-muted-foreground">{calc.second_period_net < 0 ? 'Saldo Negativo 2ª Quinzena' : 'Á Receber 2ª Quinzena'}</p>
                       <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal + absenceSecond)}</p>
                     </div>
-                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.second_period_net)}</p>
+                    <p className={`font-mono font-bold text-lg ${calc.second_period_net < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(calc.second_period_net)}</p>
                   </div>
                 </div>
               </div>

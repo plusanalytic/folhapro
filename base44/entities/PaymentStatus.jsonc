@@ -24,7 +24,8 @@
         "PENDENTE",
         "AGENDADO",
         "PAGO",
-        "BLOQUEADO"
+        "BLOQUEADO",
+        "RESCIS\u00c3O"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 1\u00aa quinzena"
@@ -39,7 +40,8 @@
         "PENDENTE",
         "AGENDADO",
         "PAGO",
-        "BLOQUEADO"
+        "BLOQUEADO",
+        "RESCIS\u00c3O"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 2\u00aa quinzena"
