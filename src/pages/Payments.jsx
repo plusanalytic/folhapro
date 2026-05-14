@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, CreditCard, Download } from 'lucide-react';
+import { Search, CreditCard, Download, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
@@ -15,12 +14,13 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO'];
+const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO'];
 const STATUS_COLORS = {
   PAGO: 'bg-green-100 text-green-700 border-green-300',
   PENDENTE: 'bg-yellow-100 text-yellow-700 border-yellow-300',
   AGENDADO: 'bg-blue-100 text-blue-700 border-blue-300',
   BLOQUEADO: 'bg-red-100 text-red-700 border-red-300',
+  'RESCISÃO': 'bg-orange-100 text-orange-700 border-orange-300',
 };
 
 function InlineSelect({ value, onChange, disabled }) {
@@ -63,6 +63,32 @@ function InlineObs({ value, onSave, disabled }) {
   );
 }
 
+function InlineDate({ value, onSave, disabled }) {
+  const [editing, setEditing] = useState(false);
+
+  if (disabled && !value) return <span className="text-xs text-muted-foreground block text-center">—</span>;
+  if (!editing) return (
+    <span
+      className={`text-xs cursor-pointer hover:underline block text-center ${value ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+      onClick={() => !disabled && setEditing(true)}
+      title={disabled ? '' : 'Clique para definir data de pagamento'}
+    >
+      {value ? formatDate(value) : (disabled ? '—' : '+ data')}
+    </span>
+  );
+  return (
+    <input
+      type="date"
+      autoFocus
+      className="text-xs border border-primary rounded px-1 py-1 w-full block"
+      value={value || ''}
+      onChange={e => { onSave(e.target.value); setEditing(false); }}
+      onBlur={() => setEditing(false)}
+      onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
+    />
+  );
+}
+
 export default function Payments() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -92,7 +118,6 @@ export default function Payments() {
     setJobRoles(jr);
     setWorkplaces(w);
     setEntries(p);
-    // Carrega status de pagamento para o mês
     const ps = await base44.entities.PaymentStatus.filter({ reference_month: selectedMonth });
     setPaymentStatuses(ps);
   };
@@ -110,7 +135,7 @@ export default function Payments() {
     setSaving(s => ({ ...s, [entry.id + field]: true }));
     try {
       if (existing) {
-        const updated = await base44.entities.PaymentStatus.update(existing.id, { [field]: value });
+        await base44.entities.PaymentStatus.update(existing.id, { [field]: value });
         setPaymentStatuses(prev => prev.map(p => p.id === existing.id ? { ...p, [field]: value } : p));
       } else {
         const created = await base44.entities.PaymentStatus.create({
@@ -122,7 +147,7 @@ export default function Payments() {
         });
         setPaymentStatuses(prev => [...prev, created]);
       }
-    } catch (err) {
+    } catch {
       toast.error('Erro ao salvar status de pagamento');
     } finally {
       setSaving(s => ({ ...s, [entry.id + field]: false }));
@@ -145,14 +170,20 @@ export default function Payments() {
         'Admissão': formatDate(emp?.admission_date),
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
-        '1ª Quinzena - Á Receber': entry.first_period_net || 0,
-        '1ª Quinzena - Status': ps?.status_q1 || 'PENDENTE',
-        '1ª Quinzena - OBS': ps?.obs_q1 || '',
-        '1ª Quinzena - Banco/PIX': emp?.pix_key || emp?.bank_account || '',
-        '2ª Quinzena - Á Receber': entry.second_period_net || 0,
-        '2ª Quinzena - Status': ps?.status_q2 || 'PENDENTE',
-        '2ª Quinzena - OBS': ps?.obs_q2 || '',
-        '2ª Quinzena - Banco/PIX': emp?.pix_key || emp?.bank_account || '',
+        '1ª Q - Á Receber': entry.first_period_net || 0,
+        '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
+        '1ª Q - Data Pagamento': ps?.payment_date_q1 || '',
+        '1ª Q - OBS': ps?.obs_q1 || '',
+        '2ª Q - Á Receber': entry.second_period_net || 0,
+        '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
+        '2ª Q - Data Pagamento': ps?.payment_date_q2 || '',
+        '2ª Q - OBS': ps?.obs_q2 || '',
+        'Banco': emp?.bank_name || '',
+        'Agência': emp?.bank_agency || '',
+        'Conta': emp?.bank_account || '',
+        'Favorecido': emp?.bank_beneficiary || '',
+        'Chave PIX': emp?.pix_key || '',
+        'Tipo PIX': emp?.pix_key_type || '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -161,7 +192,6 @@ export default function Payments() {
     XLSX.writeFile(wb, `pagamentos_${selectedMonth}.xlsx`);
   };
 
-  // Somente folhas fechadas
   const filteredEntries = entries.filter(entry => {
     const emp = getEmployee(entry.employee_id);
     if (!emp) return false;
@@ -270,21 +300,31 @@ export default function Payments() {
         </div>
       </div>
 
+      {/* Tabela */}
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1460px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
-            <col style={{ width: '90px' }} />
+            <col style={{ width: '85px' }} />
             <col style={{ width: '130px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '110px' }} />
+            {/* Q1 */}
             <col style={{ width: '100px' }} />
-            <col style={{ width: '200px' }} />
-            <col style={{ width: '130px' }} />
             <col style={{ width: '110px' }} />
+            <col style={{ width: '95px' }} />
+            <col style={{ width: '170px' }} />
+            {/* Q2 */}
             <col style={{ width: '100px' }} />
-            <col style={{ width: '200px' }} />
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '95px' }} />
+            <col style={{ width: '170px' }} />
+            {/* Dados bancários */}
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '85px' }} />
+            <col style={{ width: '110px' }} />
             <col style={{ width: '130px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '110px' }} />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b border-border">
@@ -294,16 +334,23 @@ export default function Payments() {
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
               <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
               <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={4}>2ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-slate-600" colSpan={6}>DADOS BANCÁRIOS</th>
             </tr>
             <tr className="border-b border-border bg-muted/30">
               <th className="p-2 text-right font-semibold text-blue-600 text-xs">Á RECEBER</th>
               <th className="p-2 text-center font-semibold text-blue-600 text-xs">STATUS</th>
+              <th className="p-2 text-center font-semibold text-blue-600 text-xs">DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-blue-600 text-xs">OBS</th>
-              <th className="p-2 text-center font-semibold text-blue-600 text-xs">BANCO/PIX</th>
               <th className="p-2 text-right font-semibold text-green-600 text-xs">Á RECEBER</th>
               <th className="p-2 text-center font-semibold text-green-600 text-xs">STATUS</th>
+              <th className="p-2 text-center font-semibold text-green-600 text-xs">DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-green-600 text-xs">OBS</th>
-              <th className="p-2 text-center font-semibold text-green-600 text-xs">BANCO/PIX</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">BANCO</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">AGÊNCIA</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">CONTA</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">FAVORECIDO</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">CHAVE PIX</th>
+              <th className="p-2 text-center font-semibold text-slate-500 text-xs">TIPO PIX</th>
             </tr>
           </thead>
           <tbody>
@@ -329,14 +376,18 @@ export default function Payments() {
                     />
                   </td>
                   <td className="p-2 overflow-hidden">
+                    <InlineDate
+                      value={ps?.payment_date_q1 || ''}
+                      onSave={v => updatePayStatus(entry, 'payment_date_q1', v)}
+                      disabled={false}
+                    />
+                  </td>
+                  <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q1 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q1', v)}
                       disabled={isPago1}
                     />
-                  </td>
-                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.pix_key || emp.bank_account}>
-                    {emp.pix_key || emp.bank_account || '—'}
                   </td>
                   {/* 2ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
@@ -348,20 +399,31 @@ export default function Payments() {
                     />
                   </td>
                   <td className="p-2 overflow-hidden">
+                    <InlineDate
+                      value={ps?.payment_date_q2 || ''}
+                      onSave={v => updatePayStatus(entry, 'payment_date_q2', v)}
+                      disabled={false}
+                    />
+                  </td>
+                  <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q2 || ''}
                       onSave={v => updatePayStatus(entry, 'obs_q2', v)}
                       disabled={isPago2}
                     />
                   </td>
-                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.pix_key || emp.bank_account}>
-                    {emp.pix_key || emp.bank_account || '—'}
-                  </td>
+                  {/* Dados Bancários */}
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_name}>{emp.bank_name || '—'}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_agency}>{emp.bank_agency || '—'}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_account}>{emp.bank_account || '—'}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_beneficiary}>{emp.bank_beneficiary || '—'}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={emp.pix_key}>{emp.pix_key || '—'}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate">{emp.pix_key_type || '—'}</td>
                 </tr>
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={12} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={18} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>

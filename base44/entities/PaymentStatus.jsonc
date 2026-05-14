@@ -34,6 +34,11 @@
       "type": "string",
       "description": "Observa\u00e7\u00e3o da 1\u00aa quinzena"
     },
+    "payment_date_q1": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de pagamento da 1\u00aa quinzena"
+    },
     "status_q2": {
       "type": "string",
       "enum": [
@@ -49,6 +54,11 @@
     "obs_q2": {
       "type": "string",
       "description": "Observa\u00e7\u00e3o da 2\u00aa quinzena"
+    },
+    "payment_date_q2": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de pagamento da 2\u00aa quinzena"
     }
   },
   "required": [
