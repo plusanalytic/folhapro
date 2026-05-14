@@ -1,12 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, CreditCard, Download, Building2 } from 'lucide-react';
+import { Search, CreditCard, Download, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -33,6 +43,35 @@ function InlineSelect({ value, onChange, disabled }) {
     >
       {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
     </select>
+  );
+}
+
+function RevertPaymentDialog({ open, onConfirm, onCancel, empName, quinzena }) {
+  return (
+    <AlertDialog open={open}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            Estornar Pagamento?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja estornar o pagamento da <strong>{quinzena}</strong> de <strong>{empName}</strong>?
+            <br /><br />
+            Esta ação irá limpar a data de pagamento e retornar o status para <strong>PENDENTE</strong>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onCancel}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={onConfirm}
+          >
+            Confirmar Estorno
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -63,29 +102,17 @@ function InlineObs({ value, onSave, disabled }) {
   );
 }
 
-function InlineDate({ value, onSave, disabled }) {
-  const [editing, setEditing] = useState(false);
-
-  if (disabled && !value) return <span className="text-xs text-muted-foreground block text-center">—</span>;
-  if (!editing) return (
-    <span
-      className={`text-xs cursor-pointer hover:underline block text-center ${value ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
-      onClick={() => !disabled && setEditing(true)}
-      title={disabled ? '' : 'Clique para definir data de pagamento'}
-    >
-      {value ? formatDate(value) : (disabled ? '—' : '+ data')}
-    </span>
-  );
+function InlineDatePago({ value, onSave }) {
   return (
-    <input
-      type="date"
-      autoFocus
-      className="text-xs border border-primary rounded px-1 py-1 w-full block"
-      value={value || ''}
-      onChange={e => { onSave(e.target.value); setEditing(false); }}
-      onBlur={() => setEditing(false)}
-      onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
-    />
+    <div className="mt-1">
+      <label className="text-xs text-green-700 font-medium block mb-0.5">Data de pagamento:</label>
+      <input
+        type="date"
+        className="text-xs border border-green-400 rounded px-1 py-1 w-full block bg-green-50 text-green-800"
+        value={value || ''}
+        onChange={e => onSave(e.target.value)}
+      />
+    </div>
   );
 }
 
@@ -104,6 +131,7 @@ export default function Payments() {
   const [filterStatusQ1, setFilterStatusQ1] = useState('all');
   const [filterStatusQ2, setFilterStatusQ2] = useState('all');
   const [saving, setSaving] = useState({});
+  const [revertConfirm, setRevertConfirm] = useState(null); // { entry, quinzena: 'q1'|'q2', empName }
 
   const load = async () => {
     const [e, c, jr, w, p] = await Promise.all([
@@ -129,30 +157,55 @@ export default function Payments() {
   const getWorkplaceNames = (emp) => (emp?.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean).join(', ') || '—';
   const getPayStatus = (entryId) => paymentStatuses.find(p => p.payroll_entry_id === entryId);
 
-  const updatePayStatus = useCallback(async (entry, field, value) => {
+  const updatePayStatus = useCallback(async (entry, updates) => {
     const emp = getEmployee(entry.employee_id);
     const existing = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
-    setSaving(s => ({ ...s, [entry.id + field]: true }));
+    const key = entry.id + Object.keys(updates).join('');
+    setSaving(s => ({ ...s, [key]: true }));
     try {
       if (existing) {
-        await base44.entities.PaymentStatus.update(existing.id, { [field]: value });
-        setPaymentStatuses(prev => prev.map(p => p.id === existing.id ? { ...p, [field]: value } : p));
+        await base44.entities.PaymentStatus.update(existing.id, updates);
+        setPaymentStatuses(prev => prev.map(p => p.id === existing.id ? { ...p, ...updates } : p));
       } else {
         const created = await base44.entities.PaymentStatus.create({
           payroll_entry_id: entry.id,
           employee_id: entry.employee_id,
           company_id: emp?.company_id,
           reference_month: selectedMonth,
-          [field]: value,
+          ...updates,
         });
         setPaymentStatuses(prev => [...prev, created]);
       }
     } catch {
       toast.error('Erro ao salvar status de pagamento');
     } finally {
-      setSaving(s => ({ ...s, [entry.id + field]: false }));
+      setSaving(s => ({ ...s, [key]: false }));
     }
   }, [paymentStatuses, employees, selectedMonth]);
+
+  const handleStatusChange = useCallback((entry, quinzena, newStatus) => {
+    const statusField = quinzena === 'q1' ? 'status_q1' : 'status_q2';
+    const dateField = quinzena === 'q1' ? 'payment_date_q1' : 'payment_date_q2';
+    const ps = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
+    const currentStatus = ps?.[statusField] || 'PENDENTE';
+
+    // Revert from PAGO → show confirm dialog
+    if (currentStatus === 'PAGO' && newStatus !== 'PAGO') {
+      const emp = getEmployee(entry.employee_id);
+      setRevertConfirm({
+        entry,
+        quinzena,
+        empName: emp?.name || '',
+        quinzenaLabel: quinzena === 'q1' ? '1ª Quinzena' : '2ª Quinzena',
+        onConfirm: () => {
+          updatePayStatus(entry, { [statusField]: newStatus, [dateField]: '' });
+          setRevertConfirm(null);
+        },
+      });
+      return;
+    }
+    updatePayStatus(entry, { [statusField]: newStatus });
+  }, [paymentStatuses, employees, updatePayStatus]);
 
   const months = [];
   const now = new Date();
@@ -172,11 +225,11 @@ export default function Payments() {
         'Local': getWorkplaceNames(emp),
         '1ª Q - Á Receber': entry.first_period_net || 0,
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
-        '1ª Q - Data Pagamento': ps?.payment_date_q1 || '',
+        '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
         '2ª Q - Á Receber': entry.second_period_net || 0,
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
-        '2ª Q - Data Pagamento': ps?.payment_date_q2 || '',
+        '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
         '2ª Q - OBS': ps?.obs_q2 || '',
         'Banco': emp?.bank_name || '',
         'Agência': emp?.bank_agency || '',
@@ -302,7 +355,7 @@ export default function Payments() {
 
       {/* Tabela */}
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1260px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
             <col style={{ width: '85px' }} />
@@ -310,13 +363,11 @@ export default function Payments() {
             <col style={{ width: '110px' }} />
             {/* Q1 */}
             <col style={{ width: '100px' }} />
-            <col style={{ width: '110px' }} />
-            <col style={{ width: '95px' }} />
+            <col style={{ width: '150px' }} />
             <col style={{ width: '170px' }} />
             {/* Q2 */}
             <col style={{ width: '100px' }} />
-            <col style={{ width: '110px' }} />
-            <col style={{ width: '95px' }} />
+            <col style={{ width: '150px' }} />
             <col style={{ width: '170px' }} />
             {/* Dados bancários */}
             <col style={{ width: '110px' }} />
@@ -332,18 +383,16 @@ export default function Payments() {
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>ADMISSÃO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>CARGO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
-              <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
-              <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={4}>2ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={3}>1ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={3}>2ª QUINZENA</th>
               <th className="p-2 text-center font-bold text-white bg-slate-600" colSpan={6}>DADOS BANCÁRIOS</th>
             </tr>
             <tr className="border-b border-border bg-muted/30">
               <th className="p-2 text-right font-semibold text-blue-600 text-xs">Á RECEBER</th>
-              <th className="p-2 text-center font-semibold text-blue-600 text-xs">STATUS</th>
-              <th className="p-2 text-center font-semibold text-blue-600 text-xs">DT PAGAMENTO</th>
+              <th className="p-2 text-center font-semibold text-blue-600 text-xs">STATUS / DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-blue-600 text-xs">OBS</th>
               <th className="p-2 text-right font-semibold text-green-600 text-xs">Á RECEBER</th>
-              <th className="p-2 text-center font-semibold text-green-600 text-xs">STATUS</th>
-              <th className="p-2 text-center font-semibold text-green-600 text-xs">DT PAGAMENTO</th>
+              <th className="p-2 text-center font-semibold text-green-600 text-xs">STATUS / DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-green-600 text-xs">OBS</th>
               <th className="p-2 text-center font-semibold text-slate-500 text-xs">BANCO</th>
               <th className="p-2 text-center font-semibold text-slate-500 text-xs">AGÊNCIA</th>
@@ -358,8 +407,10 @@ export default function Payments() {
               const emp = getEmployee(entry.employee_id);
               if (!emp) return null;
               const ps = getPayStatus(entry.id);
-              const isPago1 = ps?.status_q1 === 'PAGO';
-              const isPago2 = ps?.status_q2 === 'PAGO';
+              const status1 = ps?.status_q1 || 'PENDENTE';
+              const status2 = ps?.status_q2 || 'PENDENTE';
+              const isPago1 = status1 === 'PAGO';
+              const isPago2 = status2 === 'PAGO';
               return (
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
                   <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
@@ -368,48 +419,46 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
-                  <td className="p-2 text-center">
+                  <td className="p-2">
                     <InlineSelect
-                      value={ps?.status_q1 || 'PENDENTE'}
-                      onChange={v => updatePayStatus(entry, 'status_q1', v)}
-                      disabled={isPago1}
-                    />
-                  </td>
-                  <td className="p-2 overflow-hidden">
-                    <InlineDate
-                      value={ps?.payment_date_q1 || ''}
-                      onSave={v => updatePayStatus(entry, 'payment_date_q1', v)}
+                      value={status1}
+                      onChange={v => handleStatusChange(entry, 'q1', v)}
                       disabled={false}
                     />
+                    {isPago1 && (
+                      <InlineDatePago
+                        value={ps?.payment_date_q1 || ''}
+                        onSave={v => updatePayStatus(entry, { payment_date_q1: v })}
+                      />
+                    )}
                   </td>
                   <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q1 || ''}
-                      onSave={v => updatePayStatus(entry, 'obs_q1', v)}
-                      disabled={isPago1}
+                      onSave={v => updatePayStatus(entry, { obs_q1: v })}
+                      disabled={false}
                     />
                   </td>
                   {/* 2ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
-                  <td className="p-2 text-center">
+                  <td className="p-2">
                     <InlineSelect
-                      value={ps?.status_q2 || 'PENDENTE'}
-                      onChange={v => updatePayStatus(entry, 'status_q2', v)}
-                      disabled={isPago2}
-                    />
-                  </td>
-                  <td className="p-2 overflow-hidden">
-                    <InlineDate
-                      value={ps?.payment_date_q2 || ''}
-                      onSave={v => updatePayStatus(entry, 'payment_date_q2', v)}
+                      value={status2}
+                      onChange={v => handleStatusChange(entry, 'q2', v)}
                       disabled={false}
                     />
+                    {isPago2 && (
+                      <InlineDatePago
+                        value={ps?.payment_date_q2 || ''}
+                        onSave={v => updatePayStatus(entry, { payment_date_q2: v })}
+                      />
+                    )}
                   </td>
                   <td className="p-2 overflow-hidden">
                     <InlineObs
                       value={ps?.obs_q2 || ''}
-                      onSave={v => updatePayStatus(entry, 'obs_q2', v)}
-                      disabled={isPago2}
+                      onSave={v => updatePayStatus(entry, { obs_q2: v })}
+                      disabled={false}
                     />
                   </td>
                   {/* Dados Bancários */}
@@ -423,7 +472,7 @@ export default function Payments() {
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={18} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={16} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>
@@ -431,6 +480,14 @@ export default function Payments() {
           </tbody>
         </table>
       </div>
+
+      <RevertPaymentDialog
+        open={!!revertConfirm}
+        empName={revertConfirm?.empName || ''}
+        quinzena={revertConfirm?.quinzenaLabel || ''}
+        onConfirm={revertConfirm?.onConfirm}
+        onCancel={() => setRevertConfirm(null)}
+      />
     </div>
   );
 }

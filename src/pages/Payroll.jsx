@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +32,8 @@ export default function Payroll() {
   const [jobRoles, setJobRoles] = useState([]);
   const [entries, setEntries] = useState([]);
   const [monthCloses, setMonthCloses] = useState([]);
+  const [paymentStatuses, setPaymentStatuses] = useState([]);
+  const [paymentBlockAlert, setPaymentBlockAlert] = useState(null); // { empName }
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const current = new Date().toISOString().slice(0, 7);
     return current >= '2026-04' ? current : '2026-04';
@@ -43,13 +54,14 @@ export default function Payroll() {
   const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
 
   const load = async () => {
-    const [e, c, w, jr, p, m] = await Promise.all([
+    const [e, c, w, jr, p, m, ps] = await Promise.all([
       base44.entities.Employee.list(),
       base44.entities.Company.list(),
       base44.entities.Workplace.list(),
       base44.entities.JobRole.list(),
       base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
       base44.entities.MonthClose.filter({ reference_month: selectedMonth }),
+      base44.entities.PaymentStatus.filter({ reference_month: selectedMonth }),
     ]);
     // Regra de exibição na folha:
     // - Ativo (is_active !== false): sempre aparece
@@ -71,6 +83,7 @@ export default function Payroll() {
     setJobRoles(jr);
     setEntries(p);
     setMonthCloses(m);
+    setPaymentStatuses(ps);
   };
 
   useEffect(() => { load(); }, [selectedMonth]);
@@ -131,7 +144,16 @@ export default function Payroll() {
     toast.success('Folha do colaborador fechada!');
   };
 
-  const handleReopenEmployeeEntry = async (entry) => {
+  const hasPaymentBaixa = (entry) => {
+    const ps = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
+    return ps?.status_q1 === 'PAGO' || ps?.status_q2 === 'PAGO';
+  };
+
+  const handleReopenEmployeeEntry = async (entry, empName) => {
+    if (hasPaymentBaixa(entry)) {
+      setPaymentBlockAlert({ empName });
+      return;
+    }
     await base44.entities.PayrollEntry.update(entry.id, { status: 'open' });
     load();
     toast.success('Folha do colaborador reaberta!');
@@ -376,7 +398,13 @@ export default function Payroll() {
                                      variant="ghost"
                                      size="sm"
                                      title="Reabrir folha deste colaborador"
-                                     onClick={() => setConfirmReopen({ type: 'entry', entry, empName: emp.name })}
+                                     onClick={() => {
+                                       if (hasPaymentBaixa(entry)) {
+                                         setPaymentBlockAlert({ empName: emp.name });
+                                       } else {
+                                         setConfirmReopen({ type: 'entry', entry, empName: emp.name });
+                                       }
+                                     }}
                                    >
                                      <Unlock className="w-3.5 h-3.5" />
                                    </Button>
@@ -460,7 +488,7 @@ export default function Payroll() {
         confirmLabel="Reabrir"
         onConfirm={() => {
           if (confirmReopen?.type === 'month') handleReopenMonth(confirmReopen.companyId);
-          else handleReopenEmployeeEntry(confirmReopen.entry);
+          else handleReopenEmployeeEntry(confirmReopen.entry, confirmReopen.empName);
         }}
       />
 
@@ -487,6 +515,25 @@ export default function Payroll() {
           onClose={() => setPrintReceipt(null)}
         />
       )}
+
+      <AlertDialog open={!!paymentBlockAlert} onOpenChange={v => !v && setPaymentBlockAlert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Folha não pode ser reaberta
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              A folha de <strong>{paymentBlockAlert?.empName}</strong> não pode ser reaberta pois já existe uma <strong>baixa de pagamento realizada</strong> em uma ou mais quinzenas.
+              <br /><br />
+              Para reabrir a folha, acesse o módulo de <strong>Pagamentos</strong> e estorne o pagamento antes de tentar reabrir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setPaymentBlockAlert(null)}>Entendido</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showForm && editingEmployee && (() => {
         const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
