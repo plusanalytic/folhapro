@@ -417,7 +417,8 @@ export default function Payroll() {
                                    title="Imprimir Recibo"
                                    onClick={() => {
                                     const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: jr?.payroll_type, jobRoleName: jr?.name });
+                                    const pType = emp.contract_type === 'ESPORADICO' ? 'ESPORADICO' : jr?.payroll_type;
+                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
                                   }}
                                  >
                                    <Printer className="w-3.5 h-3.5" />

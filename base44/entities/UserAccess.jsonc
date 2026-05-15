@@ -2,9 +2,21 @@
   "name": "UserAccess",
   "type": "object",
   "properties": {
+    "username": {
+      "type": "string",
+      "description": "Nome de usu\u00e1rio para login"
+    },
+    "password": {
+      "type": "string",
+      "description": "Senha (armazenada em texto)"
+    },
     "user_email": {
       "type": "string",
-      "description": "E-mail do usu\u00e1rio"
+      "description": "E-mail do usu\u00e1rio (opcional)"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Nome completo"
     },
     "profile": {
       "type": "string",
@@ -34,7 +46,8 @@
     }
   },
   "required": [
-    "user_email",
+    "username",
+    "password",
     "profile"
   ]
 }

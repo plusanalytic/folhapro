@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, Bell } from 'lucide-react';
+import { Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function TopBar() {
+export default function TopBar({ appUser, onLogout }) {
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
 
   useEffect(() => {
@@ -20,13 +20,24 @@ export default function TopBar() {
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-30">
       <p className="text-sm text-muted-foreground capitalize">{today}</p>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setDark(!dark)} className="h-9 w-9">
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
-          <Bell className="w-4 h-4" />
-        </Button>
+        {appUser && (
+          <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white">
+              {(appUser.full_name || appUser.username || '?').slice(0, 1).toUpperCase()}
+            </div>
+            <div className="text-xs">
+              <div className="font-medium leading-none">{appUser.full_name || appUser.username}</div>
+              <div className="text-muted-foreground capitalize leading-none mt-0.5">{appUser.profile}</div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7 ml-1" title="Sair" onClick={onLogout}>
+              <LogOut className="w-3.5 h-3.5 text-muted-foreground" />
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

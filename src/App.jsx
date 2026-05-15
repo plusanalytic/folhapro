@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from 'sonner'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -19,9 +20,25 @@ import JobRoles from '@/pages/JobRoles';
 import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';
 import AccessManagement from '@/pages/AccessManagement';
+import AppLogin from '@/pages/AppLogin';
+
+const SESSION_KEY = 'app_user_session';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const [appUser, setAppUser] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch { return null; }
+  });
+
+  const handleLogin = (user) => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    setAppUser(user);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setAppUser(null);
+  };
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -43,9 +60,13 @@ const AuthenticatedApp = () => {
     }
   }
 
+  if (!appUser) {
+    return <AppLogin onLogin={handleLogin} />;
+  }
+
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route element={<AppLayout appUser={appUser} onLogout={handleLogout} />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/companies" element={<Companies />} />
         <Route path="/employees" element={<Employees />} />
@@ -57,7 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/job-roles" element={<JobRoles />} />
         <Route path="/point-adjustments" element={<PointAdjustments />} />
         <Route path="/payments" element={<Payments />} />
-        <Route path="/access" element={<AccessManagement />} />
+        <Route path="/access" element={<AccessManagement currentAppUser={appUser} />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
