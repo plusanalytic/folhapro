@@ -390,7 +390,9 @@ export default function Payroll() {
                           <td className="p-3 text-center">
                             {(() => {
                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                              if (!empJobRole?.payroll_type) {
+                              if (emp.contract_type === 'ESPORADICO') {
+                                // esporádico usa form próprio — sempre tem modelo
+                              } else if (!empJobRole?.payroll_type) {
                                 return <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300 bg-yellow-50">Sem modelo</Badge>;
                               }
                               if (entry?.status === 'closed') return <Badge variant="destructive" className="text-xs gap-1"><Lock className="w-2.5 h-2.5" />Fechado</Badge>;
@@ -449,7 +451,7 @@ export default function Payroll() {
                              )}
                              {(() => {
                                const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                               const hasPayrollType = !!empJobRole?.payroll_type;
+                                const hasPayrollType = emp.contract_type === 'ESPORADICO' || !!empJobRole?.payroll_type;
                                return (
                                  <Button
                                    variant="outline"

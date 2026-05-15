@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link2, MapPin, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
 
 // Inputs definidos FORA do componente pai para evitar perda de foco por remount
 function StableInput({ value, onChange, placeholder, className = '' }) {
@@ -39,6 +40,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
     bank_beneficiary: employee?.bank_beneficiary || '',
     pix_key: employee?.pix_key || '',
     pix_key_type: employee?.pix_key_type || detectPixKeyType(employee?.pix_key || ''),
+    is_esporadico: employee?.contract_type === 'ESPORADICO',
   });
   const [syncingWP, setSyncingWP] = useState(false);
   const [localWorkplaceList, setLocalWorkplaceList] = useState(employee?.workplace_list ?? []);
@@ -158,6 +160,18 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
             <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 border border-border">
               Dados sincronizados via Tangerino. Edite diretamente na plataforma Tangerino e sincronize novamente.
             </p>
+
+            {/* Campo Esporádico — não vem do Tangerino, é configurado manualmente */}
+            <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+              <div>
+                <Label className="text-sm font-medium text-orange-800">Prestador Esporádico</Label>
+                <p className="text-xs text-orange-600 mt-0.5">Marca este colaborador como esporádico (folha por pontos). Não sincroniza com Tangerino.</p>
+              </div>
+              <Switch
+                checked={form.is_esporadico}
+                onCheckedChange={v => set('is_esporadico', v)}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">{readonlyInput('Nome Completo', employee?.name)}</div>
               {readonlyInput('CPF', employee?.cpf_cnpj)}
@@ -273,8 +287,12 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
             </Button>
           )}
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button className="flex-1" onClick={() => onSave({ ...employee, ...form })}>
-            Salvar Dados Bancários
+          <Button className="flex-1" onClick={() => {
+            const { is_esporadico, ...bankData } = form;
+            const contract_type = is_esporadico ? 'ESPORADICO' : (employee?.contract_type === 'ESPORADICO' ? 'CLT' : employee?.contract_type);
+            onSave({ ...employee, ...bankData, contract_type });
+          }}>
+            Salvar
           </Button>
         </div>
       </DialogContent>

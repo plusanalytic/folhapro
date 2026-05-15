@@ -209,6 +209,7 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                   <SelectContent>
                     <SelectItem value="CLT">CLT</SelectItem>
                     <SelectItem value="PJ">MEI / PJ</SelectItem>
+                    <SelectItem value="ESPORADICO">Esporádico</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

@@ -64,13 +64,14 @@ function PeriodBaseInput({ value, onChange }) {
   );
 }
 
-// Calcula dias trabalhados default para CLT: se admitido no mês da folha, 30 - dia da admissão
+// Calcula dias trabalhados default para CLT:
+// Se admitido no mês da folha: 30 - (dia_admissão - 1)
 function calcDefaultWorkedDays(employee, referenceMonth) {
   if (!employee?.admission_date) return 30;
   const admMonth = employee.admission_date.slice(0, 7);
   if (admMonth === referenceMonth) {
     const admDay = parseInt(employee.admission_date.slice(8, 10), 10);
-    return Math.max(1, 30 - admDay);
+    return Math.max(1, 30 - (admDay - 1));
   }
   return 30;
 }
@@ -102,7 +103,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     // O valor 30 é gravado explicitamente no banco ao salvar, garantindo que edições futuras sejam respeitadas.
     clt_moto_worked_days: entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : defaultWorkedDays,
     absences_days: entry?.absences_days ?? 0,
-    meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
+    meal_voucher_day_value: entry?.meal_voucher_day_value ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 20.50 : 0),
     meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
     food_voucher: entry?.food_voucher ?? 0,
     transport_voucher: entry?.transport_voucher ?? 0,
@@ -114,8 +115,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     bonus: entry?.bonus ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
     union_contribution_value: entry?.union_contribution_value ?? 35,
-    meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
-    life_insurance: entry?.life_insurance ?? 0,
+    meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 6 : 0),
+    life_insurance: entry?.life_insurance ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 17.50 : 0),
     inss_pct: entry?.inss_pct ?? 0,
     inss_discount: entry?.inss_discount ?? 0,
     pj_retention: entry?.pj_retention ?? 0,
@@ -134,13 +135,29 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // O salário efetivo é apenas calculado para exibição e usado nos cálculos,
   // mas o campo base_salary armazenado permanece sendo o valor do contrato (clt_moto_base_salary).
 
+  // Periculosidade automática para CLT Moto ao abrir o formulário (apenas se sem lançamento prévio)
+  const [hazardPayAutoSet, setHazardPayAutoSet] = useState(false);
+
   // INSS automático para CLT moto (se não foi editado manualmente)
   const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
+
+  // Periculosidade automática: seta ao carregar se não há valor salvo
+  useEffect(() => {
+    if (!isCLTMoto || hazardPayAutoSet || readOnly) return;
+    if (entry?.hazard_pay != null && entry.hazard_pay > 0) { setHazardPayAutoSet(true); return; }
+    if (cltMotoEffectiveSalary > 0) {
+      const autoVal = Math.round(cltMotoEffectiveSalary * 0.3 * 100) / 100;
+      setForm(f => ({ ...f, hazard_pay: autoVal }));
+      setHazardPayAutoSet(true);
+    }
+  }, [cltMotoEffectiveSalary, isCLTMoto, hazardPayAutoSet, readOnly]); // eslint-disable-line
+
   useEffect(() => {
     if (!isCLTMoto || inssManuallyEdited) return;
-    const { pct, discount } = calcAutoINSS(cltMotoEffectiveSalary);
+    const hazard = form.hazard_pay || 0;
+    const { pct, discount } = calcAutoINSS(cltMotoEffectiveSalary + hazard);
     setForm(f => ({ ...f, inss_pct: pct, inss_discount: discount }));
-  }, [cltMotoEffectiveSalary, isCLTMoto, inssManuallyEdited]);
+  }, [cltMotoEffectiveSalary, form.hazard_pay, isCLTMoto, inssManuallyEdited]); // eslint-disable-line
 
   // Desconto taxa sindical automático para admissão no mês (CLT moto)
   // Só é adicionado quando o usuário confirma o salário base (blur no campo)
@@ -442,7 +459,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>Dias Trabalhados (0–30)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {employee?.admission_date?.slice(0,7) === referenceMonth
-                        ? `Auto: 30 - ${parseInt(employee.admission_date.slice(8,10))} = ${defaultWorkedDays}`
+                        ? `Auto: 30 - (${parseInt(employee.admission_date.slice(8,10))} - 1) = ${defaultWorkedDays}`
                         : 'Padrão: 30'}
                     </p>
                     <Input
@@ -564,14 +581,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Periculosidade (30% do salário efetivo)</Label>
                 <Input
                   {...numericField('hazard_pay')}
-                  onFocus={(e) => {
-                    const effectiveSal = isCLTMoto ? cltMotoEffectiveSalary : form.base_salary;
-                    const autoVal = Math.round(effectiveSal * 0.3 * 100) / 100;
-                    if (!readOnly && (form.hazard_pay === 0 || form.hazard_pay === autoVal)) {
-                      set('hazard_pay', autoVal);
-                    }
-                    setTimeout(() => e.target.select(), 0);
-                  }}
+                  onFocus={(e) => { setTimeout(() => e.target.select(), 0); }}
                 />
                 {(isCLTMoto ? cltMotoEffectiveSalary : form.base_salary) > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -650,8 +660,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     </div>
                     {isCLTMoto && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Auto: {calcAutoINSS(cltMotoEffectiveSalary).pct}% — base {formatCurrency(cltMotoEffectiveSalary)}
-                        {inssManuallyEdited && !readOnly && <button className="ml-2 text-primary underline" onClick={() => { const a = calcAutoINSS(cltMotoEffectiveSalary); setForm(f => ({ ...f, inss_pct: a.pct, inss_discount: a.discount })); setInssManuallyEdited(false); }}>Resetar</button>}
+                        Auto: {calcAutoINSS(cltMotoEffectiveSalary + (form.hazard_pay || 0)).pct}% — base {formatCurrency(cltMotoEffectiveSalary + (form.hazard_pay || 0))} (efetivo + periculosidade)
+                        {inssManuallyEdited && !readOnly && <button className="ml-2 text-primary underline" onClick={() => { const a = calcAutoINSS(cltMotoEffectiveSalary + (form.hazard_pay || 0)); setForm(f => ({ ...f, inss_pct: a.pct, inss_discount: a.discount })); setInssManuallyEdited(false); }}>Resetar</button>}
                       </p>
                     )}
                     {!isCLTMoto && <p className="text-xs text-muted-foreground mt-0.5">Deixe 0 para usar tabela progressiva INSS 2026</p>}
