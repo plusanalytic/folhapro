@@ -86,13 +86,6 @@ Deno.serve(async (req) => {
 
     // Permite chamada autenticada de admin OU agendada (sem usuário)
     const body = await req.json().catch(() => ({}));
-    const isScheduled = body.scheduled === true;
-
-    if (!isScheduled) {
-      const user = await base44.auth.me();
-      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-      if (user.role !== 'admin') return Response.json({ error: 'Forbidden: Admin only' }, { status: 403 });
-    }
 
     console.log('[cleanup] Iniciando limpeza de ajustes de ponto...');
 

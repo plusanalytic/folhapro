@@ -12,8 +12,6 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Busca apenas demitidos do Tangerino (fired=true)
     const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/employee/find-all?showFired=1&size=1000`, {

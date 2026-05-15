@@ -5,8 +5,6 @@ const TANGERINO_TOKEN = "ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGI
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Buscar cargos na API do Tangerino
     const res = await fetch("https://api.tangerino.com.br/api/employer/job-role/find-all?size=100", {

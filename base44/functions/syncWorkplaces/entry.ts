@@ -22,8 +22,6 @@ async function withRetry(fn, retries = 5, delay = 1000) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // 1. Busca todas as páginas de locais de trabalho para obter todos os IDs
     const workplaceIds = [];
