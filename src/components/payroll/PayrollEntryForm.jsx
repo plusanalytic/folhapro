@@ -404,10 +404,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
         <div className="flex-1 overflow-y-auto p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex items-center gap-3 flex-wrap">
             {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
             <Badge variant={employee.contract_type === 'CLT' ? 'default' : 'secondary'}>{employee.contract_type}</Badge>
             <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
+            {employee.admission_date && (
+              <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                Admissão: {employee.admission_date.split('-').reverse().join('/')}
+              </span>
+            )}
+            {employee.termination_date && (
+              <span className="text-xs text-destructive border border-destructive/30 rounded px-2 py-0.5">
+                Demissão: {employee.termination_date.split('-').reverse().join('/')}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 

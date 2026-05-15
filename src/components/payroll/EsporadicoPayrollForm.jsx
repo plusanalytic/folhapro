@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { X, Save } from 'lucide-react';
-import { formatCurrency } from '@/lib/payrollCalculations';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
+import PeriodDiscountsTable from './PeriodDiscountsTable';
+import InstallmentDialog from './InstallmentDialog';
+import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
+import { base44 } from '@/api/base44Client';
 
 function NumInput({ label, value, onChange, readOnly, hint }) {
   const [raw, setRaw] = useState(null);
@@ -14,9 +20,7 @@ function NumInput({ label, value, onChange, readOnly, hint }) {
       <Label className="text-xs text-muted-foreground">{label}</Label>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       <Input
-        type="number"
-        min="0"
-        step="0.01"
+        type="number" min="0" step="0.01"
         value={display}
         onChange={e => setRaw(e.target.value)}
         onBlur={e => { onChange(parseFloat(e.target.value) || 0); setRaw(null); }}
@@ -28,25 +32,22 @@ function NumInput({ label, value, onChange, readOnly, hint }) {
   );
 }
 
+function fmtDate(d) {
+  if (!d) return null;
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
 export default function EsporadicoPayrollForm({ employee, entry, referenceMonth, readOnly, onSave, onClose }) {
   const [form, setForm] = useState({
-    km_bonus_qty: 0,         // pontos
-    km_bonus_value: 10.00,   // valor do ponto (default 10,00)
-    life_insurance: 0,
-    other_discounts: 0,
-    first_period_advance: 0,
-    second_period_discount: 0,
-    notes: '',
-    // se tem entry salva, sobrescreve
-    ...(entry ? {
-      km_bonus_qty: entry.km_bonus_qty ?? 0,
-      km_bonus_value: entry.km_bonus_value ?? 10.00,
-      life_insurance: entry.life_insurance ?? 0,
-      other_discounts: entry.other_discounts ?? 0,
-      first_period_advance: entry.first_period_advance ?? 0,
-      second_period_discount: entry.second_period_discount ?? 0,
-      notes: entry.notes ?? '',
-    } : {}),
+    km_bonus_qty: entry?.km_bonus_qty ?? 0,
+    km_bonus_value: entry?.km_bonus_value ?? 10.00,
+    life_insurance: entry?.life_insurance ?? 0,
+    other_discounts: entry?.other_discounts ?? 0,
+    bonus: entry?.bonus ?? 0,
+    notes: entry?.notes ?? '',
+    first_period_advance: entry?.first_period_advance ?? 0,
+    second_period_discount: entry?.second_period_discount ?? 0,
   });
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -55,10 +56,95 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
   const valorPonto = form.km_bonus_value || 10;
   const totalVencimentos = Math.round(pontos * valorPonto * 100) / 100;
 
-  const totalDescontos = (form.life_insurance || 0) + (form.other_discounts || 0);
+  // Ajustes de ponto
+  const [pointAdjustments, setPointAdjustments] = useState([]);
+  const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
+
+  // Descontos quinzenais
+  const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
+  const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
+  const [installmentDialog, setInstallmentDialog] = useState(null);
+
+  useEffect(() => {
+    if (!employee.tangerino_id) return;
+    const [year, month] = referenceMonth.split('-').map(Number);
+    const start = `${referenceMonth}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
+    base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
+      const monthStart = new Date(year, month - 1, 1);
+      const nextMonthEnd = new Date(year, month + 1, 0);
+      const prevMonthStart = new Date(year, month - 2, 1);
+      const overlapping = all.filter(a => {
+        const adjStart = new Date(a.start_date);
+        const adjEnd = new Date(a.end_date);
+        return adjEnd >= prevMonthStart && adjStart <= nextMonthEnd;
+      });
+      const expanded = [];
+      for (const adj of overlapping) {
+        const adjStart = new Date(adj.start_date);
+        const adjEnd = new Date(adj.end_date);
+        let current = new Date(adjStart);
+        while (current <= adjEnd) {
+          expanded.push({ ...adj, date: current.toISOString().split('T')[0] });
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
+      forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      setPointAdjustments(forMonth);
+    });
+  }, [employee.tangerino_id, referenceMonth]);
+
+  useEffect(() => {
+    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
+      const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
+      const fromFirst = toDeduct.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      const fromSecond = toDeduct.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      setFirstDiscounts(prev => [...prev.filter(x => !x.fromCashOut), ...fromFirst]);
+      setSecondDiscounts(prev => [...prev.filter(x => !x.fromCashOut), ...fromSecond]);
+    });
+  }, [employee.id, referenceMonth]);
+
+  const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
+  const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
+
+  const totalAbsDiscount = totalAbsenceDiscount(absenceDiscounts);
+  const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
+
+  const totalDescontos = (form.life_insurance || 0) + (form.other_discounts || 0) + totalAbsDiscount;
   const netTotal = totalVencimentos - totalDescontos;
-  const firstNet = netTotal / 2 - (form.first_period_advance || 0);
-  const secondNet = netTotal / 2 - (form.second_period_discount || 0);
+
+  // Rateio 50/50
+  const firstBase = Math.round(netTotal * 0.5 * 100) / 100;
+  const secondBase = netTotal - firstBase;
+
+  const firstNet = firstBase - absenceFirst - (form.first_period_advance || 0) - firstDiscountTotal;
+  const secondNet = secondBase - absenceSecond - secondDiscountTotal;
+
+  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
+    const isFirst = installmentDialog === 'first';
+    const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
+    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
+    else setSecondDiscounts(prev => [...prev, firstEntry]);
+    for (let i = 1; i < preview.length; i++) {
+      const p = preview[i];
+      const day = isFirst ? 15 : 28;
+      const date = `${p.month}-${String(day).padStart(2, '0')}`;
+      await base44.entities.CashOut.create({
+        employee_id: employee.id,
+        company_id: employee.company_id,
+        date,
+        description: `${description} (${i + 1}/${installments})`,
+        amount: installmentValue,
+        reference_month: p.month,
+        period: isFirst ? 'first' : 'second',
+        notes: `Parcela gerada automaticamente`,
+        deduct_from_payroll: true,
+      });
+    }
+    setInstallmentDialog(null);
+  };
 
   const handleSave = () => {
     onSave({
@@ -72,156 +158,344 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
       net_total: netTotal,
       first_period_net: firstNet,
       second_period_net: secondNet,
+      first_period_base: firstBase,
+      second_period_base: secondBase,
       first_period_split: 0.5,
+      absence_discount: totalAbsDiscount,
+      absence_discounts: absenceDiscounts,
+      absence_discount_first: absenceFirst,
+      absence_discount_second: absenceSecond,
+      first_period_discount: firstDiscountTotal,
+      second_period_discount: secondDiscountTotal,
+      first_discounts: firstDiscounts,
+      second_discounts: secondDiscounts,
+      reference_month: referenceMonth,
     });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <div>
-            <h2 className="text-lg font-semibold">{employee.name}</h2>
-            <p className="text-sm text-muted-foreground">Prestador Esporádico — {referenceMonth}</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
+        <div className="flex-1 overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 flex-wrap">
+              {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
+              <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">Esporádico</Badge>
+              <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
+              {employee.admission_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Admissão: {fmtDate(employee.admission_date)}
+                </span>
+              )}
+              {employee.termination_date && (
+                <span className="text-xs text-destructive border border-destructive/30 rounded px-2 py-0.5">
+                  Demissão: {fmtDate(employee.termination_date)}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="p-5 space-y-6">
-          {/* PROVENTOS */}
-          <div>
-            <h3 className="text-sm font-semibold text-primary mb-3 uppercase tracking-wide">Proventos</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumInput
-                label="Pontos"
-                value={form.km_bonus_qty}
-                onChange={v => set('km_bonus_qty', v)}
-                readOnly={readOnly}
-                hint="Quantidade de pontos produzidos"
-              />
-              <NumInput
-                label="Valor do Ponto (R$)"
-                value={form.km_bonus_value}
-                onChange={v => set('km_bonus_value', v)}
-                readOnly={readOnly}
-                hint="Padrão: R$ 10,00"
-              />
-            </div>
+          <Tabs defaultValue="proventos">
+            <TabsList className="grid grid-cols-4 w-full mt-4">
+              <TabsTrigger value="proventos">Proventos</TabsTrigger>
+              <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
+              <TabsTrigger value="ajuste_ponto">
+                Ajuste de Ponto {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="resumo">Resumo</TabsTrigger>
+            </TabsList>
 
-            {/* Total dos Vencimentos */}
-            <div className="mt-3 flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total dos Vencimentos</p>
-                <p className="text-xs text-muted-foreground">{pontos} pontos × {formatCurrency(valorPonto)}</p>
+            {/* ── ABA: Proventos ── */}
+            <TabsContent value="proventos" className="space-y-5 mt-4">
+              {readOnly && (
+                <div className="bg-muted/50 border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground">
+                  Modo visualização — nenhuma alteração pode ser realizada.
+                </div>
+              )}
+
+              <div className="text-xs px-3 py-1.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 font-medium w-fit">
+                Modelo: Prestador Esporádico — {employee.name}
               </div>
-              <p className="font-mono font-bold text-primary text-xl">{formatCurrency(totalVencimentos)}</p>
-            </div>
-          </div>
 
-          {/* DESCONTOS */}
-          <div>
-            <h3 className="text-sm font-semibold text-destructive mb-3 uppercase tracking-wide">Descontos</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumInput
-                label="Seguro de Vida (R$)"
-                value={form.life_insurance}
-                onChange={v => set('life_insurance', v)}
-                readOnly={readOnly}
-              />
-              <NumInput
-                label="Diversos (R$)"
-                value={form.other_discounts}
-                onChange={v => set('other_discounts', v)}
-                readOnly={readOnly}
-              />
-            </div>
-          </div>
-
-          {/* Resumo Quinzenal */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Quinzenal</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="border border-border rounded-lg p-3">
-                <p className="text-xs font-semibold text-primary mb-2">1ª Quinzena (1–15)</p>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Base (50%)</span>
-                  <span className="font-mono">{formatCurrency(netTotal / 2)}</span>
+              {/* Proventos */}
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <NumInput
+                    label="Pontos"
+                    value={form.km_bonus_qty}
+                    onChange={v => set('km_bonus_qty', v)}
+                    readOnly={readOnly}
+                    hint="Quantidade de pontos produzidos"
+                  />
+                  <NumInput
+                    label="Valor do Ponto (R$)"
+                    value={form.km_bonus_value}
+                    onChange={v => set('km_bonus_value', v)}
+                    readOnly={readOnly}
+                    hint="Padrão: R$ 10,00"
+                  />
                 </div>
                 <NumInput
-                  label="Adiantamento (R$)"
-                  value={form.first_period_advance}
-                  onChange={v => set('first_period_advance', v)}
+                  label="Bonificação / Prêmio (R$)"
+                  value={form.bonus}
+                  onChange={v => set('bonus', v)}
                   readOnly={readOnly}
                 />
-                <div className={`mt-2 flex justify-between font-semibold text-sm ${firstNet < 0 ? 'text-destructive' : 'text-primary'}`}>
-                  <span>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span>
-                  <span className="font-mono">{formatCurrency(firstNet)}</span>
+                <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Total dos Vencimentos</p>
+                    <p className="text-xs text-muted-foreground">{pontos} pontos × {formatCurrency(valorPonto)}{form.bonus > 0 ? ` + ${formatCurrency(form.bonus)} bônus` : ''}</p>
+                  </div>
+                  <p className="font-mono font-bold text-primary text-xl">{formatCurrency(totalVencimentos + (form.bonus || 0))}</p>
                 </div>
               </div>
-              <div className="border border-border rounded-lg p-3">
-                <p className="text-xs font-semibold text-primary mb-2">2ª Quinzena (16–30)</p>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Base (50%)</span>
-                  <span className="font-mono">{formatCurrency(netTotal / 2)}</span>
+
+              <Separator />
+
+              {/* Descontos */}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <NumInput label="Seguro de Vida (R$)" value={form.life_insurance} onChange={v => set('life_insurance', v)} readOnly={readOnly} />
+                <NumInput label="Diversos (R$)" value={form.other_discounts} onChange={v => set('other_discounts', v)} readOnly={readOnly} />
+              </div>
+
+              {totalAbsDiscount > 0 && (
+                <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-4 py-2">
+                  <span className="text-sm text-destructive font-medium">Desconto de Faltas (via Ajuste de Ponto)</span>
+                  <span className="font-mono font-semibold text-destructive">- {formatCurrency(totalAbsDiscount)}</span>
                 </div>
-                <NumInput
-                  label="Outros Descontos (R$)"
-                  value={form.second_period_discount}
-                  onChange={v => set('second_period_discount', v)}
+              )}
+
+              <Separator />
+
+              <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
+                <div>
+                  <p className="font-bold text-base">Total a Receber</p>
+                  <p className="text-xs text-muted-foreground">Líquido após todos os descontos</p>
+                </div>
+                <p className="font-mono font-bold text-primary text-2xl">{formatCurrency(netTotal)}</p>
+              </div>
+            </TabsContent>
+
+            {/* ── ABA: Quinzenal ── */}
+            <TabsContent value="quinzenal" className="space-y-5 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(firstBase)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">50% do líquido</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(secondBase)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">50% do líquido</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 1ª Quinzena */}
+                <div className="space-y-3 border border-border rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(firstBase)}</span>
+                  </div>
+                  {absenceFirst > 0 && (
+                    <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 1–15)</span>
+                      <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceFirst)}</span>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs">Adiantamento</Label>
+                    <Input
+                      type="number" step="0.01" disabled={readOnly} className="mt-1 font-mono h-8 text-sm"
+                      value={form.first_period_advance === 0 ? '' : String(form.first_period_advance)}
+                      onChange={e => set('first_period_advance', parseFloat(e.target.value) || 0)}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
+                    <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                  </div>
+                  <div className={`${firstNet < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{firstNet < 0 ? 'Saldo Negativo 1ª Quinzena' : 'Á Receber 1ª Quinzena'}</p>
+                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(firstDiscountTotal + (form.first_period_advance || 0) + absenceFirst)}</p>
+                    </div>
+                    <p className={`font-mono font-bold text-lg ${firstNet < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(firstNet)}</p>
+                  </div>
+                </div>
+
+                {/* 2ª Quinzena */}
+                <div className="space-y-3 border border-border rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
+                    <span className="text-xs text-muted-foreground">Base: {formatCurrency(secondBase)}</span>
+                  </div>
+                  {absenceSecond > 0 && (
+                    <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
+                      <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
+                      <span className="font-mono text-xs font-semibold text-destructive">- {formatCurrency(absenceSecond)}</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
+                    <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                  </div>
+                  <div className={`${secondNet < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{secondNet < 0 ? 'Saldo Negativo 2ª Quinzena' : 'Á Receber 2ª Quinzena'}</p>
+                      <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal + absenceSecond)}</p>
+                    </div>
+                    <p className={`font-mono font-bold text-lg ${secondNet < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(secondNet)}</p>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── ABA: Ajuste de Ponto ── */}
+            <TabsContent value="ajuste_ponto" className="mt-4">
+              {pointAdjustments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+                  <p className="text-sm">Nenhum ajuste de ponto registrado para este colaborador neste mês.</p>
+                  {!employee.tangerino_id && (
+                    <p className="text-xs text-destructive">Colaborador sem vínculo com Tangerino.</p>
+                  )}
+                </div>
+              ) : (
+                <AbsenceDiscountsTable
+                  pointAdjustments={pointAdjustments}
+                  absenceDiscounts={absenceDiscounts}
+                  setAbsenceDiscounts={setAbsenceDiscounts}
                   readOnly={readOnly}
+                  isMotocyclist={false}
+                  payrollForm={{ base_salary: totalVencimentos }}
                 />
-                <div className={`mt-2 flex justify-between font-semibold text-sm ${secondNet < 0 ? 'text-destructive' : 'text-primary'}`}>
-                  <span>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span>
-                  <span className="font-mono">{formatCurrency(secondNet)}</span>
+              )}
+            </TabsContent>
+
+            {/* ── ABA: Resumo ── */}
+            <TabsContent value="resumo" className="mt-4">
+              <div className="space-y-3">
+                {form.notes && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Observação</p>
+                    <p className="text-sm text-amber-800">{form.notes}</p>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-2 border-b border-border">
+                  <span className="text-muted-foreground">Pontos ({pontos} × {formatCurrency(valorPonto)})</span>
+                  <span className="font-mono">{formatCurrency(Math.round(pontos * valorPonto * 100) / 100)}</span>
+                </div>
+                {form.bonus > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Bonificação / Prêmio</span>
+                    <span className="font-mono">{formatCurrency(form.bonus)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
+                  <span>Total dos Vencimentos</span>
+                  <span className="font-mono">{formatCurrency(totalVencimentos)}</span>
+                </div>
+                {form.life_insurance > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-destructive">Seguro de Vida</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(form.life_insurance)}</span>
+                  </div>
+                )}
+                {form.other_discounts > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-destructive">Diversos</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(form.other_discounts)}</span>
+                  </div>
+                )}
+                {totalAbsDiscount > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-destructive">Desconto de Faltas</span>
+                    <span className="font-mono text-destructive">- {formatCurrency(totalAbsDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3">
+                  <span className="font-bold text-lg">Total Líquido</span>
+                  <span className="font-mono font-bold text-primary text-xl">{formatCurrency(netTotal)}</span>
+                </div>
+
+                {/* Quinzenal summary */}
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Divisão Quinzenal</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border border-border rounded-lg p-3">
+                    <p className="text-xs font-semibold text-primary mb-2">1ª Quinzena</p>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Base (50%)</span><span className="font-mono">{formatCurrency(firstBase)}</span></div>
+                    {absenceFirst > 0 && <div className="flex justify-between text-xs mb-1"><span className="text-destructive">− Faltas</span><span className="font-mono text-destructive">- {formatCurrency(absenceFirst)}</span></div>}
+                    {form.first_period_advance > 0 && <div className="flex justify-between text-xs mb-1"><span className="text-destructive">− Adiantamento</span><span className="font-mono text-destructive">- {formatCurrency(form.first_period_advance)}</span></div>}
+                    {firstDiscounts.map((d, i) => (
+                      <div key={i} className="flex justify-between text-xs mb-1">
+                        <span className={d.type === 'credit' ? 'text-green-600' : 'text-destructive'}>{d.description}</span>
+                        <span className={`font-mono ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.type === 'credit' ? '+' : '-'} {formatCurrency(d.amount)}</span>
+                      </div>
+                    ))}
+                    <div className={`mt-2 flex justify-between font-semibold text-sm ${firstNet < 0 ? 'text-destructive' : 'text-primary'}`}>
+                      <span>A Receber</span><span className="font-mono">{formatCurrency(firstNet)}</span>
+                    </div>
+                  </div>
+                  <div className="border border-border rounded-lg p-3">
+                    <p className="text-xs font-semibold text-primary mb-2">2ª Quinzena</p>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Base (50%)</span><span className="font-mono">{formatCurrency(secondBase)}</span></div>
+                    {absenceSecond > 0 && <div className="flex justify-between text-xs mb-1"><span className="text-destructive">− Faltas</span><span className="font-mono text-destructive">- {formatCurrency(absenceSecond)}</span></div>}
+                    {secondDiscounts.map((d, i) => (
+                      <div key={i} className="flex justify-between text-xs mb-1">
+                        <span className={d.type === 'credit' ? 'text-green-600' : 'text-destructive'}>{d.description}</span>
+                        <span className={`font-mono ${d.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>{d.type === 'credit' ? '+' : '-'} {formatCurrency(d.amount)}</span>
+                      </div>
+                    ))}
+                    <div className={`mt-2 flex justify-between font-semibold text-sm ${secondNet < 0 ? 'text-destructive' : 'text-primary'}`}>
+                      <span>A Receber</span><span className="font-mono">{formatCurrency(secondNet)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Resumo Total */}
-          <div className="bg-muted/30 rounded-lg p-4 grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase">Total Vencimentos</p>
-              <p className="font-mono font-semibold text-foreground">{formatCurrency(totalVencimentos)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase">Total Descontos</p>
-              <p className="font-mono font-semibold text-destructive">{formatCurrency(totalDescontos)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground uppercase">Líquido</p>
-              <p className={`font-mono font-semibold ${netTotal < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(netTotal)}</p>
-            </div>
-          </div>
-
-          {/* Observação */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Observação</Label>
-            <Textarea
-              className="mt-1 text-sm"
-              rows={2}
-              value={form.notes || ''}
-              onChange={e => set('notes', e.target.value)}
-              readOnly={readOnly}
-              placeholder="Descrição do serviço prestado, período, etc."
-            />
-          </div>
+            </TabsContent>
+          </Tabs>
         </div>
 
-        {!readOnly ? (
-          <div className="flex justify-end gap-2 p-5 border-t border-border">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="w-4 h-4" /> Salvar
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end gap-2 p-5 border-t border-border">
-            <Button variant="outline" onClick={onClose}>Fechar</Button>
-          </div>
+        {installmentDialog && (
+          <InstallmentDialog
+            open={!!installmentDialog}
+            onClose={() => setInstallmentDialog(null)}
+            onConfirm={handleInstallmentConfirm}
+            referenceMonth={referenceMonth}
+            period={installmentDialog}
+          />
         )}
-      </div>
-    </div>
+
+        <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {!readOnly && (
+            <div className="mb-3">
+              <Label className="text-xs">Observação (aparece no PDF)</Label>
+              <textarea
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                placeholder="Descrição do serviço prestado, período, etc."
+                value={form.notes}
+                onChange={e => set('notes', e.target.value)}
+              />
+            </div>
+          )}
+          <div className="flex gap-3 pb-4">
+            {readOnly ? (
+              <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleSave}>Salvar Lançamento</Button>
+              </>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

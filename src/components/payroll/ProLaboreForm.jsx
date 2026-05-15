@@ -166,11 +166,21 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
       <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none flex flex-col overflow-hidden p-0">
         <div className="flex-1 overflow-y-auto p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
+            <DialogTitle className="flex items-center gap-3 flex-wrap">
               {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
               <Badge variant="secondary">Sócio</Badge>
               <Badge variant="outline" className="text-xs">Pró-Labore</Badge>
               <span className="text-sm font-normal text-muted-foreground">{monthName}</span>
+              {employee.admission_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Admissão: {employee.admission_date.split('-').reverse().join('/')}
+                </span>
+              )}
+              {employee.termination_date && (
+                <span className="text-xs text-destructive border border-destructive/30 rounded px-2 py-0.5">
+                  Demissão: {employee.termination_date.split('-').reverse().join('/')}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
 
