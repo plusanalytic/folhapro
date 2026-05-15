@@ -43,7 +43,8 @@
       "type": "string",
       "enum": [
         "CLT",
-        "PJ"
+        "PJ",
+        "ESPORADICO"
       ],
       "description": "Tipo de contrato"
     },
@@ -94,7 +95,7 @@
     },
     "termination_reason": {
       "type": "string",
-      "description": "Motivo de demiss\u00e3o (conforme Tangerino, ex: TERMINO_CONTRATO_TERMO)"
+      "description": "Motivo de demiss\u00e3o"
     },
     "position": {
       "type": "string",
@@ -102,11 +103,11 @@
     },
     "job_role_tangerino_id": {
       "type": "string",
-      "description": "ID do cargo no Tangerino (refer\u00eancia para JobRole.tangerino_id)"
+      "description": "ID do cargo no Tangerino"
     },
     "workplace_list": {
       "type": "array",
-      "description": "IDs dos locais de trabalho no Tangerino (de-para com Workplace.tangerino_id)",
+      "description": "IDs dos locais de trabalho no Tangerino",
       "items": {},
       "default": []
     },

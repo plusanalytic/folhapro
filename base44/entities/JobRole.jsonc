@@ -20,7 +20,8 @@
         "MOTOCICLISTA_CLT",
         "MOTOCICLISTA_MEI",
         "ESCRITORIO",
-        "SOCIO"
+        "SOCIO",
+        "ESPORADICO"
       ],
       "description": "Modelo de folha de pagamento associado ao cargo"
     },

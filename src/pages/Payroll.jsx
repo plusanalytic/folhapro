@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,8 @@ import ProLaboreForm from '@/components/payroll/ProLaboreForm';
 import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
 import BulkPDFDialog from '@/components/payroll/BulkPDFDialog';
 import ConfirmDialog from '@/components/payroll/ConfirmDialog';
+import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
+import AddEsporadicoDialog from '@/components/payroll/AddEsporadicoDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
@@ -52,6 +54,7 @@ export default function Payroll() {
   const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
+  const [addEsporadico, setAddEsporadico] = useState(null); // { companyId }
 
   const load = async () => {
     const [e, c, w, jr, p, m, ps] = await Promise.all([
@@ -187,6 +190,14 @@ export default function Payroll() {
 
   const companiesInView = selectedCompany === 'all' ? companies : companies.filter(c => c.id === selectedCompany);
 
+  // Esporádicos: colaboradores com contract_type=ESPORADICO que têm entry neste mês para uma empresa
+  const esporadicosByCompany = (companyId) => {
+    return entries
+      .filter(e => e.company_id === companyId && e.reference_month === selectedMonth)
+      .map(e => employees.find(emp => emp.id === e.employee_id))
+      .filter(emp => emp && emp.contract_type === 'ESPORADICO');
+  };
+
   const handleCloneFromPrevious = async () => {
     setCloning(true);
     try {
@@ -283,9 +294,14 @@ export default function Payroll() {
       </div>
 
       {companiesInView.map(company => {
-        const companyEmps = filteredEmployees.filter(e => e.company_id === company.id);
-        if (companyEmps.length === 0) return null;
         const closed = isMonthClosed(company.id);
+        const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id);
+        const espEmps = esporadicosByCompany(company.id).filter(emp =>
+          emp.name.toLowerCase().includes(search.toLowerCase())
+        );
+        const espEmpsUniq = espEmps.filter(e => !fixedEmps.some(f => f.id === e.id));
+        const companyEmps = [...fixedEmps, ...espEmpsUniq];
+        if (companyEmps.length === 0) return null;
         const companyEntries = entries.filter(e => companyEmps.some(emp => emp.id === e.employee_id));
         const totalNet = companyEntries.reduce((s, e) => s + (e.first_period_net || 0) + (e.second_period_net || 0), 0);
 
@@ -302,6 +318,17 @@ export default function Payroll() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">Total: <strong className="text-foreground">{formatCurrency(totalNet)}</strong></span>
+                  {!closed && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-orange-700 border-orange-200 hover:bg-orange-50"
+                      title="Adicionar prestador esporádico a esta empresa neste mês"
+                      onClick={() => setAddEsporadico({ companyId: company.id })}
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Prestador
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -492,6 +519,16 @@ export default function Payroll() {
         }}
       />
 
+      {addEsporadico && (
+        <AddEsporadicoDialog
+          companyId={addEsporadico.companyId}
+          referenceMonth={selectedMonth}
+          existingEntries={entries.filter(e => e.company_id === addEsporadico.companyId)}
+          onAdded={load}
+          onClose={() => setAddEsporadico(null)}
+        />
+      )}
+
       {bulkPDF && (
         <BulkPDFDialog
           company={bulkPDF.company}
@@ -537,15 +574,15 @@ export default function Payroll() {
 
       {showForm && editingEmployee && (() => {
         const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
-        const pt = empJobRole?.payroll_type;
-        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'SOCIO' ? ProLaboreForm : PayrollEntryForm;
+        const pt = editingEmployee.contract_type === 'ESPORADICO' ? 'ESPORADICO' : empJobRole?.payroll_type;
+        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'SOCIO' ? ProLaboreForm : pt === 'ESPORADICO' ? EsporadicoPayrollForm : PayrollEntryForm;
         return (
           <FormComponent
             key={`${editingEmployee.id}-${editingEntry?.id ?? 'new'}`}
             employee={editingEmployee}
             entry={editingEntry}
             referenceMonth={selectedMonth}
-            readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEmployee?.company_id)}
+            readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEntry?.company_id || editingEmployee?.company_id)}
             onSave={handleSaveEntry}
             onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
             jobRole={empJobRole}

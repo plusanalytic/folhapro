@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
       return termMonth < targetMonth;
     }
 
+    // Helper: verifica se é colaborador esporádico (não deve ser clonado)
+    function isEsporadico(emp) {
+      if (!emp) return false;
+      return emp.contract_type === 'ESPORADICO';
+    }
+
     // Fields to carry over
     const EXCLUDE_FIELDS = ['id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
       'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes'];
@@ -67,6 +73,12 @@ Deno.serve(async (req) => {
       const emp = employeeMap[prev.employee_id];
       if (isFiredBeforeMonth(emp, target_month)) {
         skippedFired++;
+        continue;
+      }
+
+      // Skip esporádicos — eles são adicionados manualmente em cada mês
+      if (isEsporadico(emp)) {
+        skipped++;
         continue;
       }
 
