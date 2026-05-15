@@ -18,6 +18,7 @@ import Workplaces from '@/pages/Workplaces';
 import JobRoles from '@/pages/JobRoles';
 import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';
+import AccessManagement from '@/pages/AccessManagement';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -56,6 +57,7 @@ const AuthenticatedApp = () => {
         <Route path="/job-roles" element={<JobRoles />} />
         <Route path="/point-adjustments" element={<PointAdjustments />} />
         <Route path="/payments" element={<Payments />} />
+        <Route path="/access" element={<AccessManagement />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

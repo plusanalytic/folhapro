@@ -24,13 +24,14 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO'];
+const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO', 'DESLIGADO'];
 const STATUS_COLORS = {
   PAGO: 'bg-green-100 text-green-700 border-green-300',
   PENDENTE: 'bg-yellow-100 text-yellow-700 border-yellow-300',
   AGENDADO: 'bg-blue-100 text-blue-700 border-blue-300',
   BLOQUEADO: 'bg-red-100 text-red-700 border-red-300',
   'RESCISÃO': 'bg-orange-100 text-orange-700 border-orange-300',
+  DESLIGADO: 'bg-gray-100 text-gray-600 border-gray-300',
 };
 
 function InlineSelect({ value, onChange, disabled }) {

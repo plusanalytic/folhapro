@@ -6,6 +6,7 @@ import { getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/li
 import { absenceDiscountByPeriod } from '@/components/payroll/AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 import ProLaboreReceiptContent from './ProLaboreReceiptContent';
+import EsporadicoReceiptContent from './EsporadicoReceiptContent';
 import { HoleriteContent, MeiHoleriteContent, EscritorioHoleriteContent } from './ReceiptContents';
 
 export default function PDFReceiptDialog({ employee, entry, referenceMonth, onClose, company, payrollType, jobRoleName }) {
@@ -72,8 +73,8 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_discounts: firstDiscounts, second_discounts: secondDiscounts,
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           first_period_base: firstBase, second_period_base: secondBase,
-          first_period_net:  Math.round((firstBase + foodVoucher - lifeIns - firstAdv - firstTotal) * 100) / 100,
-          second_period_net: Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100,
+          first_period_net:  Math.round((firstBase - lifeIns - firstAdv - firstTotal) * 100) / 100,
+          second_period_net: Math.round((secondBase + kmBonus + costAllow + foodVoucher - secondTotal) * 100) / 100,
         });
       } else {
         // Para CLT moto: usa clt_moto_effective_salary salvo, ou recalcula a partir dos campos salvos
@@ -148,7 +149,9 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
               ? <MeiHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
               : payrollType === 'SOCIO'
                 ? <ProLaboreReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
-                : <HoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+                : payrollType === 'ESPORADICO'
+                  ? <EsporadicoReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+                  : <HoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
           }
         </div>
       </DialogContent>

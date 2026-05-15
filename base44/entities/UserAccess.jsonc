@@ -1,0 +1,40 @@
+{
+  "name": "UserAccess",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "E-mail do usu\u00e1rio"
+    },
+    "profile": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "padrao"
+      ],
+      "default": "padrao",
+      "description": "Perfil de acesso: admin (leitura/escrita/exclus\u00e3o) ou padrao (somente leitura)"
+    },
+    "allowed_modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Lista de m\u00f3dulos permitidos para o usu\u00e1rio"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o acesso est\u00e1 ativo"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "user_email",
+    "profile"
+  ]
+}

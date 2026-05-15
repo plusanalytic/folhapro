@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/point-adjustments', icon: ClipboardCheck, label: 'Ajustes de Ponto' },
   { path: '/payments', icon: CreditCard, label: 'Pagamentos' },
   { path: '/reports', icon: FileText, label: 'Relatórios' },
+  { path: '/access', icon: ShieldCheck, label: 'Gestão de Acessos' },
 ];
 
 export default function AppSidebar() {
