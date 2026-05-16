@@ -171,6 +171,11 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
               {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
               <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">Esporádico</Badge>
               <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
+              {employee.birth_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Nasc.: {fmtDate(employee.birth_date)}
+                </span>
+              )}
               {employee.admission_date && (
                 <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                   Admissão: {fmtDate(employee.admission_date)}

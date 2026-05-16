@@ -121,15 +121,15 @@ export function calculateEscritorioPayroll(entry) {
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal: base = (líquido convenção + bonus + birthday_bonus) × split (padrão 50/50)
+  // Quinzenal: base = líquido convenção × split (padrão 50/50)
+  // bonus e birthday_bonus são adicionados DIRETAMENTE na 2ª quinzena (não entram na base do split)
   // Faltas descontadas na quinzena correspondente
-  const baseQuinzenalTotal = netTotal + bonus + birthdayBonus;
   const splitEsc = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
-  const baseQuinzenal = Math.round(baseQuinzenalTotal * splitEsc * 100) / 100;
-  const baseQuinzenalSecond = Math.round(baseQuinzenalTotal * (1 - splitEsc) * 100) / 100;
+  const baseQuinzenal = Math.round(netTotal * splitEsc * 100) / 100;
+  const baseQuinzenalSecond = Math.round(netTotal * (1 - splitEsc) * 100) / 100;
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = baseQuinzenal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = baseQuinzenalSecond + foodVoucher - (entry.second_period_discount || 0) - absenceSecond;
+  const secondPeriodNet = baseQuinzenalSecond + foodVoucher + bonus + birthdayBonus - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     meal_voucher: mealVoucher,

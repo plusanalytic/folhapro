@@ -15,8 +15,10 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
 
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
-      const firstFromCash  = cashOuts.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
-      const secondFromCash = cashOuts.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      // Apenas descontar no PDF se estiver marcado "Descontar do colaborador"
+      const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
+      const firstFromCash  = toDeduct.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      const secondFromCash = toDeduct.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
       const savedFirst  = (entry?.first_discounts  ?? []).filter(x => !x.fromCashOut);
       const savedSecond = (entry?.second_discounts ?? []).filter(x => !x.fromCashOut);
       const firstDiscounts  = [...savedFirst,  ...firstFromCash];

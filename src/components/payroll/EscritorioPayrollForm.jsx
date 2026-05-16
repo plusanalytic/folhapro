@@ -253,6 +253,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <Badge variant="default">{employee.contract_type}</Badge>
               <Badge variant="outline" className="text-xs">Escritório</Badge>
               <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
+              {employee.birth_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Nasc.: {employee.birth_date.split('-').reverse().join('/')}
+                </span>
+              )}
               {employee.admission_date && (
                 <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                   Admissão: {employee.admission_date.split('-').reverse().join('/')}
@@ -343,12 +348,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               </div>
 
               <Separator />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (diluídas nas quinzenas)</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (adicionadas diretamente na 2ª quinzena)</p>
               <div className="grid grid-cols-2 gap-4">
-                <FormRow label="Bonificação / Prêmio" hint="Somado ao líquido e dividido 50/50">
+                <FormRow label="Bonificação / Prêmio" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('bonus')} />
                 </FormRow>
-                <FormRow label="Bonificação de Aniversário" hint="Somado ao líquido e dividido 50/50">
+                <FormRow label="Bonificação de Aniversário" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('birthday_bonus')} />
                 </FormRow>
               </div>
@@ -527,8 +532,20 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   </div>
                   {form.food_voucher > 0 && (
                     <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
+                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação</span>
                       <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                    </div>
+                  )}
+                  {form.bonus > 0 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">+ Bonificação / Prêmio (adicionado na 2ª quinzena)</span>
+                      <span className="font-mono text-xs font-semibold text-green-700">+ {formatCurrency(form.bonus)}</span>
+                    </div>
+                  )}
+                  {form.birthday_bonus > 0 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">+ Bonificação de Aniversário (adicionado na 2ª quinzena)</span>
+                      <span className="font-mono text-xs font-semibold text-green-700">+ {formatCurrency(form.birthday_bonus)}</span>
                     </div>
                   )}
                   {absenceSecond > 0 && (

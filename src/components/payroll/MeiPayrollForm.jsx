@@ -276,6 +276,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               <Badge variant="secondary">MEI</Badge>
               <Badge variant="outline" className="text-xs">Motociclista MEI</Badge>
               <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
+              {employee.birth_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Nasc.: {employee.birth_date.split('-').reverse().join('/')}
+                </span>
+              )}
               {employee.admission_date && (
                 <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                   Admissão: {employee.admission_date.split('-').reverse().join('/')}

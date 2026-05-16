@@ -199,6 +199,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>CPF</div><div style={{ fontWeight: 'bold' }}>{employee.cpf_cnpj || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Cargo</div><div style={{ fontWeight: 'bold' }}>{employee.position || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Contrato</div><div style={{ fontWeight: 'bold' }}>{employee.contract_type}</div></div>
+        {employee.birth_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Nascimento</div><div style={{ fontWeight: 'bold' }}>{formatAdmissionDate(employee.birth_date)}</div></div>}
         {employee.admission_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Admissão</div><div style={{ fontWeight: 'bold' }}>{formatAdmissionDate(employee.admission_date)}</div></div>}
         {employee.termination_date && <div><div style={{ color: '#dc2626', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Demissão</div><div style={{ fontWeight: 'bold', color: '#dc2626' }}>{formatAdmissionDate(employee.termination_date)}</div></div>}
         {employee.pis && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>PIS</div><div style={{ fontWeight: 'bold' }}>{employee.pis}</div></div>}
@@ -402,6 +403,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>CPF / CNPJ</div><div style={{ fontWeight: 'bold' }}>{employee.cpf_cnpj || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Cargo</div><div style={{ fontWeight: 'bold' }}>{employee.position || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Contrato</div><div style={{ fontWeight: 'bold' }}>MEI — Prestador</div></div>
+        {employee.birth_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Nascimento</div><div style={{ fontWeight: 'bold' }}>{formatAdmissionDate(employee.birth_date)}</div></div>}
         {employee.admission_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Admissão</div><div style={{ fontWeight: 'bold' }}>{formatAdmissionDate(employee.admission_date)}</div></div>}
         {employee.termination_date && <div><div style={{ color: '#dc2626', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Demissão</div><div style={{ fontWeight: 'bold', color: '#dc2626' }}>{formatAdmissionDate(employee.termination_date)}</div></div>}
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Dias Úteis Mês / Trab.</div><div style={{ fontWeight: 'bold' }}>{diasMes} / {diasTrabalhados}</div></div>
@@ -527,6 +529,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
 
 // ─── Holerite Escritório ──────────────────────────────────────────────────────
 export function EscritorioHoleriteContent({ employee, entry, month, company }) {
+  // Recalcula apenas os campos de convenção (sem tocar nas quinzenas que vêm do entry)
   const calc = calculateEscritorioPayroll({
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
@@ -541,9 +544,12 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
     food_voucher: entry?.food_voucher ?? 0,
     bonus: entry?.bonus ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
-    first_period_advance: 0,
-    first_period_discount: 0,
-    second_period_discount: 0,
+    absence_discount_first: entry?.absence_discount_first ?? 0,
+    absence_discount_second: entry?.absence_discount_second ?? 0,
+    first_period_advance: entry?.first_period_advance ?? 0,
+    first_period_discount: entry?.first_period_discount ?? 0,
+    second_period_discount: entry?.second_period_discount ?? 0,
+    first_period_split: entry?.first_period_split ?? 0.5,
   });
 
   const firstAdv = entry?.first_period_advance ?? 0;

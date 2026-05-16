@@ -156,6 +156,7 @@ export default function Payments() {
   const getEmployee = (id) => employees.find(e => e.id === id);
   const getJobRoleName = (emp) => jobRoles.find(jr => String(jr.tangerino_id) === String(emp?.job_role_tangerino_id))?.name || '—';
   const getWorkplaceNames = (emp) => (emp?.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean).join(', ') || '—';
+  const getCompanyName = (emp) => companies.find(c => c.id === emp?.company_id)?.name || '—';
   const getPayStatus = (entryId) => paymentStatuses.find(p => p.payroll_entry_id === entryId);
 
   const updatePayStatus = useCallback(async (entry, updates) => {
@@ -221,6 +222,7 @@ export default function Payments() {
       const ps = getPayStatus(entry.id);
       return {
         'Colaborador': emp?.name || '—',
+        'Empresa': getCompanyName(emp),
         'Admissão': formatDate(emp?.admission_date),
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
@@ -358,10 +360,11 @@ export default function Payments() {
 
       {/* Tabela */}
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1460px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1570px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
             <col style={{ width: '85px' }} />
+            <col style={{ width: '110px' }} />
             <col style={{ width: '130px' }} />
             <col style={{ width: '110px' }} />
             {/* Q1 */}
@@ -386,6 +389,7 @@ export default function Payments() {
             <tr className="border-b border-border">
               <th className="p-2 text-left font-bold text-white bg-primary" rowSpan={2}>COLABORADOR</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>ADMISSÃO</th>
+              <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>EMPRESA</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>CARGO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
               <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
@@ -422,6 +426,7 @@ export default function Payments() {
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
                   <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
                   <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(emp.admission_date)}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={getCompanyName(emp)}>{getCompanyName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
@@ -493,7 +498,7 @@ export default function Payments() {
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={18} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={19} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>

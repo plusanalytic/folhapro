@@ -77,11 +77,12 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
   const [installmentDialog, setInstallmentDialog] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Load cashouts
+  // Load cashouts — só desconta se "Descontar do colaborador" estiver marcado
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
-      const fromFirst  = cashOuts.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
-      const fromSecond = cashOuts.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
+      const fromFirst  = toDeduct.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
+      const fromSecond = toDeduct.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
       setFirstDiscounts(prev => [...(entry?.first_discounts ?? []).filter(x => !x.fromCashOut), ...fromFirst]);
       setSecondDiscounts(prev => [...(entry?.second_discounts ?? []).filter(x => !x.fromCashOut), ...fromSecond]);
     });
@@ -171,6 +172,11 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
               <Badge variant="secondary">Sócio</Badge>
               <Badge variant="outline" className="text-xs">Pró-Labore</Badge>
               <span className="text-sm font-normal text-muted-foreground">{monthName}</span>
+              {employee.birth_date && (
+                <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
+                  Nasc.: {employee.birth_date.split('-').reverse().join('/')}
+                </span>
+              )}
               {employee.admission_date && (
                 <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                   Admissão: {employee.admission_date.split('-').reverse().join('/')}
