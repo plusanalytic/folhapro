@@ -88,6 +88,19 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     notes: entry?.notes ?? '',
   });
 
+  // Auto-preenche Bonificação de Aniversário (R$ 200) se o mês da folha = mês de nascimento
+  // Só aplica quando a folha ainda não tem valor salvo (entry sem birthday_bonus)
+  useEffect(() => {
+    if (readOnly) return;
+    if (entry?.birthday_bonus !== undefined && entry?.birthday_bonus !== null) return; // já tem valor salvo
+    if (!employee.birth_date) return;
+    const birthMonth = employee.birth_date.split('-')[1]; // "MM"
+    const refMonth = referenceMonth.split('-')[1];         // "MM"
+    if (birthMonth === refMonth) {
+      setForm(f => ({ ...f, birthday_bonus: 200 }));
+    }
+  }, [employee.birth_date, referenceMonth, readOnly]);
+
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
