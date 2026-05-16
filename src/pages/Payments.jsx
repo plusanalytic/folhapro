@@ -271,6 +271,7 @@ export default function Payments() {
 
   const totalQ1 = sortedEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
   const totalQ2 = sortedEntries.reduce((s, e) => s + (e.second_period_net || 0), 0);
+  const totalBonificacoes = sortedEntries.reduce((s, e) => s + (e.bonus || 0) + (e.birthday_bonus || 0) + (e.other_benefits || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -350,6 +351,18 @@ export default function Payments() {
           <p className="text-xs text-primary">Total Geral</p>
           <p className="font-mono font-bold text-primary text-lg">{formatCurrency(totalQ1 + totalQ2)}</p>
         </div>
+        {totalBonificacoes > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
+            <p className="text-xs text-amber-600">Total Bonificações</p>
+            <p className="font-mono font-bold text-amber-700 text-lg">{formatCurrency(totalBonificacoes)}</p>
+          </div>
+        )}
+        {totalBonificacoes > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
+            <p className="text-xs text-amber-600">Total Bonificações</p>
+            <p className="font-mono font-bold text-amber-700 text-lg">{formatCurrency(totalBonificacoes)}</p>
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{sortedEntries.length} folhas fechadas</span>
           <Button variant="outline" size="sm" onClick={exportXLSX} className="gap-2">
