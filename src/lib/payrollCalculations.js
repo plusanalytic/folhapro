@@ -150,6 +150,8 @@ export function calculateEscritorioPayroll(entry) {
     irrf,
     absence_discount: absenceDiscount,
     union_contribution: 0,
+    first_period_base: baseQuinzenal,
+    second_period_base: baseQuinzenalSecond,
     first_period_net: Math.round(firstPeriodNet * 100) / 100,
     second_period_net: Math.round(secondPeriodNet * 100) / 100,
   };

@@ -552,7 +552,10 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
   const firstNet  = entry?.first_period_net  ?? 0;
   const secondNet = entry?.second_period_net ?? 0;
   const monthName = getMonthName(month);
-  const baseQuinzenal = (calc.net_total + (entry?.bonus ?? 0) + (entry?.birthday_bonus ?? 0)) / 2;
+  const splitFirst = entry?.first_period_split ?? 0.5;
+  // Usa os valores salvos de base quinzenal (respeitam o rateio configurado no formulário)
+  const firstBase  = entry?.first_period_base  ?? (calc.net_total * splitFirst);
+  const secondBase = entry?.second_period_base ?? (calc.net_total * (1 - splitFirst));
   const escAbsenceFirst  = entry?.absence_discount_first  ?? 0;
   const escAbsenceSecond = entry?.absence_discount_second ?? 0;
 
@@ -676,9 +679,9 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
       {/* Quinzenal */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15)</div>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
             {(entry?.food_voucher ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.food_voucher)}</span></div>}
             {escAbsenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceFirst)}</span></div>}
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
@@ -690,9 +693,9 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30)</div>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30) — {Math.round((1 - splitFirst) * 100)}%</div>
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base (50% líquido)</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(baseQuinzenal)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
             {escAbsenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceSecond)}</span></div>}
             {secondDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
