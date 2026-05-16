@@ -354,39 +354,45 @@ export default function Payroll() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-t border-b border-border bg-muted/30">
-                      <th className="text-left p-3 pl-6 font-medium text-muted-foreground">Colaborador</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Salário Base</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Bruto</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Descontos</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Líquido</th>
-                      <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
-                      <th className="text-right p-3 pr-6 font-medium text-muted-foreground">Ação</th>
-                    </tr>
+                   <tr className="border-t border-b border-border bg-muted/30">
+                     <th className="text-left p-3 pl-6 font-medium text-muted-foreground">Colaborador</th>
+                     <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Sal. Efetivo</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 1ªQ</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Descontos 1ªQ</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 2ªQ</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Descontos 2ªQ</th>
+                     <th className="text-right p-3 font-medium text-muted-foreground">Bonificações</th>
+                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                     <th className="text-right p-3 pr-6 font-medium text-muted-foreground">Ação</th>
+                   </tr>
                   </thead>
                   <tbody>
-                    {[...companyEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => {
-                      const entry = getEntry(emp.id);
-                      const totalDiscounts = entry ? ((entry.inss || 0) + (entry.irrf || 0) + (entry.pj_retention || 0) + (entry.first_period_discount || 0) + (entry.second_period_discount || 0)) : 0;
-                      const liquidoTotal = entry ? ((entry.first_period_net || 0) + (entry.second_period_net || 0)) : null;
-                      return (
-                        <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                          <td className="p-3 pl-6">
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
-                                {emp.name.slice(0, 2).toUpperCase()}
-                              </div>
-                              <span className="font-medium">{emp.name}</span>
-                            </div>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground">
-                            {jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))?.name || '—'}
-                          </td>
-                          <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.base_salary) : '—'}</td>
-                          <td className="p-3 text-right font-mono">{entry ? formatCurrency(entry.gross_total) : '—'}</td>
-                          <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(totalDiscounts) : '—'}</td>
-                          <td className="p-3 text-right font-mono font-semibold text-primary">{liquidoTotal !== null ? formatCurrency(liquidoTotal) : '—'}</td>
+                   {[...companyEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => {
+                     const entry = getEntry(emp.id);
+                     const effectiveSalary = entry ? (entry.clt_moto_effective_salary || entry.base_salary || 0) : null;
+                     const disc1 = entry ? (entry.first_period_discount || 0) : 0;
+                     const disc2 = entry ? (entry.second_period_discount || 0) : 0;
+                     const bonificacoes = entry ? ((entry.bonus || 0) + (entry.other_benefits || 0)) : null;
+                     return (
+                       <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                         <td className="p-3 pl-6">
+                           <div className="flex items-center gap-2">
+                             <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
+                               {emp.name.slice(0, 2).toUpperCase()}
+                             </div>
+                             <span className="font-medium">{emp.name}</span>
+                           </div>
+                         </td>
+                         <td className="p-3 text-sm text-muted-foreground">
+                           {jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))?.name || '—'}
+                         </td>
+                         <td className="p-3 text-right font-mono">{effectiveSalary !== null ? formatCurrency(effectiveSalary) : '—'}</td>
+                         <td className="p-3 text-right font-mono font-semibold text-blue-600">{entry ? formatCurrency(entry.first_period_net || 0) : '—'}</td>
+                         <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(disc1) : '—'}</td>
+                         <td className="p-3 text-right font-mono font-semibold text-green-600">{entry ? formatCurrency(entry.second_period_net || 0) : '—'}</td>
+                         <td className="p-3 text-right font-mono text-destructive">{entry ? formatCurrency(disc2) : '—'}</td>
+                         <td className="p-3 text-right font-mono">{bonificacoes !== null ? formatCurrency(bonificacoes) : '—'}</td>
                           <td className="p-3 text-center">
                             {(() => {
                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));

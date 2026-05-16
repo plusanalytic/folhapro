@@ -225,10 +225,12 @@ export default function Payments() {
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
         '1ª Q - Á Receber': entry.first_period_net || 0,
+        '1ª Q - Descontos': entry.first_period_discount || 0,
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
         '2ª Q - Á Receber': entry.second_period_net || 0,
+        '2ª Q - Descontos': entry.second_period_discount || 0,
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
         '2ª Q - OBS': ps?.obs_q2 || '',
@@ -356,7 +358,7 @@ export default function Payments() {
 
       {/* Tabela */}
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1260px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1460px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
             <col style={{ width: '85px' }} />
@@ -364,12 +366,14 @@ export default function Payments() {
             <col style={{ width: '110px' }} />
             {/* Q1 */}
             <col style={{ width: '100px' }} />
-            <col style={{ width: '150px' }} />
-            <col style={{ width: '170px' }} />
-            {/* Q2 */}
             <col style={{ width: '100px' }} />
             <col style={{ width: '150px' }} />
-            <col style={{ width: '170px' }} />
+            <col style={{ width: '150px' }} />
+            {/* Q2 */}
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '150px' }} />
+            <col style={{ width: '150px' }} />
             {/* Dados bancários */}
             <col style={{ width: '110px' }} />
             <col style={{ width: '85px' }} />
@@ -384,15 +388,17 @@ export default function Payments() {
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>ADMISSÃO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>CARGO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
-              <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={3}>1ª QUINZENA</th>
-              <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={3}>2ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={4}>2ª QUINZENA</th>
               <th className="p-2 text-center font-bold text-white bg-slate-600" colSpan={6}>DADOS BANCÁRIOS</th>
             </tr>
             <tr className="border-b border-border bg-muted/30">
               <th className="p-2 text-right font-semibold text-blue-600 text-xs">Á RECEBER</th>
+              <th className="p-2 text-right font-semibold text-blue-600 text-xs">DESCONTOS</th>
               <th className="p-2 text-center font-semibold text-blue-600 text-xs">STATUS / DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-blue-600 text-xs">OBS</th>
               <th className="p-2 text-right font-semibold text-green-600 text-xs">Á RECEBER</th>
+              <th className="p-2 text-right font-semibold text-green-600 text-xs">DESCONTOS</th>
               <th className="p-2 text-center font-semibold text-green-600 text-xs">STATUS / DT PAGAMENTO</th>
               <th className="p-2 text-center font-semibold text-green-600 text-xs">OBS</th>
               <th className="p-2 text-center font-semibold text-slate-500 text-xs">BANCO</th>
@@ -420,6 +426,7 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
+                  <td className="p-2 text-right font-mono text-destructive whitespace-nowrap">{entry.first_period_discount ? formatCurrency(entry.first_period_discount) : '—'}</td>
                   <td className="p-2">
                     <InlineSelect
                       value={status1}
@@ -442,6 +449,7 @@ export default function Payments() {
                   </td>
                   {/* 2ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
+                  <td className="p-2 text-right font-mono text-destructive whitespace-nowrap">{entry.second_period_discount ? formatCurrency(entry.second_period_discount) : '—'}</td>
                   <td className="p-2">
                     <InlineSelect
                       value={status2}
@@ -473,7 +481,7 @@ export default function Payments() {
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={16} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={18} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>
