@@ -225,12 +225,12 @@ export default function Payments() {
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
         '1ª Q - Á Receber': entry.first_period_net || 0,
-        '1ª Q - Descontos': entry.first_period_discount || 0,
+        '1ª Q - Descontos/Acréscimos': entry.first_period_discount || 0,
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
         '2ª Q - Á Receber': entry.second_period_net || 0,
-        '2ª Q - Descontos': entry.second_period_discount || 0,
+        '2ª Q - Descontos/Acréscimos': entry.second_period_discount || 0,
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
         '2ª Q - OBS': ps?.obs_q2 || '',
@@ -426,7 +426,13 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
-                  <td className="p-2 text-right font-mono text-destructive whitespace-nowrap">{entry.first_period_discount ? formatCurrency(entry.first_period_discount) : '—'}</td>
+                  <td className="p-2 text-right font-mono whitespace-nowrap">
+                   {entry.first_period_discount ? (
+                     <span className={entry.first_period_discount < 0 ? 'text-green-600 font-semibold' : 'text-destructive'}>
+                       {entry.first_period_discount < 0 ? `+${formatCurrency(Math.abs(entry.first_period_discount))}` : formatCurrency(entry.first_period_discount)}
+                     </span>
+                   ) : '—'}
+                  </td>
                   <td className="p-2">
                     <InlineSelect
                       value={status1}
@@ -449,7 +455,13 @@ export default function Payments() {
                   </td>
                   {/* 2ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
-                  <td className="p-2 text-right font-mono text-destructive whitespace-nowrap">{entry.second_period_discount ? formatCurrency(entry.second_period_discount) : '—'}</td>
+                  <td className="p-2 text-right font-mono whitespace-nowrap">
+                    {entry.second_period_discount ? (
+                      <span className={entry.second_period_discount < 0 ? 'text-green-600 font-semibold' : 'text-destructive'}>
+                        {entry.second_period_discount < 0 ? `+${formatCurrency(Math.abs(entry.second_period_discount))}` : formatCurrency(entry.second_period_discount)}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="p-2">
                     <InlineSelect
                       value={status2}
