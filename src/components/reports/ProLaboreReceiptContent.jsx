@@ -48,6 +48,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
           {[
             ['Sócio', employee.name],
             ['CPF', employee.cpf_cnpj || '—'],
+            employee.birth_date ? ['Data de Nascimento', employee.birth_date.split('-').reverse().join('/')] : null,
             ['Qualificação', employee.position || 'Sócio Administrador'],
             participacao ? ['Participação societária', participacao] : null,
             ['Empresa', company?.name || '—'],

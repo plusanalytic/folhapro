@@ -55,6 +55,7 @@ export default function EsporadicoReceiptContent({ employee, entry, month, compa
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>CPF / CNPJ</div><div style={{ fontWeight: 'bold' }}>{employee.cpf_cnpj || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Cargo</div><div style={{ fontWeight: 'bold' }}>{employee.position || '—'}</div></div>
         <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Contrato</div><div style={{ fontWeight: 'bold' }}>Prestador Esporádico</div></div>
+        {employee.birth_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Nascimento</div><div style={{ fontWeight: 'bold' }}>{formatDate(employee.birth_date)}</div></div>}
         {employee.admission_date && <div><div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Admissão</div><div style={{ fontWeight: 'bold' }}>{formatDate(employee.admission_date)}</div></div>}
         {employee.termination_date && <div><div style={{ color: '#dc2626', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>Demissão</div><div style={{ fontWeight: 'bold', color: '#dc2626' }}>{formatDate(employee.termination_date)}</div></div>}
       </div>
