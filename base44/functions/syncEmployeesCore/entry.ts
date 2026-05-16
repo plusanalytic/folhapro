@@ -65,7 +65,11 @@ export async function syncEmployeesFromApi(showFired, base44ServiceRole) {
     }
   }
 
-  let created = 0, updated = 0, failed = 0;
+  const SYNC_FIELDS = ['name','email','cpf_cnpj','pis','gender','admission_date','birth_date',
+    'contract_type','company_id','tangerino_company_id','is_active','termination_date',
+    'termination_reason','base_salary','position','job_role_tangerino_id'];
+
+  let created = 0, updated = 0, skipped = 0, failed = 0;
 
   for (const re of remoteEmployees) {
     const tangerinoId = String(re.id ?? '');
@@ -107,8 +111,14 @@ export async function syncEmployeesFromApi(showFired, base44ServiceRole) {
     try {
       const existing = localByTangerinoId[tangerinoId];
       if (existing) {
-        await withRetry(() => base44ServiceRole.entities.Employee.update(existing.id, payload));
-        updated++;
+        const changed = SYNC_FIELDS.some(f => String(existing[f] ?? '') !== String(payload[f] ?? ''))
+          || JSON.stringify(existing.workplace_list ?? []) !== JSON.stringify(payload.workplace_list);
+        if (changed) {
+          await withRetry(() => base44ServiceRole.entities.Employee.update(existing.id, payload));
+          updated++;
+        } else {
+          skipped++;
+        }
       } else {
         await withRetry(() => base44ServiceRole.entities.Employee.create(payload));
         created++;
@@ -118,9 +128,20 @@ export async function syncEmployeesFromApi(showFired, base44ServiceRole) {
       failed++;
     }
 
-    // Pausa entre cada registro para respeitar rate limit
-    await sleep(350);
+    // Pausa entre cada registro para respeitar rate limit (apenas se criou ou atualizou)
+    await sleep(200);
   }
 
-  return { created, updated, failed, total: remoteEmployees.length };
+  return { created, updated, skipped, failed, total: remoteEmployees.length };
 }
+
+// Handler necessário para deploy — delega ao syncEmployees principal
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const result = await syncEmployeesFromApi(0, base44.asServiceRole);
+    return Response.json({ success: true, ...result });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+});

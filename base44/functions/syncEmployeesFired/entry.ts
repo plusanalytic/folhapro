@@ -4,6 +4,10 @@ const TANGERINO_AUTH = "Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+const SYNC_FIELDS = ['name','email','cpf_cnpj','pis','gender','admission_date','birth_date',
+  'contract_type','company_id','tangerino_company_id','is_active','termination_date',
+  'termination_reason','base_salary','position','job_role_tangerino_id'];
+
 function tsToDate(ts) {
   if (!ts) return '';
   return new Date(ts).toISOString().split('T')[0];
@@ -77,7 +81,9 @@ async function doSync(serviceRole) {
 
     const existing = localByTangerinoId[tangerinoId];
     if (existing) {
-      toUpdate.push({ id: existing.id, ...payload });
+      const changed = SYNC_FIELDS.some(f => String(existing[f] ?? '') !== String(payload[f] ?? ''))
+        || JSON.stringify(existing.workplace_list ?? []) !== JSON.stringify(payload.workplace_list);
+      if (changed) toUpdate.push({ id: existing.id, ...payload });
     } else {
       toCreate.push(payload);
     }
@@ -85,7 +91,7 @@ async function doSync(serviceRole) {
 
   // Processar em batches para evitar timeout
   const BATCH = 50;
-  let created = 0, updated = 0, failed = 0;
+  let created = 0, updated = 0, skipped = 0, failed = 0;
 
   for (let i = 0; i < toCreate.length; i += BATCH) {
     const batch = toCreate.slice(i, i + BATCH);
@@ -111,7 +117,8 @@ async function doSync(serviceRole) {
     if (i + BATCH < toUpdate.length) await sleep(300);
   }
 
-  return { created, updated, failed, total: remoteEmployees.length };
+  skipped = remoteEmployees.length - toCreate.length - toUpdate.length - failed;
+  return { created, updated, skipped, failed, total: remoteEmployees.length };
 }
 
 Deno.serve(async (req) => {
