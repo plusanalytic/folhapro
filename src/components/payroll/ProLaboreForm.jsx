@@ -13,17 +13,17 @@ import { formatCurrency, calculateProLabore, getMonthName, getWorkingDaysInMonth
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 
-function NumInput({ value, onChange, disabled, placeholder = '0,00', step = '0.01' }) {
+function NumInput({ value, onChange, disabled, placeholder = '0,00', step = '0.01', allowZero = false }) {
   const [raw, setRaw] = useState(null);
-  const display = raw !== null ? raw : (value === 0 ? '' : String(value));
+  const display = raw !== null ? raw : (value === 0 && !allowZero ? '' : String(value));
   return (
     <Input
       type="number" step={step} min="0" disabled={disabled}
       className="font-mono"
       value={display}
       onChange={e => setRaw(e.target.value)}
-      onBlur={e => { onChange(parseFloat(e.target.value) || 0); setRaw(null); }}
-      onFocus={e => { setRaw(value === 0 ? '' : String(value)); setTimeout(() => e.target.select(), 0); }}
+      onBlur={e => { const v = parseFloat(e.target.value); onChange(isNaN(v) ? 0 : v); setRaw(null); }}
+      onFocus={e => { setRaw(String(value)); setTimeout(() => e.target.select(), 0); }}
       placeholder={placeholder}
     />
   );
@@ -278,7 +278,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                   </div>
                   <div>
                     <Label className="text-xs">IRRF (R$) — manual</Label>
-                    <NumInput value={form.irrf} disabled={readOnly} onChange={v => set('irrf', v)} />
+                    <NumInput value={form.irrf} disabled={readOnly} onChange={v => set('irrf', v)} allowZero={true} />
                   </div>
                   <div>
                     <Label className="text-xs">Outros Descontos (R$)</Label>

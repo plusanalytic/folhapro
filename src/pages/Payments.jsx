@@ -368,7 +368,7 @@ export default function Payments() {
 
       {/* Tabela */}
       <div className="overflow-auto rounded-xl border border-border bg-card max-h-[65vh]">
-        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1570px' }}>
+        <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: '1680px' }}>
           <colgroup>
             <col style={{ width: '180px' }} />
             <col style={{ width: '85px' }} />
@@ -385,6 +385,8 @@ export default function Payments() {
             <col style={{ width: '100px' }} />
             <col style={{ width: '150px' }} />
             <col style={{ width: '150px' }} />
+            {/* Bonificações */}
+            <col style={{ width: '110px' }} />
             {/* Dados bancários */}
             <col style={{ width: '110px' }} />
             <col style={{ width: '85px' }} />
@@ -402,6 +404,7 @@ export default function Payments() {
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>LOCAL</th>
               <th className="p-2 text-center font-bold text-white bg-blue-700" colSpan={4}>1ª QUINZENA</th>
               <th className="p-2 text-center font-bold text-white bg-green-700" colSpan={4}>2ª QUINZENA</th>
+              <th className="p-2 text-center font-bold text-white bg-amber-600" rowSpan={2}>BONIFICAÇÕES</th>
               <th className="p-2 text-center font-bold text-white bg-slate-600" colSpan={6}>DADOS BANCÁRIOS</th>
             </tr>
             <tr className="border-b border-border bg-muted/30">
@@ -495,6 +498,10 @@ export default function Payments() {
                       disabled={false}
                     />
                   </td>
+                  {/* Bonificações */}
+                  <td className="p-2 text-right font-mono whitespace-nowrap text-amber-700">
+                    {(() => { const b = (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0); return b > 0 ? formatCurrency(b) : '—'; })()}
+                  </td>
                   {/* Dados Bancários */}
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_name}>{emp.bank_name || '—'}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_agency}>{emp.bank_agency || '—'}</td>
@@ -506,7 +513,7 @@ export default function Payments() {
               );
             })}
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={19} className="text-center py-12 text-muted-foreground">
+              <tr><td colSpan={20} className="text-center py-12 text-muted-foreground">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>Nenhuma folha fechada encontrada para este período</p>
               </td></tr>

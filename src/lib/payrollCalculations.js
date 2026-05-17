@@ -310,7 +310,7 @@ export function calculateProLabore(entry) {
   const inssPct  = (inssCustomPct != null && inssCustomPct > 0) ? inssCustomPct / 100 : 0;
   const inss     = inssPct > 0 ? Math.round(proLaboreBase * inssPct * 100) / 100 : 0;
 
-  const grossTotal = Math.round((proLaboreBase + quotaAdjust + birthdayBonus) * 100) / 100;
+  const grossTotal = Math.round((proLaboreBase + quotaAdjust) * 100) / 100;
   const irrf       = irrfCustom > 0 ? irrfCustom : calculateIRRF(grossTotal, inss);
   const netLabore  = Math.round((grossTotal - inss - irrf) * 100) / 100;
 

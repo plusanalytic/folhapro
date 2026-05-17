@@ -6,7 +6,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
   const proLaboreBase   = entry?.base_salary         ?? 0;
   const quotaAdjust     = entry?.quota_adjustment     ?? 0;
   const birthdayBonus   = entry?.birthday_bonus       ?? 0;
-  const grossTotal      = entry?.gross_total          ?? (proLaboreBase + quotaAdjust + birthdayBonus);
+  const grossTotal      = entry?.gross_total          ?? (proLaboreBase + quotaAdjust);
   const inss            = entry?.inss                 ?? 0;
   const inssPct         = entry?.inss_pct             ?? 11;
   const irrf            = entry?.irrf                 ?? 0;
@@ -75,8 +75,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
         <tbody>
           {[
             ['PRÓ-LABORE BASE', proLaboreBase, false],
-            ['REAJUSTE DE COTA', quotaAdjust, false],
-            [`BONIFICAÇÃO DE ANIVERSÁRIO`, birthdayBonus, false],
+            ...(quotaAdjust > 0 ? [['REAJUSTE DE COTA', quotaAdjust, false]] : []),
           ].map(([label, value, bold], i) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
               <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', fontWeight: bold ? 'bold' : 'normal' }}>{label}</td>
