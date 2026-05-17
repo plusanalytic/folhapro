@@ -238,6 +238,7 @@ export default function Payments() {
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
         '2ª Q - OBS': ps?.obs_q2 || '',
+        'Total Bonificações': (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0),
         'Banco': emp?.bank_name || '',
         'Agência': emp?.bank_agency || '',
         'Conta': emp?.bank_account || '',

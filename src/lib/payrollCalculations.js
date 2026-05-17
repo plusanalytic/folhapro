@@ -304,14 +304,16 @@ export function calculateProLabore(entry) {
   const firstAdvance   = entry.first_period_advance || 0;
   const otherDiscounts = entry.other_discounts    || 0;  // Outros descontos
   const inssCustomPct  = entry.inss_pct;                 // % customizado (null = usa 11%)
-  const irrfCustom     = entry.irrf               || 0;  // IRRF manual
+  // IRRF manual: se o campo foi explicitamente definido (inclusive 0), usa o valor salvo.
+  // Só usa cálculo automático quando o campo é null/undefined (novo lançamento).
+  const irrfCustom     = (entry.irrf != null) ? entry.irrf : null;
 
   // INSS fixo 11% (ou % customizado) sobre pró-labore base — sem cálculo automático se em branco/zerado
   const inssPct  = (inssCustomPct != null && inssCustomPct > 0) ? inssCustomPct / 100 : 0;
   const inss     = inssPct > 0 ? Math.round(proLaboreBase * inssPct * 100) / 100 : 0;
 
   const grossTotal = Math.round((proLaboreBase + quotaAdjust) * 100) / 100;
-  const irrf       = irrfCustom > 0 ? irrfCustom : calculateIRRF(grossTotal, inss);
+  const irrf       = (irrfCustom !== null) ? irrfCustom : calculateIRRF(grossTotal, inss);
   const netLabore  = Math.round((grossTotal - inss - irrf) * 100) / 100;
 
   // Total líquido a receber = líquido do pró-labore + distribuição de lucros - adiantamento - outros descontos

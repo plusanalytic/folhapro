@@ -556,15 +556,19 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
   const firstAdv = entry?.first_period_advance ?? 0;
   const firstDiscounts  = entry?.first_discounts ?? [];
   const secondDiscounts = entry?.second_discounts ?? [];
-  const firstNet  = entry?.first_period_net  ?? 0;
-  const secondNet = entry?.second_period_net ?? 0;
-  const monthName = getMonthName(month);
   const splitFirst = entry?.first_period_split ?? 0.5;
   // Usa os valores salvos de base quinzenal (respeitam o rateio configurado no formulário)
   const firstBase  = entry?.first_period_base  ?? (calc.net_total * splitFirst);
   const secondBase = entry?.second_period_base ?? (calc.net_total * (1 - splitFirst));
   const escAbsenceFirst  = entry?.absence_discount_first  ?? 0;
   const escAbsenceSecond = entry?.absence_discount_second ?? 0;
+  const firstDiscountTotal  = (entry?.first_discounts  ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
+  const secondDiscountTotal = (entry?.second_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
+  // Recalcula os líquidos quinzenais para garantir que attendance_bonus e outros valores estejam somados
+  // (compatível com folhas salvas antes da correção)
+  const firstNet  = Math.round((firstBase - firstAdv - (entry?.first_period_discount ?? firstDiscountTotal) - escAbsenceFirst) * 100) / 100;
+  const secondNet = Math.round((secondBase + (entry?.food_voucher ?? 0) + (entry?.bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.birthday_bonus ?? 0) - (entry?.second_period_discount ?? secondDiscountTotal) - escAbsenceSecond) * 100) / 100;
+  const monthName = getMonthName(month);
 
   const proventosConv = [
     { label: 'Piso Salarial', value: entry?.base_salary ?? 0, show: true },
