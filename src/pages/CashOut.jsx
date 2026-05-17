@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ function getMonthFromDate(dateStr) {
 const EMPTY_FORM = { company_id: '', employee_id: '', date: '', description: '', amount: '', notes: '', deduct_from_payroll: false };
 
 export default function CashOut() {
+  const readOnly = useReadOnly();
   const [cashOuts, setCashOuts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -151,9 +153,11 @@ export default function CashOut() {
             <p className="text-sm text-muted-foreground">Lançamentos de saída vinculados a empresas ou colaboradores</p>
           </div>
         </div>
-        <Button onClick={openNew}>
-          <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
-        </Button>
+        {!readOnly && (
+          <Button onClick={openNew}>
+            <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -250,12 +254,16 @@ export default function CashOut() {
                         - {formatCurrency(c.amount)}
                       </td>
                       <td className="px-2 py-3 flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(c)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {!readOnly && (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(c)}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   );

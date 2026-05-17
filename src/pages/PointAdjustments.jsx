@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ const COMMON_REASONS = [
 ];
 
 export default function PointAdjustments() {
+  const readOnly = useReadOnly();
   // Filtros de busca — só busca ao clicar em "Buscar"
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterDateStart, setFilterDateStart] = useState('');

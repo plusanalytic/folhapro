@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus } from 'lucide-react';
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ import AddEsporadicoDialog from '@/components/payroll/AddEsporadicoDialog';
 import { toast } from 'sonner';
 
 export default function Payroll() {
+  const readOnly = useReadOnly();
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
@@ -224,15 +226,17 @@ export default function Payroll() {
           <h1 className="text-2xl font-bold text-foreground">Folha de Pagamento</h1>
           <p className="text-muted-foreground text-sm mt-1">Lançamentos mensais</p>
         </div>
-        <Button
-          variant="outline"
-          className="gap-2"
-          onClick={handleCloneFromPrevious}
-          disabled={cloning}
-        >
-          {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-          Clonar do Mês Anterior
-        </Button>
+        {!readOnly && (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleCloneFromPrevious}
+            disabled={cloning}
+          >
+            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+            Clonar do Mês Anterior
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -312,7 +316,7 @@ export default function Payroll() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">Total: <strong className="text-foreground">{formatCurrency(totalNet)}</strong></span>
-                  {!closed && (
+                  {!readOnly && !closed && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -332,7 +336,7 @@ export default function Payroll() {
                   >
                     <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
                   </Button>
-                  {closed ? (
+                  {!readOnly && (closed ? (
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmReopen({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Unlock className="w-3.5 h-3.5" /> Reabrir Mês
                     </Button>
@@ -340,7 +344,7 @@ export default function Payroll() {
                     <Button variant="default" size="sm" className="gap-1.5" onClick={() => setConfirmClose({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Lock className="w-3.5 h-3.5" /> Fechar Mês
                     </Button>
-                  )}
+                  ))}
                 </div>
               </div>
             </CardHeader>

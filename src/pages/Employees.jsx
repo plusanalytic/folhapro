@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Pencil, Users, Search, RefreshCw, UserCheck, UserX, Briefcase, Building2, ChevronLeft, ChevronRight, MapPin, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import SyncProgressDialog from '@/components/employees/SyncProgressDialog';
 const PAGE_SIZE = 20;
 
 export default function Employees() {
+  const readOnly = useReadOnly();
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
@@ -109,16 +111,18 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-muted-foreground text-sm mt-1">{employees.length} registros importados</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => setShowManualForm(true)}>
-            <UserPlus className="w-4 h-4" />
-            Novo Colaborador
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setShowSyncDialog(true)}>
-            <RefreshCw className="w-4 h-4" />
-            Sincronizar Solides
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setShowManualForm(true)}>
+              <UserPlus className="w-4 h-4" />
+              Novo Colaborador
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setShowSyncDialog(true)}>
+              <RefreshCw className="w-4 h-4" />
+              Sincronizar Solides
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Cards de resumo */}
@@ -301,9 +305,11 @@ export default function Employees() {
                   )}
                 </td>
                 <td className="p-4 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => { setEditing(emp); setShowForm(true); }}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
+                  {!readOnly && (
+                    <Button variant="ghost" size="sm" onClick={() => { setEditing(emp); setShowForm(true); }}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}

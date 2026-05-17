@@ -1,23 +1,30 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppUser } from '@/lib/AppUserContext';
 
-const navItems = [
-  { path: '/', icon: BarChart3, label: 'Dashboard' },
-  { path: '/companies', icon: Building2, label: 'Empresas' },
-  { path: '/employees', icon: Users, label: 'Colaboradores' },
-  { path: '/workplaces', icon: MapPin, label: 'Locais de Trabalho' },
-  { path: '/job-roles', icon: Briefcase, label: 'Cargos / Folha' },
-  { path: '/payroll', icon: Banknote, label: 'Folha de Pagamento' },
-  { path: '/cashout', icon: ArrowDownCircle, label: 'Saída de Caixa' },
-  { path: '/point-adjustments', icon: ClipboardCheck, label: 'Ajustes de Ponto' },
-  { path: '/payments', icon: CreditCard, label: 'Pagamentos' },
-  { path: '/reports', icon: FileText, label: 'Relatórios' },
-  { path: '/access', icon: ShieldCheck, label: 'Gestão de Acessos' },
+const ALL_NAV_ITEMS = [
+  { path: '/',                  moduleKey: 'dashboard',         icon: BarChart3,      label: 'Dashboard' },
+  { path: '/companies',         moduleKey: 'companies',         icon: Building2,      label: 'Empresas' },
+  { path: '/employees',         moduleKey: 'employees',         icon: Users,          label: 'Colaboradores' },
+  { path: '/workplaces',        moduleKey: 'workplaces',        icon: MapPin,         label: 'Locais de Trabalho' },
+  { path: '/job-roles',         moduleKey: 'job-roles',         icon: Briefcase,      label: 'Cargos / Folha' },
+  { path: '/payroll',           moduleKey: 'payroll',           icon: Banknote,       label: 'Folha de Pagamento' },
+  { path: '/cashout',           moduleKey: 'cashout',           icon: ArrowDownCircle,label: 'Saída de Caixa' },
+  { path: '/point-adjustments', moduleKey: 'point-adjustments', icon: ClipboardCheck, label: 'Ajustes de Ponto' },
+  { path: '/payments',          moduleKey: 'payments',          icon: CreditCard,     label: 'Pagamentos' },
+  { path: '/reports',           moduleKey: 'reports',           icon: FileText,       label: 'Relatórios' },
+  { path: '/access',            moduleKey: 'access',            icon: ShieldCheck,    label: 'Gestão de Acessos' },
 ];
 
 export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
   const location = useLocation();
+  const appUser = useAppUser();
+  const allowedModules = appUser?.allowed_modules;
+  const navItems = allowedModules
+    ? ALL_NAV_ITEMS.filter(item => allowedModules.includes(item.moduleKey))
+    : ALL_NAV_ITEMS;
+  const settingsAllowed = !allowedModules || allowedModules.includes('settings');
 
   return (
     <>
@@ -65,22 +72,18 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
           })}
         </nav>
 
-        {!collapsed && (
+        {settingsAllowed && (
           <div className="p-2" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-            <Link
-              to="/settings"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <Settings className="w-4 h-4" />
-              <span>Configurações</span>
-            </Link>
-          </div>
-        )}
-        {collapsed && (
-          <div className="p-2" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-            <Link to="/settings" title="Configurações" className="flex items-center justify-center p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
-              <Settings className="w-4 h-4" />
-            </Link>
+            {collapsed ? (
+              <Link to="/settings" title="Configurações" className="flex items-center justify-center p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                <Settings className="w-4 h-4" />
+              </Link>
+            ) : (
+              <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                <Settings className="w-4 h-4" />
+                <span>Configurações</span>
+              </Link>
+            )}
           </div>
         )}
       </aside>
@@ -127,16 +130,18 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
           })}
         </nav>
 
-        <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-          <Link
-            to="/settings"
-            onClick={onMobileClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
-          >
-            <Settings className="w-4 h-4" />
-            <span>Configurações</span>
-          </Link>
-        </div>
+        {settingsAllowed && (
+          <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+            <Link
+              to="/settings"
+              onClick={onMobileClose}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Configurações</span>
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Briefcase, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -27,9 +28,9 @@ const AVAILABLE_TYPES = ['MOTOCICLISTA_CLT', 'MOTOCICLISTA_MEI', 'ESCRITORIO', '
 const COMING_SOON_TYPES = [];
 
 export default function JobRoles() {
+  const readOnly = useReadOnly();
   const [jobRoles, setJobRoles] = useState([]);
   const [saving, setSaving] = useState({});
-  // Edição inline de salário base: { [id]: string }
   const [salaryEdits, setSalaryEdits] = useState({});
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export default function JobRoles() {
                     <Select
                       value={jr.payroll_type || 'none'}
                       onValueChange={val => handleTypeChange(jr, val)}
-                      disabled={saving[jr.id]}
+                      disabled={saving[jr.id] || readOnly}
                     >
                       <SelectTrigger className="w-56">
                         <SelectValue placeholder="Selecionar modelo..." />
@@ -160,10 +161,11 @@ export default function JobRoles() {
                         min="0"
                         className="w-32 font-mono text-sm h-8"
                         placeholder="0,00"
+                        disabled={readOnly}
                         value={salaryEdits[jr.id] !== undefined ? salaryEdits[jr.id] : (jr.base_salary > 0 ? jr.base_salary : '')}
-                        onChange={e => setSalaryEdits(s => ({ ...s, [jr.id]: e.target.value }))}
-                        onBlur={() => { if (salaryEdits[jr.id] !== undefined) handleSaveSalary(jr); }}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSaveSalary(jr); }}
+                        onChange={e => !readOnly && setSalaryEdits(s => ({ ...s, [jr.id]: e.target.value }))}
+                        onBlur={() => { if (!readOnly && salaryEdits[jr.id] !== undefined) handleSaveSalary(jr); }}
+                        onKeyDown={e => { if (!readOnly && e.key === 'Enter') handleSaveSalary(jr); }}
                       />
                       {salaryEdits[jr.id] !== undefined && (
                         <Button

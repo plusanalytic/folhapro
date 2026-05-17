@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useReadOnly } from '@/lib/AppUserContext';
 import { Pencil, Building2, Search, Power, RefreshCw, CheckCircle2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import CompanyForm from '@/components/companies/CompanyForm';
 import { toast } from 'sonner';
 
 export default function Companies() {
+  const readOnly = useReadOnly();
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -73,16 +75,17 @@ export default function Companies() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
-          </Button>
-
+          {!readOnly && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Solides'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -177,25 +180,27 @@ export default function Companies() {
                 </p>
               )}
 
-              <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs"
-                  onClick={() => { setEditing(company); setShowForm(true); }}
-                >
-                  <Pencil className="w-3 h-3" /> Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs"
-                  onClick={() => toggleActive(company)}
-                >
-                  <Power className="w-3 h-3" />
-                  {company.is_active !== false ? 'Desativar' : 'Ativar'}
-                </Button>
-              </div>
+              {!readOnly && (
+                <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs"
+                    onClick={() => { setEditing(company); setShowForm(true); }}
+                  >
+                    <Pencil className="w-3 h-3" /> Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs"
+                    onClick={() => toggleActive(company)}
+                  >
+                    <Power className="w-3 h-3" />
+                    {company.is_active !== false ? 'Desativar' : 'Ativar'}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

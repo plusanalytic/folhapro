@@ -21,6 +21,8 @@ import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';
 import AccessManagement from '@/pages/AccessManagement';
 import AppLogin from '@/pages/AppLogin';
+import { AppUserContext } from '@/lib/AppUserContext';
+import { Navigate } from 'react-router-dom';
 
 const SESSION_KEY = 'app_user_session';
 
@@ -64,24 +66,29 @@ const AuthenticatedApp = () => {
     return <AppLogin onLogin={handleLogin} />;
   }
 
+  const allowed = appUser?.allowed_modules;
+  const can = (key) => !allowed || allowed.includes(key);
+
   return (
+    <AppUserContext.Provider value={appUser}>
     <Routes>
       <Route element={<AppLayout appUser={appUser} onLogout={handleLogout} />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/companies" element={<Companies />} />
-        <Route path="/employees" element={<Employees />} />
-        <Route path="/payroll" element={<Payroll />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/cashout" element={<CashOut />} />
-        <Route path="/workplaces" element={<Workplaces />} />
-        <Route path="/job-roles" element={<JobRoles />} />
-        <Route path="/point-adjustments" element={<PointAdjustments />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/access" element={<AccessManagement currentAppUser={appUser} />} />
+        <Route path="/" element={can('dashboard') ? <Dashboard /> : <Navigate to={allowed?.[0] ? `/${allowed[0] === 'dashboard' ? '' : allowed[0]}` : '/'} replace />} />
+        <Route path="/companies"         element={can('companies')         ? <Companies />    : <Navigate to="/" replace />} />
+        <Route path="/employees"         element={can('employees')         ? <Employees />    : <Navigate to="/" replace />} />
+        <Route path="/payroll"           element={can('payroll')           ? <Payroll />      : <Navigate to="/" replace />} />
+        <Route path="/reports"           element={can('reports')           ? <Reports />      : <Navigate to="/" replace />} />
+        <Route path="/settings"          element={can('settings')          ? <Settings />     : <Navigate to="/" replace />} />
+        <Route path="/cashout"           element={can('cashout')           ? <CashOut />      : <Navigate to="/" replace />} />
+        <Route path="/workplaces"        element={can('workplaces')        ? <Workplaces />   : <Navigate to="/" replace />} />
+        <Route path="/job-roles"         element={can('job-roles')         ? <JobRoles />     : <Navigate to="/" replace />} />
+        <Route path="/point-adjustments" element={can('point-adjustments') ? <PointAdjustments /> : <Navigate to="/" replace />} />
+        <Route path="/payments"          element={can('payments')          ? <Payments />     : <Navigate to="/" replace />} />
+        <Route path="/access"            element={can('access')            ? <AccessManagement currentAppUser={appUser} /> : <Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+    </AppUserContext.Provider>
   );
 };
 
