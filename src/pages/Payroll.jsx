@@ -422,79 +422,79 @@ export default function Payroll() {
                           <td className="p-3 pr-6 text-right">
                             <div className="flex gap-1.5 justify-end">
                              {entry && (
-                               <>
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   title="Visualizar"
-                                   onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
-                                 >
-                                   <Eye className="w-3.5 h-3.5" />
-                                 </Button>
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   title="Imprimir Recibo"
-                                   onClick={() => {
-                                    const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                    const pType = emp.contract_type === 'ESPORADICO' ? 'ESPORADICO' : jr?.payroll_type;
-                                    setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
+                             <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Visualizar"
+                                onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Imprimir Recibo"
+                                onClick={() => {
+                                 const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                 const pType = emp.contract_type === 'ESPORADICO' ? 'ESPORADICO' : jr?.payroll_type;
+                                 setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
+                               }}
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                              </Button>
+                              {!readOnly && (entry.status === 'closed' ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Reabrir folha deste colaborador"
+                                  onClick={() => {
+                                    if (hasPaymentBaixa(entry)) {
+                                      setPaymentBlockAlert({ empName: emp.name });
+                                    } else {
+                                      setConfirmReopen({ type: 'entry', entry, empName: emp.name });
+                                    }
                                   }}
-                                 >
-                                   <Printer className="w-3.5 h-3.5" />
-                                 </Button>
-                                 {entry.status === 'closed' ? (
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     title="Reabrir folha deste colaborador"
-                                     onClick={() => {
-                                       if (hasPaymentBaixa(entry)) {
-                                         setPaymentBlockAlert({ empName: emp.name });
-                                       } else {
-                                         setConfirmReopen({ type: 'entry', entry, empName: emp.name });
-                                       }
-                                     }}
-                                   >
-                                     <Unlock className="w-3.5 h-3.5" />
-                                   </Button>
-                                 ) : (
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     title="Fechar folha deste colaborador"
-                                     onClick={() => setConfirmClose({ type: 'entry', entry, empName: emp.name })}
-                                   >
-                                     <UserCheck className="w-3.5 h-3.5" />
-                                   </Button>
-                                 )}
-                               </>
+                                >
+                                  <Unlock className="w-3.5 h-3.5" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Fechar folha deste colaborador"
+                                  onClick={() => setConfirmClose({ type: 'entry', entry, empName: emp.name })}
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                </Button>
+                              ))}
+                             </>
                              )}
-                             {(() => {
-                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                const hasPayrollType = emp.contract_type === 'ESPORADICO' || !!empJobRole?.payroll_type;
-                               return (
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   disabled={closed || !hasPayrollType || entry?.status === 'closed'}
-                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
-                                   onClick={() => {
-                                     setEditingEmployee(emp);
-                                     // Pré-preenche salário base do cargo SOMENTE se não há lançamento ainda
-                                     // (se já existe entry com base_salary > 0, não sobrepõe)
-                                     const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                     const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
-                                       ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
-                                       : null;
-                                     setEditingEntry(entry || prefilled);
-                                     setViewOnly(false);
-                                     setShowForm(true);
-                                   }}
-                                 >
-                                   {entry ? 'Editar' : 'Lançar'}
-                                 </Button>
-                               );
+                             {!readOnly && (() => {
+                             const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                             const hasPayrollType = emp.contract_type === 'ESPORADICO' || !!empJobRole?.payroll_type;
+                             return (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={closed || !hasPayrollType || entry?.status === 'closed'}
+                                title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
+                                onClick={() => {
+                                  setEditingEmployee(emp);
+                                  // Pré-preenche salário base do cargo SOMENTE se não há lançamento ainda
+                                  // (se já existe entry com base_salary > 0, não sobrepõe)
+                                  const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                  const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
+                                    ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
+                                    : null;
+                                  setEditingEntry(entry || prefilled);
+                                  setViewOnly(false);
+                                  setShowForm(true);
+                                }}
+                              >
+                                {entry ? 'Editar' : 'Lançar'}
+                              </Button>
+                             );
                              })()}
                             </div>
                           </td>
