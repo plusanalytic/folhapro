@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ const DEFAULTS = {
   working_days_second: 0,
   quota_adjustment: 0,
   birthday_bonus: 0,
+  medical_plan: 0,
   profit_distribution: 0,
   inss_pct: 11,
   irrf: 0,
@@ -72,6 +74,18 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
     working_days_second: entry?.working_days_second ?? 0,
     ...entry,
   });
+  // Auto-preenche Bonificação de Aniversário (R$ 200) se mês da folha = mês de nascimento
+  useEffect(() => {
+    if (readOnly) return;
+    if (entry?.birthday_bonus !== undefined && entry?.birthday_bonus !== null && entry?.birthday_bonus > 0) return;
+    if (!employee.birth_date) return;
+    const birthMonth = employee.birth_date.split('-')[1];
+    const refMonth = referenceMonth.split('-')[1];
+    if (birthMonth === refMonth) {
+      setForm(f => ({ ...f, birthday_bonus: 200 }));
+    }
+  }, [employee.birth_date, referenceMonth, readOnly]);
+
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
   const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
   const [installmentDialog, setInstallmentDialog] = useState(null);
@@ -109,7 +123,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
   const firstBase = Math.round(calc.net_labore * firstPeriodSplit * 100) / 100;
   const secondBase = Math.round(calc.net_labore * (1 - firstPeriodSplit) * 100) / 100;
   const firstPeriodNet = Math.round((firstBase - firstTotal) * 100) / 100;
-  const secondPeriodNet = Math.round((secondBase + form.profit_distribution - form.other_discounts - secondTotal) * 100) / 100;
+  const secondPeriodNet = Math.round((secondBase + form.profit_distribution + (form.birthday_bonus || 0) + (form.medical_plan || 0) - form.other_discounts - secondTotal) * 100) / 100;
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -155,6 +169,8 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
       second_period_net:      secondPeriodNet,
       first_period_base:      firstBase,
       second_period_base:     secondBase,
+      birthday_bonus:         form.birthday_bonus,
+      medical_plan:           form.medical_plan,
     };
     await onSave(payload);
     setSaving(false);
@@ -239,6 +255,12 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                   <div>
                     <Label className="text-xs">Bonificação de Aniversário (R$)</Label>
                     <NumInput value={form.birthday_bonus} disabled={readOnly} onChange={v => set('birthday_bonus', v)} />
+                    <p className="text-xs text-muted-foreground mt-0.5">Adicionado na 2ª quinzena — não soma ao bruto</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Convênio Médico (R$)</Label>
+                    <NumInput value={form.medical_plan} disabled={readOnly} onChange={v => set('medical_plan', v)} />
+                    <p className="text-xs text-muted-foreground mt-0.5">Benefício — adicionado na 2ª quinzena — não soma ao bruto</p>
                   </div>
                   <div>
                     <Label className="text-xs">Distribuição de Lucros (R$)</Label>
@@ -338,6 +360,18 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(secondBase)}</span>
                   </div>
+                  {form.birthday_bonus > 0 && (
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-amber-700 font-medium">+ Bonificação de Aniversário</span>
+                      <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.birthday_bonus)}</span>
+                    </div>
+                  )}
+                  {form.medical_plan > 0 && (
+                    <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-teal-700 font-medium">+ Convênio Médico</span>
+                      <span className="font-mono text-xs font-semibold text-teal-700">+ {formatCurrency(form.medical_plan)}</span>
+                    </div>
+                  )}
                   {form.profit_distribution > 0 && (
                     <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
                       <span className="text-xs text-secondary font-medium">+ Distribuição de Lucros</span>
@@ -362,7 +396,8 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                   <span className="font-mono">{formatCurrency(form.base_salary)}</span>
                 </div>
                 {form.quota_adjustment > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Reajuste de Cota</span><span className="font-mono">{formatCurrency(form.quota_adjustment)}</span></div>}
-                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bon. Aniversário</span><span className="font-mono">{formatCurrency(form.birthday_bonus)}</span></div>}
+                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bon. Aniversário (2ª quinzena)</span><span className="font-mono text-amber-600">{formatCurrency(form.birthday_bonus)}</span></div>}
+                {form.medical_plan > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Convênio Médico (2ª quinzena)</span><span className="font-mono text-teal-600">{formatCurrency(form.medical_plan)}</span></div>}
                 <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
                   <span>Total Bruto</span>
                   <span className="font-mono">{formatCurrency(calc.gross_total)}</span>

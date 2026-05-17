@@ -79,6 +79,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     inss_deduction: entry?.inss_deduction ?? 0,
     // Bonificação
     bonus: entry?.bonus ?? 0,
+    attendance_bonus: entry?.attendance_bonus ?? 0,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
@@ -227,6 +228,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       ...form,
       // campos calculados
       bonus: form.bonus,
+      attendance_bonus: form.attendance_bonus,
       meal_voucher: calc.meal_voucher,
       transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
@@ -361,10 +363,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               </div>
 
               <Separator />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (adicionadas diretamente na 2ª quinzena)</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (adicionadas diretamente na 2ª quinzena — não somam ao bruto)</p>
               <div className="grid grid-cols-2 gap-4">
-                <FormRow label="Bonificação / Prêmio" hint="Adicionado diretamente na 2ª quinzena">
+                <FormRow label="Bonificação de Produtividade" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('bonus')} />
+                </FormRow>
+                <FormRow label="Bonificação por Presença" hint="Adicionado diretamente na 2ª quinzena">
+                  <NumInput {...numInputProps('attendance_bonus')} />
                 </FormRow>
                 <FormRow label="Bonificação de Aniversário" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('birthday_bonus')} />
@@ -551,14 +556,20 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   )}
                   {form.bonus > 0 && (
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                      <span className="text-xs text-green-700 font-medium">+ Bonificação / Prêmio (adicionado na 2ª quinzena)</span>
+                      <span className="text-xs text-green-700 font-medium">+ Bonificação de Produtividade</span>
                       <span className="font-mono text-xs font-semibold text-green-700">+ {formatCurrency(form.bonus)}</span>
                     </div>
                   )}
-                  {form.birthday_bonus > 0 && (
+                  {form.attendance_bonus > 0 && (
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                      <span className="text-xs text-green-700 font-medium">+ Bonificação de Aniversário (adicionado na 2ª quinzena)</span>
-                      <span className="font-mono text-xs font-semibold text-green-700">+ {formatCurrency(form.birthday_bonus)}</span>
+                      <span className="text-xs text-green-700 font-medium">+ Bonificação por Presença</span>
+                      <span className="font-mono text-xs font-semibold text-green-700">+ {formatCurrency(form.attendance_bonus)}</span>
+                    </div>
+                  )}
+                  {form.birthday_bonus > 0 && (
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-amber-700 font-medium">+ Bonificação de Aniversário</span>
+                      <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.birthday_bonus)}</span>
                     </div>
                   )}
                   {absenceSecond > 0 && (
@@ -649,8 +660,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 {form.dental_plan > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Seguro Odontológico</span><span className="font-mono">{formatCurrency(form.dental_plan)}</span></div>}
                 {calc.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte ({form.transport_voucher_days}d × {formatCurrency(form.transport_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.transport_voucher)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
-                {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
-                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono text-green-600">{formatCurrency(form.birthday_bonus)}</span></div>}
+                {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação de Produtividade</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
+                {form.attendance_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação por Presença</span><span className="font-mono text-green-600">{formatCurrency(form.attendance_bonus)}</span></div>}
+                {form.birthday_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação Aniversário</span><span className="font-mono text-amber-600">{formatCurrency(form.birthday_bonus)}</span></div>}
                 {calc.total_outros_beneficios > 0 && (
                   <div className="flex justify-between items-center py-2 border-b border-border font-semibold">
                     <span>Total Outros Benefícios</span>

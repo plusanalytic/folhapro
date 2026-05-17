@@ -20,18 +20,15 @@
     },
     "clt_moto_base_salary": {
       "type": "number",
-      "default": 0,
-      "description": "CLT Moto: sal\u00e1rio base do contrato (valor mensal cheio)"
+      "default": 0
     },
     "clt_moto_worked_days": {
       "type": "number",
-      "default": 30,
-      "description": "CLT Moto: dias trabalhados no m\u00eas (0\u201330)"
+      "default": 30
     },
     "clt_moto_effective_salary": {
       "type": "number",
-      "default": 0,
-      "description": "CLT Moto: sal\u00e1rio efetivo calculado (base/30 \u00d7 dias)"
+      "default": 0
     },
     "working_days_month": {
       "type": "number",
@@ -124,6 +121,11 @@
     "bonus": {
       "type": "number",
       "default": 0
+    },
+    "attendance_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Bonifica\u00e7\u00e3o por presen\u00e7a \u2014 adicionado diretamente na 2\u00aa quinzena (n\u00e3o soma ao bruto)"
     },
     "other_benefits": {
       "type": "number",
@@ -241,6 +243,11 @@
     "dental_plan": {
       "type": "number",
       "default": 0
+    },
+    "medical_plan": {
+      "type": "number",
+      "default": 0,
+      "description": "Conv\u00eanio M\u00e9dico \u2014 benef\u00edcio adicionado diretamente na 2\u00aa quinzena (n\u00e3o soma ao bruto)"
     },
     "birthday_bonus": {
       "type": "number",

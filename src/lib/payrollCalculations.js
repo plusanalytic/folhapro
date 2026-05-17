@@ -102,8 +102,9 @@ export function calculateEscritorioPayroll(entry) {
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
   const bonus = entry.bonus || 0;
+  const attendanceBonus = entry.attendance_bonus || 0;
   // Todos os benefícios extras exibidos na seção "Outros Benefícios"
-  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + birthdayBonus;
+  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + attendanceBonus + birthdayBonus;
 
   // Desconto de faltas por quinzena (faltas não afetam bruto/net_total — descontadas nas quinzenas)
   const absenceFirst = entry.absence_discount_first || 0;
@@ -129,7 +130,7 @@ export function calculateEscritorioPayroll(entry) {
   const baseQuinzenalSecond = Math.round(netTotal * (1 - splitEsc) * 100) / 100;
   const firstPeriodAdvance = entry.first_period_advance || 0;
   const firstPeriodNet = baseQuinzenal - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
-  const secondPeriodNet = baseQuinzenalSecond + foodVoucher + bonus + birthdayBonus - (entry.second_period_discount || 0) - absenceSecond;
+  const secondPeriodNet = baseQuinzenalSecond + foodVoucher + bonus + attendanceBonus + birthdayBonus - (entry.second_period_discount || 0) - absenceSecond;
 
   return {
     meal_voucher: mealVoucher,

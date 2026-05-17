@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
@@ -245,37 +246,30 @@ export default function Payroll() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Empresa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Empresas</SelectItem>
-            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={selectedWorkplace} onValueChange={setSelectedWorkplace}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Local de Trabalho" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Locais</SelectItem>
-            {workplaces.filter(w => w.tangerino_id).map(w => (
-              <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedJobRole} onValueChange={setSelectedJobRole}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Cargo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Cargos</SelectItem>
-            {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
-              <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={selectedCompany}
+          onValueChange={setSelectedCompany}
+          placeholder="Empresa"
+          className="w-48"
+          allLabel="Todas as Empresas"
+          options={[...companies].sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(c => ({ value: c.id, label: c.name }))}
+        />
+        <SearchableSelect
+          value={selectedWorkplace}
+          onValueChange={setSelectedWorkplace}
+          placeholder="Local de Trabalho"
+          className="w-48"
+          allLabel="Todos os Locais"
+          options={workplaces.filter(w => w.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(w => ({ value: String(w.tangerino_id), label: w.name }))}
+        />
+        <SearchableSelect
+          value={selectedJobRole}
+          onValueChange={setSelectedJobRole}
+          placeholder="Cargo"
+          className="w-48"
+          allLabel="Todos os Cargos"
+          options={jobRoles.filter(jr => jr.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(jr => ({ value: String(jr.tangerino_id), label: jr.name }))}
+        />
         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Status" />

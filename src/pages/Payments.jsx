@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Search, CreditCard, Download, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
@@ -24,7 +25,7 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO', 'DESLIGADO'];
+const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS'];
 const STATUS_COLORS = {
   PAGO: 'bg-green-100 text-green-700 border-green-300',
   PENDENTE: 'bg-yellow-100 text-yellow-700 border-yellow-300',
@@ -32,6 +33,7 @@ const STATUS_COLORS = {
   BLOQUEADO: 'bg-red-100 text-red-700 border-red-300',
   'RESCISÃO': 'bg-orange-100 text-orange-700 border-orange-300',
   DESLIGADO: 'bg-gray-100 text-gray-600 border-gray-300',
+  'FÉRIAS': 'bg-teal-100 text-teal-700 border-teal-300',
 };
 
 function InlineSelect({ value, onChange, disabled }) {
@@ -292,31 +294,30 @@ export default function Payments() {
             {months.map(m => <SelectItem key={m} value={m}>{getMonthName(m)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Empresa" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Empresas</SelectItem>
-            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={selectedJobRole} onValueChange={setSelectedJobRole}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Cargo" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Cargos</SelectItem>
-            {jobRoles.filter(jr => jr.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(jr => (
-              <SelectItem key={jr.id} value={String(jr.tangerino_id)}>{jr.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedWorkplace} onValueChange={setSelectedWorkplace}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Local" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Locais</SelectItem>
-            {workplaces.filter(w => w.tangerino_id).map(w => (
-              <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={selectedCompany}
+          onValueChange={setSelectedCompany}
+          placeholder="Empresa"
+          className="w-44"
+          allLabel="Todas as Empresas"
+          options={[...companies].sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(c => ({ value: c.id, label: c.name }))}
+        />
+        <SearchableSelect
+          value={selectedJobRole}
+          onValueChange={setSelectedJobRole}
+          placeholder="Cargo"
+          className="w-44"
+          allLabel="Todos os Cargos"
+          options={jobRoles.filter(jr => jr.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(jr => ({ value: String(jr.tangerino_id), label: jr.name }))}
+        />
+        <SearchableSelect
+          value={selectedWorkplace}
+          onValueChange={setSelectedWorkplace}
+          placeholder="Local"
+          className="w-44"
+          allLabel="Todos os Locais"
+          options={workplaces.filter(w => w.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(w => ({ value: String(w.tangerino_id), label: w.name }))}
+        />
         <Select value={filterStatusQ1} onValueChange={setFilterStatusQ1}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Status 1ª Q" /></SelectTrigger>
           <SelectContent>
@@ -351,12 +352,6 @@ export default function Payments() {
           <p className="text-xs text-primary">Total Geral</p>
           <p className="font-mono font-bold text-primary text-lg">{formatCurrency(totalQ1 + totalQ2)}</p>
         </div>
-        {totalBonificacoes > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
-            <p className="text-xs text-amber-600">Total Bonificações</p>
-            <p className="font-mono font-bold text-amber-700 text-lg">{formatCurrency(totalBonificacoes)}</p>
-          </div>
-        )}
         {totalBonificacoes > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
             <p className="text-xs text-amber-600">Total Bonificações</p>

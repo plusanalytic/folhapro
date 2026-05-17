@@ -26,7 +26,8 @@
         "PAGO",
         "BLOQUEADO",
         "RESCIS\u00c3O",
-        "DESLIGADO"
+        "DESLIGADO",
+        "F\u00c9RIAS"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 1\u00aa quinzena"
@@ -48,7 +49,8 @@
         "PAGO",
         "BLOQUEADO",
         "RESCIS\u00c3O",
-        "DESLIGADO"
+        "DESLIGADO",
+        "F\u00c9RIAS"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 2\u00aa quinzena"
