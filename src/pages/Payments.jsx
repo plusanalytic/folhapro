@@ -273,7 +273,7 @@ export default function Payments() {
 
   const totalQ1 = sortedEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
   const totalQ2 = sortedEntries.reduce((s, e) => s + (e.second_period_net || 0), 0);
-  const totalBonificacoes = sortedEntries.reduce((s, e) => s + (e.bonus || 0) + (e.birthday_bonus || 0) + (e.other_benefits || 0), 0);
+  const totalBonificacoes = sortedEntries.reduce((s, e) => s + (e.bonus || 0) + (e.attendance_bonus || 0) + (e.birthday_bonus || 0) + (e.other_benefits || 0), 0);
 
   return (
     <div className="space-y-6">

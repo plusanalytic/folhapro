@@ -11,6 +11,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
   const inssPct         = entry?.inss_pct             ?? 11;
   const irrf            = entry?.irrf                 ?? 0;
   const netLabore       = Math.round((grossTotal - inss - irrf) * 100) / 100;
+  const medicalPlan     = entry?.medical_plan          ?? 0;
   const profitDist      = entry?.profit_distribution  ?? 0;
   const firstAdvance    = entry?.first_period_advance ?? 0;
   const otherDiscounts  = entry?.other_discounts      ?? 0;
@@ -145,6 +146,18 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
             <tr style={{ background: '#f9fafb' }}>
               <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb' }}>DISTRIBUIÇÃO DE LUCROS</td>
               <td style={{ padding: '7px 14px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e5e7eb' }}>{formatCurrency(profitDist)}</td>
+            </tr>
+          )}
+          {birthdayBonus > 0 && (
+            <tr style={{ background: '#f9fafb' }}>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb' }}>BONIFICAÇÃO DE ANIVERSÁRIO (2ª quinzena)</td>
+              <td style={{ padding: '7px 14px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e5e7eb', color: '#16a34a' }}>{formatCurrency(birthdayBonus)}</td>
+            </tr>
+          )}
+          {medicalPlan > 0 && (
+            <tr style={{ background: '#fff' }}>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb' }}>CONVÊNIO MÉDICO (2ª quinzena)</td>
+              <td style={{ padding: '7px 14px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e5e7eb', color: '#16a34a' }}>{formatCurrency(medicalPlan)}</td>
             </tr>
           )}
           {firstAdvance > 0 && (

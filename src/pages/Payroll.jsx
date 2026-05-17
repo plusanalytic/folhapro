@@ -368,7 +368,7 @@ export default function Payroll() {
                      // disc pode ser negativo = acréscimo; positivo = desconto
                      const disc1 = entry ? (entry.first_period_discount || 0) : 0;
                      const disc2 = entry ? (entry.second_period_discount || 0) : 0;
-                     const bonificacoes = entry ? ((entry.bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0)) : null;
+                     const bonificacoes = entry ? ((entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0)) : null;
                      // Saldo: positivo = desconto líquido | negativo = acréscimo líquido
                      const isAcrescimo1 = disc1 < 0;
                      const isAcrescimo2 = disc2 < 0;

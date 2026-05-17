@@ -543,6 +543,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
     bonus: entry?.bonus ?? 0,
+    attendance_bonus: entry?.attendance_bonus ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
     absence_discount_first: entry?.absence_discount_first ?? 0,
     absence_discount_second: entry?.absence_discount_second ?? 0,
@@ -584,7 +585,8 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
     { label: 'Seguro Odontológico', value: entry?.dental_plan ?? 0, show: (entry?.dental_plan ?? 0) > 0 },
     { label: 'Vale Alimentação', value: entry?.food_voucher ?? 0, show: (entry?.food_voucher ?? 0) > 0 },
     // Bonificações aparecem apenas na 2ª quinzena — não entram no split do líquido convenção
-    { label: 'Bonificação / Prêmio (2ª quinzena)', value: entry?.bonus ?? 0, show: (entry?.bonus ?? 0) > 0 },
+    { label: 'Bonificação de Produtividade (2ª quinzena)', value: entry?.bonus ?? 0, show: (entry?.bonus ?? 0) > 0 },
+    { label: 'Bonificação por Presença (2ª quinzena)', value: entry?.attendance_bonus ?? 0, show: (entry?.attendance_bonus ?? 0) > 0 },
     { label: 'Bonificação Aniversário (2ª quinzena)', value: entry?.birthday_bonus ?? 0, show: (entry?.birthday_bonus ?? 0) > 0 },
   ].filter(x => x.show);
 
@@ -705,7 +707,8 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
             {(entry?.food_voucher ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.food_voucher)}</span></div>}
-            {(entry?.bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação / Prêmio</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.bonus)}</span></div>}
+            {(entry?.bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação de Produtividade</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.bonus)}</span></div>}
+            {(entry?.attendance_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação por Presença</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.attendance_bonus)}</span></div>}
             {(entry?.birthday_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação Aniversário</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.birthday_bonus)}</span></div>}
             {escAbsenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceSecond)}</span></div>}
             {secondDiscounts.map((d, i) => {
