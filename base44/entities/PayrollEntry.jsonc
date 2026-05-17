@@ -18,6 +18,11 @@
       "type": "number",
       "description": "Sal\u00e1rio base / Piso salarial / Pr\u00f3-Labore base"
     },
+    "extra_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Escrit\u00f3rio: Bonifica\u00e7\u00e3o extra \u2014 soma ao sal\u00e1rio base para base de rateio quinzenal"
+    },
     "clt_moto_base_salary": {
       "type": "number",
       "default": 0

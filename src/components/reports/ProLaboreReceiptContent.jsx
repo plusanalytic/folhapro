@@ -19,7 +19,8 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
   const secondDiscounts = entry?.second_discounts     ?? [];
   const extraDiscounts  = [...firstDiscounts, ...secondDiscounts];
   const extraTotal      = extraDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
-  const netTotal        = entry?.net_total ?? Math.round((netLabore + profitDist - firstAdvance - otherDiscounts - extraTotal) * 100) / 100;
+  // Recalcula netTotal a partir dos componentes para garantir consistência com o formulário
+  const netTotal        = Math.round((netLabore + profitDist + birthdayBonus + medicalPlan - firstAdvance - otherDiscounts - extraTotal) * 100) / 100;
 
   // Participação societária — usa employee.notes ou campo genérico
   const participacao = employee?.participation ?? employee?.notes ?? '';

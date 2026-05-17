@@ -532,6 +532,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
   // Recalcula apenas os campos de convenção (sem tocar nas quinzenas que vêm do entry)
   const calc = calculateEscritorioPayroll({
     base_salary: entry?.base_salary ?? 0,
+    extra_bonus: entry?.extra_bonus ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
@@ -572,6 +573,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
 
   const proventosConv = [
     { label: 'Piso Salarial', value: entry?.base_salary ?? 0, show: true },
+    { label: 'Bonificação Extra', value: entry?.extra_bonus ?? 0, show: (entry?.extra_bonus ?? 0) > 0 },
     { label: `Vale Refeição (${entry?.meal_voucher_days ?? 0}d × ${formatCurrency(entry?.meal_voucher_day_value ?? 0)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
   ].filter(x => x.show);
 

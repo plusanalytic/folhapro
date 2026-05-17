@@ -103,6 +103,8 @@ export function calculateEscritorioPayroll(entry) {
   const birthdayBonus = entry.birthday_bonus || 0;
   const bonus = entry.bonus || 0;
   const attendanceBonus = entry.attendance_bonus || 0;
+  // extra_bonus: bonificação extra que SOMA ao salário para base de rateio quinzenal
+  const extraBonus = entry.extra_bonus || 0;
   // Todos os benefícios extras exibidos na seção "Outros Benefícios"
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + attendanceBonus + birthdayBonus;
 
@@ -112,17 +114,18 @@ export function calculateEscritorioPayroll(entry) {
   const absenceDiscount = absenceFirst + absenceSecond; // apenas para retorno informativo
 
   // gross_total e net_total baseados na convenção coletiva (SEM faltas — faltas vão nas quinzenas)
-  const grossTotal = totalConvencao;
-  const netTotal = liquidoConvencao;
+  // extra_bonus entra no gross/net para ser rateado nas quinzenas
+  const grossTotal = totalConvencao + extraBonus;
+  const netTotal = liquidoConvencao + extraBonus;
 
-  // Total final a pagar ao colaborador (líquido convenção + outros benefícios)
+  // Total final a pagar ao colaborador (líquido convenção + extra_bonus + outros benefícios)
   const totalPagar = netTotal + totalOutrosBeneficios;
 
   // FGTS informativo
   const fgts = calculateFGTS(piso);
   const irrf = 0;
 
-  // Quinzenal: base = líquido convenção × split (padrão 50/50)
+  // Quinzenal: base = líquido (com extra_bonus) × split (padrão 50/50)
   // bonus e birthday_bonus são adicionados DIRETAMENTE na 2ª quinzena (não entram na base do split)
   // Faltas descontadas na quinzena correspondente
   const splitEsc = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
@@ -144,6 +147,7 @@ export function calculateEscritorioPayroll(entry) {
     total_desc_convencao: Math.round(totalDescConvencao * 100) / 100,
     liquido_convencao: Math.round(liquidoConvencao * 100) / 100,
     total_outros_beneficios: Math.round(totalOutrosBeneficios * 100) / 100,
+    extra_bonus: extraBonus,
     gross_total: Math.round(grossTotal * 100) / 100,
     net_total: Math.round(netTotal * 100) / 100,
     total_pagar: Math.round(totalPagar * 100) / 100,

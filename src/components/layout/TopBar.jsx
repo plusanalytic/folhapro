@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, LogOut } from 'lucide-react';
+import { Moon, Sun, LogOut, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function TopBar({ appUser, onLogout }) {
+export default function TopBar({ appUser, onLogout, onToggleSidebar, onMobileMenu, sidebarOpen }) {
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
 
   useEffect(() => {
@@ -18,9 +18,19 @@ export default function TopBar({ appUser, onLogout }) {
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-30">
-      <p className="text-sm text-muted-foreground capitalize">{today}</p>
-      <div className="flex items-center gap-3">
+    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-3 md:px-6 sticky top-0 z-30">
+      <div className="flex items-center gap-2">
+        {/* Mobile hamburger */}
+        <Button variant="ghost" size="icon" className="h-9 w-9 lg:hidden" onClick={onMobileMenu}>
+          <Menu className="w-5 h-5" />
+        </Button>
+        {/* Desktop collapse toggle */}
+        <Button variant="ghost" size="icon" className="h-9 w-9 hidden lg:flex" onClick={onToggleSidebar} title={sidebarOpen ? 'Recolher menu' : 'Expandir menu'}>
+          {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+        </Button>
+        <p className="text-sm text-muted-foreground capitalize hidden sm:block">{today}</p>
+      </div>
+      <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => setDark(!dark)} className="h-9 w-9">
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>

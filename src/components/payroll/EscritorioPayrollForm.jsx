@@ -77,6 +77,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
     inss_pct: entry?.inss_pct ?? 0,
     inss_deduction: entry?.inss_deduction ?? 0,
+    // Bonificação Extra (soma ao salário base — rateado nas quinzenas)
+    extra_bonus: entry?.extra_bonus ?? 0,
     // Bonificação
     bonus: entry?.bonus ?? 0,
     attendance_bonus: entry?.attendance_bonus ?? 0,
@@ -227,6 +229,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     onSave({
       ...form,
       // campos calculados
+      extra_bonus: form.extra_bonus,
       bonus: form.bonus,
       attendance_bonus: form.attendance_bonus,
       meal_voucher: calc.meal_voucher,
@@ -313,6 +316,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="grid grid-cols-2 gap-4">
                 <FormRow label="Piso Salarial" hint="Valor bruto do salário base">
                   <NumInput {...numInputProps('base_salary')} />
+                </FormRow>
+                <FormRow label="Bonificação Extra" hint="Somado ao salário — rateado nas quinzenas">
+                  <NumInput {...numInputProps('extra_bonus')} />
                 </FormRow>
                 <div>
                   <Label>Desconto de Faltas (R$)</Label>
@@ -430,7 +436,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
                 <div>
                   <p className="font-bold text-base">Total Bruto Convenção</p>
-                  <p className="text-xs text-muted-foreground">Piso salarial + Vale Refeição</p>
+                  <p className="text-xs text-muted-foreground">Piso salarial + VR{form.extra_bonus > 0 ? ' + Bonificação Extra' : ''}</p>
                 </div>
                 <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
               </div>
@@ -622,6 +628,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <span className="text-muted-foreground">Piso Salarial</span>
                   <span className="font-mono">{formatCurrency(form.base_salary)}</span>
                 </div>
+                {form.extra_bonus > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Bonificação Extra</span>
+                    <span className="font-mono">{formatCurrency(form.extra_bonus)}</span>
+                  </div>
+                )}
                 {calc.meal_voucher > 0 && (
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Vale Refeição ({form.meal_voucher_days}d × {formatCurrency(form.meal_voucher_day_value)})</span>
