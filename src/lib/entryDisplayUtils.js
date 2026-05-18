@@ -24,8 +24,9 @@ export function calcBonificacoes(entry) {
   return (
     gridCredits1 +
     gridCredits2 +
+    (entry.meal_voucher || 0) +           // Vale Refeição
     (entry.food_voucher || 0) +           // Vale Alimentação
-    (entry.km_bonus || 0) +               // Total KM adicional
+    (entry.km_bonus || 0) +               // Total KM adicional/excedente
     (entry.cost_allowance || 0) +         // Ajuda de custo
     (entry.bonus || 0) +                  // Bonificação / Prêmio (produtividade)
     (entry.attendance_bonus || 0) +       // Bonificação por presença
