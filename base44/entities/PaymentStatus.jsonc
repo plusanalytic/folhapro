@@ -27,7 +27,9 @@
         "BLOQUEADO",
         "RESCIS\u00c3O",
         "DESLIGADO",
-        "F\u00c9RIAS"
+        "F\u00c9RIAS",
+        "AFASTADO",
+        "SALDO NEGATIVO"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 1\u00aa quinzena"
@@ -50,7 +52,9 @@
         "BLOQUEADO",
         "RESCIS\u00c3O",
         "DESLIGADO",
-        "F\u00c9RIAS"
+        "F\u00c9RIAS",
+        "AFASTADO",
+        "SALDO NEGATIVO"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 2\u00aa quinzena"

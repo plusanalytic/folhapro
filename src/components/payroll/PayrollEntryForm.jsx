@@ -337,9 +337,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
   // Para CLT moto: os cálculos usam o salário EFETIVO (proporcional), não o base do contrato
+  // Os valores de Aluguel Moto, Ajuda de Custo e VA também usam os valores efetivos
   const calcForm = {
     ...form,
     base_salary: isCLTMoto ? cltMotoEffectiveSalary : form.base_salary,
+    motorcycle_rental: isCLTMoto ? motoRentalEffective : form.motorcycle_rental,
+    cost_allowance: isCLTMoto ? costAllowanceEffective : form.cost_allowance,
+    food_voucher: isCLTMoto ? foodVoucherEffective : form.food_voucher,
     absence_discount: totalDiscount,
     absence_discount_first: absenceFirst,
     absence_discount_second: absenceSecond,
@@ -401,6 +405,28 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const he50 = Math.round((heBase / 220 * 1.5) * 100) / 100;
   const he100 = Math.round((heBase / 220 * 2) * 100) / 100;
 
+  // Valores efetivos CLT Moto: valor dia × dias úteis contrato
+  // Valores efetivos CLT Moto: calculados com base no total mensal ÷ dias padrão × dias reais
+  const fullMonthDays = defaultContractWorkingDays > 0 ? defaultContractWorkingDays : contractWorkingDays;
+  const foodVoucherDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.food_voucher / fullMonthDays) * 10000) / 10000
+    : 0;
+  const foodVoucherEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(foodVoucherDayValue * contractWorkingDays * 100) / 100
+    : form.food_voucher;
+  const costAllowanceDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.cost_allowance / fullMonthDays) * 10000) / 10000
+    : 0;
+  const costAllowanceEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(costAllowanceDayValue * contractWorkingDays * 100) / 100
+    : form.cost_allowance;
+  const motoRentalDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.motorcycle_rental / fullMonthDays) * 10000) / 10000
+    : 0;
+  const motoRentalEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(motoRentalDayValue * contractWorkingDays * 100) / 100
+    : form.motorcycle_rental;
+
   // Total das bonificações extras (CLT Moto) que são pagas na 2ª quinzena mas não somam ao bruto
   const cltExtraBonusTotal = isCLTMoto
     ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + overtimeTotal
@@ -418,11 +444,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       meal_voucher_day_value: form.meal_voucher_day_value,
       meal_voucher_days: form.meal_voucher_days,
       meal_voucher: calc.meal_voucher,
-      food_voucher: form.food_voucher,
       km_bonus_qty: form.km_bonus_qty,
       km_bonus_value: form.km_bonus_value,
       km_bonus: calc.km_bonus || 0,
-      cost_allowance: form.cost_allowance,
+      cost_allowance: isCLTMoto ? costAllowanceEffective : form.cost_allowance,
+      motorcycle_rental: isCLTMoto ? motoRentalEffective : form.motorcycle_rental,
+      food_voucher: isCLTMoto ? foodVoucherEffective : form.food_voucher,
       union_contribution_value: form.union_contribution_value,
       union_contribution: calc.union_contribution,
       meal_voucher_discount: calc.meal_voucher_discount,
@@ -650,8 +677,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
                   <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.food_voucher || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(foodVoucherDayValue)}</p>
                     <p className="text-xs text-muted-foreground">Valor dia</p>
+                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
+                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(foodVoucherEffective)}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -702,8 +732,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
                   <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.cost_allowance || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(costAllowanceDayValue)}</p>
                     <p className="text-xs text-muted-foreground">Valor dia</p>
+                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
+                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(costAllowanceEffective)}</p>
+                    )}
                   </div>
                 </div>
               </div>}
@@ -728,8 +761,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
                   <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.motorcycle_rental || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(motoRentalDayValue)}</p>
                     <p className="text-xs text-muted-foreground">Valor dia</p>
+                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
+                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(motoRentalEffective)}</p>
+                    )}
                   </div>
                 </div>
               </div>}

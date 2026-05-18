@@ -26,7 +26,7 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS'];
+const STATUS_OPTIONS = ['PENDENTE', 'AGENDADO', 'PAGO', 'BLOQUEADO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
 const STATUS_COLORS = {
   PAGO: 'bg-green-100 text-green-700 border-green-300',
   PENDENTE: 'bg-yellow-100 text-yellow-700 border-yellow-300',
@@ -35,6 +35,8 @@ const STATUS_COLORS = {
   'RESCISÃO': 'bg-orange-100 text-orange-700 border-orange-300',
   DESLIGADO: 'bg-gray-100 text-gray-600 border-gray-300',
   'FÉRIAS': 'bg-teal-100 text-teal-700 border-teal-300',
+  AFASTADO: 'bg-purple-100 text-purple-700 border-purple-300',
+  'SALDO NEGATIVO': 'bg-rose-100 text-rose-700 border-rose-300',
 };
 
 function InlineSelect({ value, onChange, disabled }) {
