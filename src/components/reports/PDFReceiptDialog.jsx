@@ -28,25 +28,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
       const absenceMap = entry?.absence_discounts ?? {};
       const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
-      if (payrollType === 'SOCIO') {
-        // Para Sócio: usa os valores já calculados e salvos na entry diretamente
-        setMergedEntry({
-          ...entry,
-          first_discounts: firstDiscounts,
-          second_discounts: secondDiscounts,
-          first_period_discount: firstTotal,
-          second_period_discount: secondTotal,
-        });
-      } else if (payrollType === 'ESPORADICO') {
-        // Para Esporádico: usa os valores salvos diretamente
-        setMergedEntry({
-          ...entry,
-          first_discounts: firstDiscounts,
-          second_discounts: secondDiscounts,
-          first_period_discount: firstTotal,
-          second_period_discount: secondTotal,
-        });
-      } else if (payrollType === 'ESCRITORIO') {
+      if (payrollType === 'ESCRITORIO') {
         const calcEsc = calculateEscritorioPayroll({
           base_salary: entry?.base_salary ?? 0,
           meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,

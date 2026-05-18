@@ -73,7 +73,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   })();
 
   const [form, setForm] = useState({
-    company_id: entry?.company_id || employee.company_id,
+    company_id: employee.company_id,
     // Convenção Coletiva
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
@@ -235,7 +235,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const handleSave = () => {
     onSave({
       ...form,
-      company_id: entry?.company_id || employee.company_id,
       // campos calculados
       extra_bonus: form.extra_bonus,
       bonus: form.bonus,

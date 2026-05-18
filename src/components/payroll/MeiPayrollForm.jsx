@@ -86,7 +86,7 @@ function calculateMeiPayroll(entry) {
 
 export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
   const [form, setForm] = useState({
-    company_id: entry?.company_id || employee.company_id,
+    company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
     working_days_month: entry?.working_days_month ?? 0,
     working_days_worked: entry?.working_days_worked ?? 0,
@@ -244,7 +244,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const handleSave = () => {
     onSave({
       ...form,
-      company_id: entry?.company_id || employee.company_id,
       km_bonus: calc.km_bonus,
       gross_total: calc.gross_total,
       net_total: calc.net_total,

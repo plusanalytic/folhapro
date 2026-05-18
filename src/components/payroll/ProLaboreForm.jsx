@@ -67,7 +67,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
   const totalWorkingDays = getWorkingDaysInMonth(referenceMonth);
   const [form, setForm] = useState({
     ...DEFAULTS,
-    company_id: entry?.company_id || employee.company_id,
+    company_id: employee.company_id,
     working_days_month: entry?.working_days_month ?? totalWorkingDays,
     working_days_worked: entry?.working_days_worked ?? totalWorkingDays,
     working_days_first: entry?.working_days_first ?? 0,
@@ -154,7 +154,6 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
     setSaving(true);
     const payload = {
       ...form,
-      company_id: entry?.company_id || employee.company_id,
       first_discounts:        firstDiscounts,
       second_discounts:       secondDiscounts,
       first_period_discount:  firstTotal,
