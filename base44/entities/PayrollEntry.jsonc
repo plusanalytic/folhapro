@@ -35,6 +35,11 @@
       "type": "number",
       "default": 0
     },
+    "contract_working_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias \u00fateis contrato (Seg-S\u00e1b, excl. feriados) \u2014 usado para calcular valor dia de benef\u00edcios"
+    },
     "working_days_month": {
       "type": "number",
       "default": 0
@@ -146,6 +151,11 @@
       "type": "number",
       "default": 0,
       "description": "Hora Extra \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+    },
+    "overtime_hour_value": {
+      "type": "number",
+      "default": 0,
+      "description": "Valor por hora para c\u00e1lculo de Hora Extra"
     },
     "other_benefits": {
       "type": "number",

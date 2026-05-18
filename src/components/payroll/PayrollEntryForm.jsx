@@ -86,8 +86,11 @@ function calcAutoINSS(salaryEfetivo) {
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
-  // Dias úteis contrato (Seg-Sáb, exceto feriados)
-  const contractWorkingDays = getWorkingDaysInMonthSatIncluded(referenceMonth);
+  // Dias úteis contrato (Seg-Sáb, exceto feriados) — editável pelo usuário
+  const defaultContractWorkingDays = getWorkingDaysInMonthSatIncluded(referenceMonth);
+  const [contractWorkingDays, setContractWorkingDays] = useState(
+    entry?.contract_working_days ?? defaultContractWorkingDays
+  );
   // Dias úteis para VR: proporcional se admissão ocorreu neste mês
   const vrWorkingDays = (() => {
     if (employee?.admission_date && employee.admission_date.slice(0, 7) === referenceMonth) {
@@ -114,12 +117,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     absences_days: entry?.absences_days ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 20.50 : 0),
     meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
-    food_voucher: entry?.food_voucher ?? 0,
+    food_voucher: entry?.food_voucher ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 90.72 : 0),
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 0,
-    cost_allowance: entry?.cost_allowance ?? 0,
-    motorcycle_rental: entry?.motorcycle_rental ?? 0,
+    cost_allowance: entry?.cost_allowance ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 50 : 0),
+    motorcycle_rental: entry?.motorcycle_rental ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 813.55 : 0),
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0,
     delivery_bonus: entry?.delivery_bonus ?? 0,
@@ -445,6 +448,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       overtime_hour_value: isCLTMoto ? overtimeHourValue : 0,
       second_period_net: (calc.second_period_net || 0) + cltExtraBonusTotal,
       reference_month: referenceMonth,
+      contract_working_days: contractWorkingDays,
     });
   };
 
@@ -549,6 +553,26 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     Salário Efetivo = R$ {cltMotoDailyValue.toFixed(4).replace('.', ',')} × {form.clt_moto_worked_days} dias
                   </p>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(cltMotoEffectiveSalary)}</p>
+                </div>
+                {/* Dias úteis contrato — usado para dividir benefícios */}
+                <div className="flex items-center gap-3 border border-border rounded-lg px-4 py-2 bg-muted/10">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-muted-foreground">Dias Úteis Contrato (Seg–Sáb, excl. feriados)</p>
+                    <p className="text-xs text-muted-foreground">Usado para: Aluguel Moto ÷ dias, Ajuda de Custo ÷ dias, Vale Alimentação ÷ dias</p>
+                  </div>
+                  <Input
+                    type="number" step="1" min="1" max="31" disabled={readOnly}
+                    className="w-20 font-mono text-center"
+                    value={contractWorkingDays}
+                    onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                    onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
+                    onFocus={e => setTimeout(() => e.target.select(), 0)}
+                  />
+                  {contractWorkingDays !== defaultContractWorkingDays && !readOnly && (
+                    <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setContractWorkingDays(defaultContractWorkingDays)}>
+                      Resetar ({defaultContractWorkingDays})
+                    </button>
+                  )}
                 </div>
               </div>
             )}
