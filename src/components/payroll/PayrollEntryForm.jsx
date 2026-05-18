@@ -420,8 +420,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   })();
   const overtimeTotal = Math.round(overtimeDecimal * overtimeHourValue * 100) / 100;
 
-  // Referência HE para auxílio ao usuário — usa salário BASE INFORMADO (não o efetivo)
-  const heBase = isCLTMoto ? (form.clt_moto_base_salary + (form.hazard_pay || 0)) : (form.base_salary + (form.hazard_pay || 0));
+  // HE: base sempre sobre salário CHEIO do contrato + 30% de periculosidade sobre o salário cheio
+  const heFullSalary = isCLTMoto ? form.clt_moto_base_salary : form.base_salary;
+  const heHazard = isCLTMoto ? Math.round(heFullSalary * 0.3 * 100) / 100 : (form.hazard_pay || 0);
+  const heBase = heFullSalary + heHazard;
   const heNormal = Math.round((heBase / 220) * 100) / 100;
   const he50 = Math.round((heBase / 220 * 1.5) * 100) / 100;
   const he100 = Math.round((heBase / 220 * 2) * 100) / 100;
@@ -660,7 +662,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
                     <Input {...numericField('food_voucher')} className="font-mono" placeholder="Valor total" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
@@ -675,12 +677,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
-                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(foodVoucherDayValue)}</p>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
                     <p className="text-xs text-muted-foreground">Valor dia</p>
-                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
-                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(foodVoucherEffective)}</p>
-                    )}
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(foodVoucherDayValue)}/dia</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
+                    <p className="font-mono font-bold text-secondary">{formatCurrency(foodVoucherEffective)}</p>
                   </div>
                 </div>
               </div>
@@ -715,7 +716,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
                     <Input {...numericField('cost_allowance')} className="font-mono" placeholder="Valor total" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
@@ -730,12 +731,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
-                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(costAllowanceDayValue)}</p>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
                     <p className="text-xs text-muted-foreground">Valor dia</p>
-                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
-                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(costAllowanceEffective)}</p>
-                    )}
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(costAllowanceDayValue)}/dia</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
+                    <p className="font-mono font-bold text-secondary">{formatCurrency(costAllowanceEffective)}</p>
                   </div>
                 </div>
               </div>}
@@ -744,7 +744,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
                     <Input {...numericField('motorcycle_rental')} className="font-mono" placeholder="Valor total" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
@@ -759,12 +759,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
-                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
-                    <p className="font-mono font-semibold text-primary">{formatCurrency(motoRentalDayValue)}</p>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
                     <p className="text-xs text-muted-foreground">Valor dia</p>
-                    {isCLTMoto && contractWorkingDays !== defaultContractWorkingDays && (
-                      <p className="text-xs font-bold text-secondary">Efetivo: {formatCurrency(motoRentalEffective)}</p>
-                    )}
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(motoRentalDayValue)}/dia</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
+                    <p className="font-mono font-bold text-secondary">{formatCurrency(motoRentalEffective)}</p>
                   </div>
                 </div>
               </div>}
@@ -839,7 +838,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                           <span className="font-medium">HE 100%:</span>
                           <span className="font-mono font-semibold">{formatCurrency(he100)}/h</span>
                         </div>
-                        <p className="text-xs text-muted-foreground self-center">Base: (Sal. + Peric.) ÷ 220 = {formatCurrency(heNormal)}</p>
+                        <p className="text-xs text-muted-foreground self-center">Base: ({formatCurrency(heFullSalary)} + {formatCurrency(heHazard)} peric.) ÷ 220 = {formatCurrency(heNormal)}</p>
                       </div>
                     )}
                     <div className="flex gap-2 items-end">
