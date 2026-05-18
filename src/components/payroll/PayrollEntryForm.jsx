@@ -146,22 +146,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // O salário efetivo é apenas calculado para exibição e usado nos cálculos,
   // mas o campo base_salary armazenado permanece sendo o valor do contrato (clt_moto_base_salary).
 
-  // Periculosidade automática para CLT Moto ao abrir o formulário (apenas se sem lançamento prévio)
-  const [hazardPayAutoSet, setHazardPayAutoSet] = useState(false);
-
   // INSS automático para CLT moto (se não foi editado manualmente)
   const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
 
-  // Periculosidade automática: seta ao carregar se não há valor salvo
+  // Controla se o usuário editou manualmente a periculosidade
+  const [hazardPayManuallyEdited, setHazardPayManuallyEdited] = useState(false);
+
+  // Periculosidade automática: recalcula sempre que o salário efetivo mudar, exceto se editado manualmente
   useEffect(() => {
-    if (!isCLTMoto || hazardPayAutoSet || readOnly) return;
-    if (entry?.hazard_pay != null && entry.hazard_pay > 0) { setHazardPayAutoSet(true); return; }
+    if (!isCLTMoto || readOnly || hazardPayManuallyEdited) return;
     if (cltMotoEffectiveSalary > 0) {
       const autoVal = Math.round(cltMotoEffectiveSalary * 0.3 * 100) / 100;
       setForm(f => ({ ...f, hazard_pay: autoVal }));
-      setHazardPayAutoSet(true);
     }
-  }, [cltMotoEffectiveSalary, isCLTMoto, hazardPayAutoSet, readOnly]); // eslint-disable-line
+  }, [cltMotoEffectiveSalary, isCLTMoto, readOnly, hazardPayManuallyEdited]); // eslint-disable-line
 
   useEffect(() => {
     if (!isCLTMoto || inssManuallyEdited) return;
@@ -620,13 +618,24 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Input
                   {...numericField('hazard_pay')}
                   onFocus={(e) => { setTimeout(() => e.target.select(), 0); }}
+                  onChange={(e) => { set('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
+                  onBlur={(e) => { setNum('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
                 />
                 {(isCLTMoto ? cltMotoEffectiveSalary : form.base_salary) > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {(() => {
                       const effectiveSal = isCLTMoto ? cltMotoEffectiveSalary : form.base_salary;
                       const autoVal = Math.round(effectiveSal * 0.3 * 100) / 100;
-                      return <>Auto: {formatCurrency(autoVal)} (30% de {formatCurrency(effectiveSal)}){!readOnly && form.hazard_pay !== autoVal && form.hazard_pay > 0 && <span className="text-amber-600 ml-1">— valor personalizado</span>}</>;
+                      return (
+                        <>
+                          Auto: {formatCurrency(autoVal)} (30% de {formatCurrency(effectiveSal)})
+                          {!readOnly && hazardPayManuallyEdited && (
+                            <button className="ml-2 text-primary underline" onClick={() => { setForm(f => ({ ...f, hazard_pay: autoVal })); setHazardPayManuallyEdited(false); }}>
+                              Resetar
+                            </button>
+                          )}
+                        </>
+                      );
                     })()}
                   </p>
                 )}
