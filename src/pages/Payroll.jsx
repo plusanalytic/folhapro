@@ -130,10 +130,13 @@ export default function Payroll() {
 
   const handleSaveEntry = async (data) => {
     const existing = editingEntry?.id ? entries.find(e => e.id === editingEntry.id) : getEntry(editingEmployee?.id, editingEmployee?.company_id);
+    // Preserva esporadico_payroll_type ao salvar (os forms individuais não incluem esse campo)
+    const espType = editingEntry?.esporadico_payroll_type || data.esporadico_payroll_type;
+    const saveData = espType ? { ...data, esporadico_payroll_type: espType } : data;
     if (existing) {
-      await base44.entities.PayrollEntry.update(existing.id, data);
+      await base44.entities.PayrollEntry.update(existing.id, saveData);
     } else {
-      await base44.entities.PayrollEntry.create({ ...data, employee_id: editingEmployee?.id, reference_month: selectedMonth });
+      await base44.entities.PayrollEntry.create({ ...saveData, employee_id: editingEmployee?.id, reference_month: selectedMonth });
     }
     setShowForm(false);
     setEditingEntry(null);
