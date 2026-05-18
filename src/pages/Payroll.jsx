@@ -519,7 +519,9 @@ export default function Payroll() {
                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
                                   onClick={() => {
                                     setEditingEmployee(emp);
-                                    const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                    const jobRoleForEmp = emp.contract_type !== 'ESPORADICO'
+                                      ? jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))
+                                      : null;
                                     const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
                                       ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
                                       : null;
@@ -654,8 +656,10 @@ export default function Payroll() {
           if (entry.extra_bonus >= 0 && entry.union_contribution_pct > 0) return 'ESCRITORIO';
           return 'ESPORADICO';
         };
+        // Para esporádicos: usa SEMPRE o tipo gravado na entry (esporadico_payroll_type) ou
+        // inferido da entry existente — NUNCA o cargo do colaborador.
         const pt = editingEmployee.contract_type === 'ESPORADICO'
-          ? inferEsporadicoType(editingEntry)
+          ? (editingEntry?.esporadico_payroll_type || inferEsporadicoType(editingEntry))
           : empJobRole?.payroll_type;
         const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'MOTOCICLISTA_CLT' ? PayrollEntryForm : pt === 'SOCIO' ? ProLaboreForm : pt === 'ESPORADICO' ? EsporadicoPayrollForm : PayrollEntryForm;
         // Para esporádicos com modelo de cargo específico, cria um jobRole sintético
