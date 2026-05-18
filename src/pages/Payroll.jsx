@@ -18,6 +18,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
+import { calcBonificacoes, calcPeriodDebits, getAbsenceByPeriod } from '@/lib/entryDisplayUtils';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
 import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
@@ -369,13 +370,12 @@ export default function Payroll() {
                    {[...companyEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => {
                      const entry = getEntry(emp.id);
                      const effectiveSalary = entry ? (entry.clt_moto_effective_salary || entry.base_salary || 0) : null;
-                     // disc pode ser negativo = acréscimo; positivo = desconto
-                     const disc1 = entry ? (entry.first_period_discount || 0) : 0;
-                     const disc2 = entry ? (entry.second_period_discount || 0) : 0;
-                     const bonificacoes = entry ? ((entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0)) : null;
-                     // Saldo: positivo = desconto líquido | negativo = acréscimo líquido
-                     const isAcrescimo1 = disc1 < 0;
-                     const isAcrescimo2 = disc2 < 0;
+                     // Descontos quinzenais: débitos do grid + desconto de faltas
+                     const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
+                     const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
+                     const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
+                     const bonificacoes = entry ? calcBonificacoes(entry) : null;
+
                      return (
                        <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                          <td className="p-3 pl-6">
@@ -393,16 +393,16 @@ export default function Payroll() {
                          <td className="p-3 text-right font-mono font-semibold text-blue-600">{entry ? formatCurrency(entry.first_period_net || 0) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
-                             <span className={isAcrescimo1 ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                               {isAcrescimo1 ? `+${formatCurrency(Math.abs(disc1))}` : formatCurrency(disc1)}
+                             <span className={disc1 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
+                               {disc1 > 0 ? formatCurrency(disc1) : '—'}
                              </span>
                            ) : '—'}
                          </td>
                          <td className="p-3 text-right font-mono font-semibold text-green-600">{entry ? formatCurrency(entry.second_period_net || 0) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
-                             <span className={isAcrescimo2 ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                               {isAcrescimo2 ? `+${formatCurrency(Math.abs(disc2))}` : formatCurrency(disc2)}
+                             <span className={disc2 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
+                               {disc2 > 0 ? formatCurrency(disc2) : '—'}
                              </span>
                            ) : '—'}
                          </td>

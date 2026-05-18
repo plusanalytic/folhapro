@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
+import { calcBonificacoes, calcPeriodDebits, getAbsenceByPeriod } from '@/lib/entryDisplayUtils';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -229,16 +230,16 @@ export default function Payments() {
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
         '1ª Q - Á Receber': entry.first_period_net || 0,
-        '1ª Q - Descontos/Acréscimos': entry.first_period_discount || 0,
+        '1ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.first_discounts, getAbsenceByPeriod(entry).first),
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
         '2ª Q - Á Receber': entry.second_period_net || 0,
-        '2ª Q - Descontos/Acréscimos': entry.second_period_discount || 0,
+        '2ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.second_discounts, getAbsenceByPeriod(entry).second),
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
         '2ª Q - OBS': ps?.obs_q2 || '',
-        'Total Bonificações': (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0),
+        'Total Bonificações': calcBonificacoes(entry),
         'Banco': emp?.bank_name || '',
         'Agência': emp?.bank_agency || '',
         'Conta': emp?.bank_account || '',
@@ -274,7 +275,7 @@ export default function Payments() {
 
   const totalQ1 = sortedEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
   const totalQ2 = sortedEntries.reduce((s, e) => s + (e.second_period_net || 0), 0);
-  const totalBonificacoes = sortedEntries.reduce((s, e) => s + (e.bonus || 0) + (e.attendance_bonus || 0) + (e.birthday_bonus || 0) + (e.other_benefits || 0), 0);
+  const totalBonificacoes = sortedEntries.reduce((s, e) => s + calcBonificacoes(e), 0);
 
   return (
     <div className="space-y-6">
@@ -444,11 +445,11 @@ export default function Payments() {
                   {/* 1ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
                   <td className="p-2 text-right font-mono whitespace-nowrap">
-                   {entry.first_period_discount ? (
-                     <span className={entry.first_period_discount < 0 ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                       {entry.first_period_discount < 0 ? `+${formatCurrency(Math.abs(entry.first_period_discount))}` : formatCurrency(entry.first_period_discount)}
-                     </span>
-                   ) : '—'}
+                   {(() => {
+                     const absence = getAbsenceByPeriod(entry);
+                     const d = calcPeriodDebits(entry.first_discounts, absence.first);
+                     return d > 0 ? <span className="text-destructive">{formatCurrency(d)}</span> : '—';
+                   })()}
                   </td>
                   <td className="p-2">
                     <InlineSelect
@@ -473,11 +474,11 @@ export default function Payments() {
                   {/* 2ª Quinzena */}
                   <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
                   <td className="p-2 text-right font-mono whitespace-nowrap">
-                    {entry.second_period_discount ? (
-                      <span className={entry.second_period_discount < 0 ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                        {entry.second_period_discount < 0 ? `+${formatCurrency(Math.abs(entry.second_period_discount))}` : formatCurrency(entry.second_period_discount)}
-                      </span>
-                    ) : '—'}
+                    {(() => {
+                      const absence = getAbsenceByPeriod(entry);
+                      const d = calcPeriodDebits(entry.second_discounts, absence.second);
+                      return d > 0 ? <span className="text-destructive">{formatCurrency(d)}</span> : '—';
+                    })()}
                   </td>
                   <td className="p-2">
                     <InlineSelect
@@ -501,7 +502,7 @@ export default function Payments() {
                   </td>
                   {/* Bonificações */}
                   <td className="p-2 text-right font-mono whitespace-nowrap text-amber-700">
-                    {(() => { const b = (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.other_benefits || 0); return b > 0 ? formatCurrency(b) : '—'; })()}
+                    {(() => { const b = calcBonificacoes(entry); return b > 0 ? formatCurrency(b) : '—'; })()}
                   </td>
                   {/* Dados Bancários */}
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_name}>{emp.bank_name || '—'}</td>
