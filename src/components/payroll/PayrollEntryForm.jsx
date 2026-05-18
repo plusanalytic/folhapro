@@ -395,8 +395,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   })();
   const overtimeTotal = Math.round(overtimeDecimal * overtimeHourValue * 100) / 100;
 
-  // Referência HE para auxílio ao usuário
-  const heBase = isCLTMoto ? (cltMotoEffectiveSalary + (form.hazard_pay || 0)) : (form.base_salary + (form.hazard_pay || 0));
+  // Referência HE para auxílio ao usuário — usa salário BASE INFORMADO (não o efetivo)
+  const heBase = isCLTMoto ? (form.clt_moto_base_salary + (form.hazard_pay || 0)) : (form.base_salary + (form.hazard_pay || 0));
   const heNormal = Math.round((heBase / 220) * 100) / 100;
   const he50 = Math.round((heBase / 220 * 1.5) * 100) / 100;
   const he100 = Math.round((heBase / 220 * 2) * 100) / 100;
@@ -638,7 +638,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
-                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={contractWorkingDays}
+                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
@@ -683,7 +690,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
-                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={contractWorkingDays}
+                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
@@ -702,7 +716,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
-                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={contractWorkingDays}
+                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
