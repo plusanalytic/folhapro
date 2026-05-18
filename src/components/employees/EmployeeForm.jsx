@@ -290,7 +290,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
           <Button className="flex-1" onClick={() => {
             const { is_esporadico, ...bankData } = form;
             const contract_type = is_esporadico ? 'ESPORADICO' : (employee?.contract_type === 'ESPORADICO' ? 'CLT' : employee?.contract_type);
-            onSave({ ...employee, ...bankData, contract_type });
+            onSave({ ...employee, ...bankData, contract_type, workplace_list: localWorkplaceList });
           }}>
             Salvar
           </Button>

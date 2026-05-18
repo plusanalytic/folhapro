@@ -11,25 +11,27 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'employee_id e tangerino_id são obrigatórios' }, { status: 400 });
     }
 
-    // Busca colaborador pelo tangerinoId na API correta
-    const apiRes = await fetch(
-      `https://api.tangerino.com.br/api/employer/employee/find?ignoreFired=true&tangerinoId=${tangerino_id}`,
-      { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
-    );
-
-    if (!apiRes.ok) {
-      return Response.json({ error: `Tangerino API error: ${apiRes.status}` }, { status: 500 });
+    // Tenta primeiro buscar colaborador ativo
+    let re = null;
+    for (const showFired of [0, 1]) {
+      const apiRes = await fetch(
+        `https://api.tangerino.com.br/api/employer/employee/find-all?showFired=${showFired}&size=1000`,
+        { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
+      );
+      if (!apiRes.ok) continue;
+      const raw = await apiRes.json();
+      const list = Array.isArray(raw) ? raw : (raw.content ?? []);
+      const found = list.find(e => String(e.id) === String(tangerino_id));
+      if (found) { re = found; break; }
     }
 
-    const data = await apiRes.json();
+    if (!re) {
+      return Response.json({ error: `Colaborador com tangerinoId ${tangerino_id} não encontrado na API.` }, { status: 404 });
+    }
 
-    // A API pode retornar um objeto único ou array; normaliza para array
-    const employees = Array.isArray(data) ? data : (data.content ?? [data]);
-    const re = employees[0] ?? {};
-
-    // Coleta todos os workplaces (pode haver múltiplos por colaborador)
-    const workplaceList = (re.workplaceList ?? re.workplaces ?? [])
-      .map(w => String(w.id ?? w.tangerinoId ?? ''))
+    // Extrai apenas o local atual (workplaceList retornado pela API)
+    const workplaceList = (re.workplaceList ?? [])
+      .map(w => String(w.id ?? ''))
       .filter(Boolean);
 
     await base44.asServiceRole.entities.Employee.update(employee_id, { workplace_list: workplaceList });
