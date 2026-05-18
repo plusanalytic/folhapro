@@ -141,6 +141,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
     onSave({
       ...form,
       company_id: entry?.company_id || employee.company_id,
+      esporadico_payroll_type: entry?.esporadico_payroll_type || 'ESPORADICO',
       base_salary: totalVencimentos,
       km_bonus_qty: pontos,
       km_bonus_value: valorPonto,
