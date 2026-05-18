@@ -640,8 +640,19 @@ export default function Payroll() {
       {showForm && editingEmployee && (() => {
         const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
         // Para esporádicos: usa o payroll_type gravado na entry; para outros: usa o do cargo
+        // Infere o tipo pela presença de campos específicos se esporadico_payroll_type não estiver salvo
+        const inferEsporadicoType = (entry) => {
+          if (!entry) return 'ESPORADICO';
+          if (entry.esporadico_payroll_type) return entry.esporadico_payroll_type;
+          // Heurística: Sócio tem participation ou profit_distribution; CLT Moto tem clt_moto_base_salary; etc.
+          if (entry.participation || entry.profit_distribution > 0 || entry.quota_adjustment > 0) return 'SOCIO';
+          if (entry.clt_moto_base_salary > 0 || entry.clt_moto_worked_days > 0) return 'MOTOCICLISTA_CLT';
+          if (entry.mei_absences_first >= 0 && entry.motorcycle_rental >= 0 && entry.cost_allowance > 0) return 'MOTOCICLISTA_MEI';
+          if (entry.extra_bonus >= 0 && entry.union_contribution_pct > 0) return 'ESCRITORIO';
+          return 'ESPORADICO';
+        };
         const pt = editingEmployee.contract_type === 'ESPORADICO'
-          ? (editingEntry?.esporadico_payroll_type || 'ESPORADICO')
+          ? inferEsporadicoType(editingEntry)
           : empJobRole?.payroll_type;
         const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'MOTOCICLISTA_CLT' ? PayrollEntryForm : pt === 'SOCIO' ? ProLaboreForm : pt === 'ESPORADICO' ? EsporadicoPayrollForm : PayrollEntryForm;
         // Para esporádicos com modelo de cargo específico, cria um jobRole sintético
