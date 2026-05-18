@@ -336,6 +336,27 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
+  // Valores efetivos CLT Moto: calculados com base no total mensal ÷ dias padrão × dias reais
+  const fullMonthDays = defaultContractWorkingDays > 0 ? defaultContractWorkingDays : contractWorkingDays;
+  const foodVoucherDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.food_voucher / fullMonthDays) * 10000) / 10000
+    : 0;
+  const foodVoucherEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(foodVoucherDayValue * contractWorkingDays * 100) / 100
+    : form.food_voucher;
+  const costAllowanceDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.cost_allowance / fullMonthDays) * 10000) / 10000
+    : 0;
+  const costAllowanceEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(costAllowanceDayValue * contractWorkingDays * 100) / 100
+    : form.cost_allowance;
+  const motoRentalDayValue = isCLTMoto && fullMonthDays > 0
+    ? Math.round((form.motorcycle_rental / fullMonthDays) * 10000) / 10000
+    : 0;
+  const motoRentalEffective = isCLTMoto && fullMonthDays > 0
+    ? Math.round(motoRentalDayValue * contractWorkingDays * 100) / 100
+    : form.motorcycle_rental;
+
   // Para CLT moto: os cálculos usam o salário EFETIVO (proporcional), não o base do contrato
   // Os valores de Aluguel Moto, Ajuda de Custo e VA também usam os valores efetivos
   const calcForm = {
@@ -404,28 +425,6 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const heNormal = Math.round((heBase / 220) * 100) / 100;
   const he50 = Math.round((heBase / 220 * 1.5) * 100) / 100;
   const he100 = Math.round((heBase / 220 * 2) * 100) / 100;
-
-  // Valores efetivos CLT Moto: valor dia × dias úteis contrato
-  // Valores efetivos CLT Moto: calculados com base no total mensal ÷ dias padrão × dias reais
-  const fullMonthDays = defaultContractWorkingDays > 0 ? defaultContractWorkingDays : contractWorkingDays;
-  const foodVoucherDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.food_voucher / fullMonthDays) * 10000) / 10000
-    : 0;
-  const foodVoucherEffective = isCLTMoto && fullMonthDays > 0
-    ? Math.round(foodVoucherDayValue * contractWorkingDays * 100) / 100
-    : form.food_voucher;
-  const costAllowanceDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.cost_allowance / fullMonthDays) * 10000) / 10000
-    : 0;
-  const costAllowanceEffective = isCLTMoto && fullMonthDays > 0
-    ? Math.round(costAllowanceDayValue * contractWorkingDays * 100) / 100
-    : form.cost_allowance;
-  const motoRentalDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.motorcycle_rental / fullMonthDays) * 10000) / 10000
-    : 0;
-  const motoRentalEffective = isCLTMoto && fullMonthDays > 0
-    ? Math.round(motoRentalDayValue * contractWorkingDays * 100) / 100
-    : form.motorcycle_rental;
 
   // Total das bonificações extras (CLT Moto) que são pagas na 2ª quinzena mas não somam ao bruto
   const cltExtraBonusTotal = isCLTMoto
