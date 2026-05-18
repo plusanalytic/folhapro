@@ -78,9 +78,22 @@ export async function syncEmployeesFromApi(showFired, base44ServiceRole) {
     const companyTangerinoId = String(re.company?.id ?? '');
     const localCompany = companyByTangerinoId[companyTangerinoId];
 
-    const workplaceList = (re.workplaceList ?? [])
+    // Busca workplaceList completa via endpoint /find (find-all retorna lista incompleta)
+    let workplaceList = (re.workplaceList ?? [])
       .map(w => String(w.id ?? ''))
       .filter(Boolean);
+    try {
+      const detailRes = await fetch(
+        `https://api.tangerino.com.br/api/employer/employee/find?tangerinoId=${tangerinoId}`,
+        { headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH } }
+      );
+      if (detailRes.ok) {
+        const detail = await detailRes.json();
+        if (detail?.id && Array.isArray(detail.workplaceList)) {
+          workplaceList = detail.workplaceList.map(w => String(w.id ?? '')).filter(Boolean);
+        }
+      }
+    } catch (_) { /* mantém workplaceList do find-all em caso de erro */ }
 
     const jobRoleTangerinoId = re.jobRoleDTO?.id ? String(re.jobRoleDTO.id) : '';
     const isFired = re.fired === true || re.status !== 0;

@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
     const { tangerino_id } = await req.json();
 
-    const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/employee/find-all?showFired=1&size=1000`, {
+    const apiRes = await fetch(`https://api.tangerino.com.br/api/employer/employee/find-all?showFired=0&size=1000`, {
       headers: { 'accept': 'application/json;charset=UTF-8', 'Authorization': TANGERINO_AUTH },
     });
     const raw = await apiRes.json();
