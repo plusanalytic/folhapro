@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calculator } from 'lucide-react';
-import { calculateEscritorioPayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
+import { calculateEscritorioPayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
@@ -64,13 +64,20 @@ function CalcRow({ label, value }) {
 
 export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
+  // Dias úteis para VR: proporcional se admissão ocorreu neste mês
+  const vrWorkingDays = (() => {
+    if (employee?.admission_date && employee.admission_date.slice(0, 7) === referenceMonth) {
+      return getWorkingDaysFromDate(employee.admission_date, referenceMonth);
+    }
+    return workingDays;
+  })();
 
   const [form, setForm] = useState({
     company_id: employee.company_id,
     // Convenção Coletiva
     base_salary: entry?.base_salary ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
-    meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
+    meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
     transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
     transport_voucher_days: entry?.transport_voucher_days ?? workingDays,
     transport_voucher_discount_pct: entry?.transport_voucher_discount_pct ?? 0,
@@ -345,7 +352,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="w-24">
                     <NumInput {...numInputProps('meal_voucher_days', { step: '1', min: '0', className: 'text-center' })} />
-                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">
+                      {!entry && employee?.admission_date?.slice(0, 7) === referenceMonth ? 'Dias (admissão)' : 'Dias úteis'}
+                    </p>
                   </div>
                   <span className="text-muted-foreground">=</span>
                   <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">

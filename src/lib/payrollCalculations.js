@@ -69,6 +69,29 @@ export function getWorkingDaysInMonth(yearMonth) {
   return count;
 }
 
+/**
+ * Retorna dias úteis a partir de uma data de início até o fim do mês.
+ * Usado para calcular VR proporcional quando há admissão no mês da folha.
+ * @param {string} fromDate - data de início no formato 'YYYY-MM-DD'
+ * @param {string} yearMonth - mês de referência 'YYYY-MM'
+ */
+export function getWorkingDaysFromDate(fromDate, yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const startDay = parseInt(fromDate.slice(8, 10), 10);
+  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  let count = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let d = startDay; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (nationalHolidays.includes(mmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
 export function calculateAbsenceDiscount(salary, absenceDays, workingDaysInMonth = 30) {
   if (absenceDays <= 0) return 0;
   const dailyRate = salary / workingDaysInMonth;

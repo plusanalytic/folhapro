@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth } from '@/lib/payrollCalculations';
+import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
@@ -86,6 +86,13 @@ function calcAutoINSS(salaryEfetivo) {
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
+  // Dias úteis para VR: proporcional se admissão ocorreu neste mês
+  const vrWorkingDays = (() => {
+    if (employee?.admission_date && employee.admission_date.slice(0, 7) === referenceMonth) {
+      return getWorkingDaysFromDate(employee.admission_date, referenceMonth);
+    }
+    return workingDays;
+  })();
   const payrollType = jobRole?.payroll_type || null;
   const isCLTMoto = payrollType === 'MOTOCICLISTA_CLT';
   const show = (field) => isFieldVisible(payrollType, field);
@@ -104,7 +111,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     clt_moto_worked_days: entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : defaultWorkedDays,
     absences_days: entry?.absences_days ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 20.50 : 0),
-    meal_voucher_days: entry?.meal_voucher_days ?? workingDays,
+    meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
     food_voucher: entry?.food_voucher ?? 0,
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
@@ -543,7 +550,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <span className="text-muted-foreground font-bold text-lg">×</span>
                 <div className="w-24">
                   <Input {...numericField('meal_voucher_days')} className="font-mono text-center" />
-                  <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 text-center">
+                    {!entry && employee?.admission_date?.slice(0, 7) === referenceMonth ? 'Dias (admissão)' : 'Dias úteis'}
+                  </p>
                 </div>
                 <span className="text-muted-foreground">=</span>
                 <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
