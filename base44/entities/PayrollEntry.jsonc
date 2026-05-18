@@ -35,10 +35,15 @@
       "type": "number",
       "default": 0
     },
+    "full_month_contract_working_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Total dias \u00fateis contrato (Seg-S\u00e1b, excl. feriados) \u2014 m\u00eas cheio sem considerar admiss\u00e3o"
+    },
     "contract_working_days": {
       "type": "number",
       "default": 0,
-      "description": "Dias \u00fateis contrato (Seg-S\u00e1b, excl. feriados) \u2014 usado para calcular valor dia de benef\u00edcios"
+      "description": "Dias \u00fateis trabalhados contrato (Seg-S\u00e1b, excl. feriados) \u2014 usado para calcular valor efetivo de benef\u00edcios"
     },
     "working_days_month": {
       "type": "number",

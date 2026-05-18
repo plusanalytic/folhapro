@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded, getContractWorkingDays } from '@/lib/payrollCalculations';
+import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded, getContractWorkingDays, getFullMonthContractWorkingDays } from '@/lib/payrollCalculations.js';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
@@ -139,6 +139,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_advance: entry?.first_period_advance ?? 0,
     notes: entry?.notes ?? '',
   });
+
+  // Campo editável: Total Dias Úteis Contrato (mês cheio, Seg-Sáb, sem considerar admissão)
+  const [fullMonthContractDays, setFullMonthContractDays] = useState(
+    entry?.full_month_contract_working_days ?? getFullMonthContractWorkingDays(referenceMonth)
+  );
 
   // Para CLT moto: base_salary efetivo = (clt_moto_base_salary / 30) * clt_moto_worked_days
   // Valor dia usa 4 casas decimais para evitar erro de arredondamento no salário efetivo
@@ -336,24 +341,26 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  // Valores efetivos CLT Moto: calculados com base no total mensal ÷ dias padrão × dias reais
-  const fullMonthDays = defaultContractWorkingDays > 0 ? defaultContractWorkingDays : contractWorkingDays;
-  const foodVoucherDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.food_voucher / fullMonthDays) * 10000) / 10000
+  // Valores efetivos CLT Moto:
+  // Valor dia = campo total / fullMonthContractDays (mês cheio, sem considerar admissão)
+  // Valor efetivo = valor dia × contractWorkingDays (dias trabalhados)
+  const denomDays = fullMonthContractDays > 0 ? fullMonthContractDays : 1;
+  const foodVoucherDayValue = isCLTMoto
+    ? Math.round((form.food_voucher / denomDays) * 10000) / 10000
     : 0;
-  const foodVoucherEffective = isCLTMoto && fullMonthDays > 0
+  const foodVoucherEffective = isCLTMoto
     ? Math.round(foodVoucherDayValue * contractWorkingDays * 100) / 100
     : form.food_voucher;
-  const costAllowanceDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.cost_allowance / fullMonthDays) * 10000) / 10000
+  const costAllowanceDayValue = isCLTMoto
+    ? Math.round((form.cost_allowance / denomDays) * 10000) / 10000
     : 0;
-  const costAllowanceEffective = isCLTMoto && fullMonthDays > 0
+  const costAllowanceEffective = isCLTMoto
     ? Math.round(costAllowanceDayValue * contractWorkingDays * 100) / 100
     : form.cost_allowance;
-  const motoRentalDayValue = isCLTMoto && fullMonthDays > 0
-    ? Math.round((form.motorcycle_rental / fullMonthDays) * 10000) / 10000
+  const motoRentalDayValue = isCLTMoto
+    ? Math.round((form.motorcycle_rental / denomDays) * 10000) / 10000
     : 0;
-  const motoRentalEffective = isCLTMoto && fullMonthDays > 0
+  const motoRentalEffective = isCLTMoto
     ? Math.round(motoRentalDayValue * contractWorkingDays * 100) / 100
     : form.motorcycle_rental;
 
@@ -476,6 +483,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       overtime_hour_value: isCLTMoto ? overtimeHourValue : 0,
       second_period_net: (calc.second_period_net || 0) + cltExtraBonusTotal,
       reference_month: referenceMonth,
+      full_month_contract_working_days: fullMonthContractDays,
       contract_working_days: contractWorkingDays,
     });
   };
@@ -582,25 +590,46 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </p>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(cltMotoEffectiveSalary)}</p>
                 </div>
-                {/* Dias úteis contrato — usado para dividir benefícios */}
-                <div className="flex items-center gap-3 border border-border rounded-lg px-4 py-2 bg-muted/10">
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-muted-foreground">Dias Úteis Contrato (Seg–Sáb, excl. feriados)</p>
-                    <p className="text-xs text-muted-foreground">Usado para: Aluguel Moto ÷ dias, Ajuda de Custo ÷ dias, Vale Alimentação ÷ dias</p>
+                {/* Campos de dias úteis para benefícios */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between border border-border rounded-lg px-4 py-2 bg-muted/10">
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Total Dias Úteis Contrato (Seg–Sáb, excl. feriados)</p>
+                      <p className="text-xs text-muted-foreground">Mês cheio, sem considerar admissão — usado como denominador para valor/dia</p>
+                    </div>
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="w-20 font-mono text-center"
+                      value={fullMonthContractDays}
+                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                    {fullMonthContractDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
+                      <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setFullMonthContractDays(getFullMonthContractWorkingDays(referenceMonth))}>
+                        Resetar ({getFullMonthContractWorkingDays(referenceMonth)})
+                      </button>
+                    )}
                   </div>
-                  <Input
-                    type="number" step="1" min="1" max="31" disabled={readOnly}
-                    className="w-20 font-mono text-center"
-                    value={contractWorkingDays}
-                    onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                    onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
-                    onFocus={e => setTimeout(() => e.target.select(), 0)}
-                  />
-                  {contractWorkingDays !== defaultContractWorkingDays && !readOnly && (
-                    <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setContractWorkingDays(defaultContractWorkingDays)}>
-                      Resetar ({defaultContractWorkingDays})
-                    </button>
-                  )}
+                  <div className="flex items-center justify-between border border-border rounded-lg px-4 py-2 bg-muted/10">
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Dias Úteis Trabalhados Contrato</p>
+                      <p className="text-xs text-muted-foreground">Dias efetivos trabalhados — usado para calcular valor efetivo (valor dia × este campo)</p>
+                    </div>
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="w-20 font-mono text-center"
+                      value={contractWorkingDays}
+                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                    {contractWorkingDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
+                      <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setContractWorkingDays(getFullMonthContractWorkingDays(referenceMonth))}>
+                        Resetar ({getFullMonthContractWorkingDays(referenceMonth)})
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -669,19 +698,81 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Input
                       type="number" step="1" min="1" max="31" disabled={readOnly}
                       className="font-mono text-center"
-                      value={contractWorkingDays}
-                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
+                      value={fullMonthContractDays}
+                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
-                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
                   </div>
                   <span className="text-muted-foreground pb-2">=</span>
                   <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
                     <p className="text-xs text-muted-foreground">Valor dia</p>
                     <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(foodVoucherDayValue)}/dia</p>
-                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d trab.)</p>
                     <p className="font-mono font-bold text-secondary">{formatCurrency(foodVoucherEffective)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {show('km_bonus') && (
+              <div>
+                <Label>Ajuda de Custo</Label>
+                <div className="flex gap-2 mt-1 items-end">
+                  <div className="flex-1">
+                    <Input {...numericField('cost_allowance')} className="font-mono" placeholder="Valor total" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">÷</span>
+                  <div className="w-24">
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={fullMonthContractDays}
+                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(costAllowanceDayValue)}/dia</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d trab.)</p>
+                    <p className="font-mono font-bold text-secondary">{formatCurrency(costAllowanceEffective)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {show('motorcycle_rental') && (
+              <div>
+                <Label>Aluguel da Motocicleta</Label>
+                <div className="flex gap-2 mt-1 items-end">
+                  <div className="flex-1">
+                    <Input {...numericField('motorcycle_rental')} className="font-mono" placeholder="Valor total" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">÷</span>
+                  <div className="w-24">
+                    <Input
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={fullMonthContractDays}
+                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(motoRentalDayValue)}/dia</p>
+                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d trab.)</p>
+                    <p className="font-mono font-bold text-secondary">{formatCurrency(motoRentalEffective)}</p>
                   </div>
                 </div>
               </div>
@@ -708,62 +799,6 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
                     <p className="font-mono font-semibold text-primary">{formatCurrency(calc.km_bonus || 0)}</p>
                     <p className="text-xs text-muted-foreground">Total KM</p>
-                  </div>
-                </div>
-              </div>}
-              {show('km_bonus') && <div className="col-span-2">
-                <Label>Ajuda de Custo</Label>
-                <div className="flex gap-2 mt-1 items-end">
-                  <div className="flex-1">
-                    <Input {...numericField('cost_allowance')} className="font-mono" placeholder="Valor total" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
-                  </div>
-                  <span className="text-muted-foreground pb-2">÷</span>
-                  <div className="w-24">
-                    <Input
-                      type="number" step="1" min="1" max="31" disabled={readOnly}
-                      className="font-mono text-center"
-                      value={contractWorkingDays}
-                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
-                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
-                  </div>
-                  <span className="text-muted-foreground pb-2">=</span>
-                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
-                    <p className="text-xs text-muted-foreground">Valor dia</p>
-                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(costAllowanceDayValue)}/dia</p>
-                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
-                    <p className="font-mono font-bold text-secondary">{formatCurrency(costAllowanceEffective)}</p>
-                  </div>
-                </div>
-              </div>}
-              {show('motorcycle_rental') && <div className="col-span-2">
-                <Label>Aluguel da Motocicleta</Label>
-                <div className="flex gap-2 mt-1 items-end">
-                  <div className="flex-1">
-                    <Input {...numericField('motorcycle_rental')} className="font-mono" placeholder="Valor total" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
-                  </div>
-                  <span className="text-muted-foreground pb-2">÷</span>
-                  <div className="w-24">
-                    <Input
-                      type="number" step="1" min="1" max="31" disabled={readOnly}
-                      className="font-mono text-center"
-                      value={contractWorkingDays}
-                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || defaultContractWorkingDays))}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
-                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
-                  </div>
-                  <span className="text-muted-foreground pb-2">=</span>
-                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
-                    <p className="text-xs text-muted-foreground">Valor dia</p>
-                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(motoRentalDayValue)}/dia</p>
-                    <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d)</p>
-                    <p className="font-mono font-bold text-secondary">{formatCurrency(motoRentalEffective)}</p>
                   </div>
                 </div>
               </div>}
