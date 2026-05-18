@@ -5,11 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { UserPlus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
-// Definido FORA do componente para evitar remount a cada keystroke
 function Field({ label, children }) {
   return (
     <div>
@@ -26,17 +26,21 @@ const EMPTY = {
   gender: '',
   birth_date: '',
   admission_date: '',
+  termination_date: '',
+  termination_reason: '',
   job_role_tangerino_id: '',
   contract_type: '',
   company_id: '',
   email: '',
   base_salary: '',
+  is_esporadico: false,
   // bancários
   bank_name: '',
   bank_agency: '',
   bank_account: '',
   bank_beneficiary: '',
   pix_key: '',
+  pix_key_type: '',
 };
 
 export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSave, onClose }) {
@@ -46,35 +50,49 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const detectPixKeyType = (key) => {
+    if (!key) return '';
+    const cleaned = key.replace(/\D/g, '');
+    if (/^\d{11}$/.test(cleaned)) return 'CPF';
+    if (/^\d{14}$/.test(cleaned)) return 'CNPJ';
+    if (/^\+?\d{10,13}$/.test(cleaned) || /^\(\d{2}\)\s?\d{4,5}-?\d{4}$/.test(key)) return 'Telefone';
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return 'Email';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) return 'Chave Aleatória';
+    return '';
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório.'); setTab('dados'); return; }
-    if (!form.company_id) { toast.error('Selecione a empresa.'); setTab('dados'); return; }
+    if (!form.cpf_cnpj.trim()) { toast.error('CPF é obrigatório.'); setTab('dados'); return; }
+    if (!form.is_esporadico && !form.company_id) { toast.error('Selecione a empresa.'); setTab('dados'); return; }
     if (!form.contract_type) { toast.error('Selecione o tipo de contrato.'); setTab('dados'); return; }
 
     // Bloqueio de CPF duplicado
-    if (form.cpf_cnpj.trim()) {
-      const existing = await base44.entities.Employee.filter({ cpf_cnpj: form.cpf_cnpj.trim() });
-      if (existing && existing.length > 0) {
-        toast.error(`Já existe um colaborador cadastrado com este CPF: ${existing[0].name}`);
-        setTab('dados');
-        return;
-      }
+    const existing = await base44.entities.Employee.filter({ cpf_cnpj: form.cpf_cnpj.trim() });
+    if (existing && existing.length > 0) {
+      toast.error(`Já existe um colaborador cadastrado com este CPF: ${existing[0].name}`);
+      setTab('dados');
+      return;
     }
 
     setSaving(true);
     try {
       const selectedRole = jobRoles.find(jr => String(jr.id) === form.job_role_tangerino_id);
+      const contractType = form.is_esporadico ? 'ESPORADICO' : form.contract_type;
+
       const payload = {
         name: form.name.trim(),
-        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
+        cpf_cnpj: form.cpf_cnpj.trim(),
         pis: form.pis.trim() || undefined,
         gender: form.gender || undefined,
         birth_date: form.birth_date || undefined,
         admission_date: form.admission_date || undefined,
+        termination_date: form.termination_date || undefined,
+        termination_reason: form.termination_reason.trim() || undefined,
         job_role_tangerino_id: selectedRole?.tangerino_id ? String(selectedRole.tangerino_id) : undefined,
         position: selectedRole?.name || undefined,
-        contract_type: form.contract_type,
-        company_id: form.company_id,
+        contract_type: contractType,
+        company_id: form.company_id || undefined,
         email: form.email.trim() || undefined,
         base_salary: form.base_salary ? parseFloat(form.base_salary) : 0,
         bank_name: form.bank_name.trim() || undefined,
@@ -82,6 +100,7 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
         bank_account: form.bank_account.trim() || undefined,
         bank_beneficiary: form.bank_beneficiary.trim() || undefined,
         pix_key: form.pix_key.trim() || undefined,
+        pix_key_type: form.pix_key_type || undefined,
         is_active: true,
       };
 
@@ -117,6 +136,23 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
 
           {/* ── ABA DADOS ── */}
           <TabsContent value="dados" className="space-y-4 mt-4">
+
+            {/* Flag Esporádico */}
+            <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+              <div>
+                <Label className="text-sm font-medium text-orange-800">Prestador Esporádico</Label>
+                <p className="text-xs text-orange-600 mt-0.5">Folha por pontos. Empresa não obrigatória.</p>
+              </div>
+              <Switch
+                checked={form.is_esporadico}
+                onCheckedChange={v => {
+                  set('is_esporadico', v);
+                  if (v) set('contract_type', 'ESPORADICO');
+                  else if (form.contract_type === 'ESPORADICO') set('contract_type', '');
+                }}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <Field label="Nome Completo *">
@@ -128,7 +164,7 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                 </Field>
               </div>
 
-              <Field label="CPF">
+              <Field label="CPF *">
                 <Input
                   placeholder="000.000.000-00"
                   value={form.cpf_cnpj}
@@ -201,8 +237,12 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                 </Field>
               </div>
 
-              <Field label="Tipo de Contrato *">
-                <Select value={form.contract_type} onValueChange={v => set('contract_type', v)}>
+              <Field label={form.is_esporadico ? 'Tipo de Contrato' : 'Tipo de Contrato *'}>
+                <Select
+                  value={form.is_esporadico ? 'ESPORADICO' : form.contract_type}
+                  onValueChange={v => set('contract_type', v)}
+                  disabled={form.is_esporadico}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
@@ -214,7 +254,7 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                 </Select>
               </Field>
 
-              <Field label="Empresa *">
+              <Field label={form.is_esporadico ? 'Empresa (opcional)' : 'Empresa *'}>
                 <Select value={form.company_id} onValueChange={v => set('company_id', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a empresa..." />
@@ -237,6 +277,24 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                   onChange={e => set('base_salary', e.target.value)}
                 />
               </Field>
+
+              <Field label="Data de Demissão">
+                <Input
+                  type="date"
+                  value={form.termination_date}
+                  onChange={e => set('termination_date', e.target.value)}
+                />
+              </Field>
+
+              <div className="col-span-2">
+                <Field label="Motivo de Demissão">
+                  <Input
+                    placeholder="Ex: Pedido de demissão"
+                    value={form.termination_reason}
+                    onChange={e => set('termination_reason', e.target.value)}
+                  />
+                </Field>
+              </div>
             </div>
           </TabsContent>
 
@@ -275,15 +333,32 @@ export default function ManualEmployeeForm({ companies = [], jobRoles = [], onSa
                 />
               </Field>
 
-              <div className="col-span-2">
-                <Field label="Chave PIX">
-                  <Input
-                    placeholder="CPF, e-mail, telefone ou chave aleatória"
-                    value={form.pix_key}
-                    onChange={e => set('pix_key', e.target.value)}
-                  />
-                </Field>
-              </div>
+              <Field label="Chave PIX">
+                <Input
+                  placeholder="CPF, e-mail, telefone ou chave aleatória"
+                  value={form.pix_key}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const detected = detectPixKeyType(val);
+                    setForm(f => ({ ...f, pix_key: val, pix_key_type: detected || f.pix_key_type }));
+                  }}
+                />
+              </Field>
+
+              <Field label="Tipo de Chave PIX">
+                <select
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={form.pix_key_type}
+                  onChange={e => set('pix_key_type', e.target.value)}
+                >
+                  <option value="">Selecionar tipo</option>
+                  <option value="CPF">CPF</option>
+                  <option value="CNPJ">CNPJ</option>
+                  <option value="Telefone">Telefone</option>
+                  <option value="Email">Email</option>
+                  <option value="Chave Aleatória">Chave Aleatória</option>
+                </select>
+              </Field>
             </div>
           </TabsContent>
         </Tabs>
