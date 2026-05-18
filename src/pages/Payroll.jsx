@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +59,7 @@ export default function Payroll() {
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
   const [addEsporadico, setAddEsporadico] = useState(null); // { companyId }
+  const [confirmDelete, setConfirmDelete] = useState(null); // { entry, empName }
 
   const load = async () => {
     const [e, c, w, jr, p, m, ps] = await Promise.all([
@@ -100,7 +101,14 @@ export default function Payroll() {
     return mc?.status === 'closed';
   };
 
-  const getEntry = (empId) => entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
+  // Para esporádicos: pode haver múltiplas entries no mesmo mês (empresas diferentes).
+  // getEntry retorna a entry do colaborador para a empresa corrente (usada em contexto de empresa).
+  const getEntry = (empId, companyId) => {
+    if (companyId) {
+      return entries.find(e => e.employee_id === empId && e.company_id === companyId && e.reference_month === selectedMonth);
+    }
+    return entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
+  };
 
   const filteredEmployees = employees.filter(emp => {
     const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
@@ -121,7 +129,7 @@ export default function Payroll() {
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
   const handleSaveEntry = async (data) => {
-    const existing = getEntry(editingEmployee?.id);
+    const existing = editingEntry?.id ? entries.find(e => e.id === editingEntry.id) : getEntry(editingEmployee?.id, editingEmployee?.company_id);
     if (existing) {
       await base44.entities.PayrollEntry.update(existing.id, data);
     } else {
@@ -194,12 +202,19 @@ export default function Payroll() {
 
   const companiesInView = selectedCompany === 'all' ? companies : companies.filter(c => c.id === selectedCompany);
 
-  // Esporádicos: colaboradores com contract_type=ESPORADICO que têm entry neste mês para uma empresa
-  const esporadicosByCompany = (companyId) => {
+  // Esporádicos: entries de colaboradores ESPORADICO para a empresa+mês.
+  // Retorna { emp, entry } para suportar múltiplas entries do mesmo esporádico.
+  const esporadicoPairsByCompany = (companyId) => {
     return entries
       .filter(e => e.company_id === companyId && e.reference_month === selectedMonth)
-      .map(e => employees.find(emp => emp.id === e.employee_id))
-      .filter(emp => emp && emp.contract_type === 'ESPORADICO');
+      .map(e => ({ entry: e, emp: employees.find(emp => emp.id === e.employee_id) }))
+      .filter(({ emp }) => emp && emp.contract_type === 'ESPORADICO');
+  };
+
+  const handleDeleteEntry = async (entry) => {
+    await base44.entities.PayrollEntry.delete(entry.id);
+    load();
+    toast.success('Folha excluída!');
   };
 
   const handleCloneFromPrevious = async () => {
@@ -295,14 +310,20 @@ export default function Payroll() {
       {companiesInView.map(company => {
         const closed = isMonthClosed(company.id);
         const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id);
-        const espEmps = esporadicosByCompany(company.id).filter(emp =>
+        // Esporádicos: representados como { emp, entry } para suportar múltiplas entries
+        const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp }) =>
           emp.name.toLowerCase().includes(search.toLowerCase())
         );
-        const espEmpsUniq = espEmps.filter(e => !fixedEmps.some(f => f.id === e.id));
-        const companyEmps = [...fixedEmps, ...espEmpsUniq];
-        if (companyEmps.length === 0) return null;
-        const companyEntries = entries.filter(e => companyEmps.some(emp => emp.id === e.employee_id));
-        const totalNet = companyEntries.reduce((s, e) => s + (e.first_period_net || 0) + (e.second_period_net || 0), 0);
+        // Remove esporádicos que já estão em fixedEmps (vinculados à empresa)
+        const espPairsFiltered = espPairs.filter(({ emp }) => !fixedEmps.some(f => f.id === emp.id));
+
+        if (fixedEmps.length === 0 && espPairsFiltered.length === 0) return null;
+
+        // Para cálculo do total: entries dos fixedEmps + entries dos pares esporádicos
+        const fixedEntries = entries.filter(e => fixedEmps.some(emp => emp.id === e.employee_id) && e.company_id === company.id);
+        const espEntries = espPairsFiltered.map(p => p.entry);
+        const allCompanyEntries = [...fixedEntries, ...espEntries];
+        const totalNet = allCompanyEntries.reduce((s, e) => s + (e.first_period_net || 0) + (e.second_period_net || 0), 0);
 
         return (
           <Card key={company.id} className="border-border">
@@ -333,7 +354,7 @@ export default function Payroll() {
                     size="sm"
                     className="gap-1.5 text-violet-700 border-violet-200 hover:bg-violet-50"
                     title="Gerar PDF em lote para todos os colaboradores desta empresa"
-                    onClick={() => setBulkPDF({ company, employees: companyEmps })}
+                    onClick={() => setBulkPDF({ company, employees: [...fixedEmps, ...espPairsFiltered.map(p => p.emp)] })}
                   >
                     <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
                   </Button>
@@ -367,17 +388,19 @@ export default function Payroll() {
                    </tr>
                   </thead>
                   <tbody>
-                   {[...companyEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => {
-                     const entry = getEntry(emp.id);
+                   {[
+                     ...[...fixedEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => ({ emp, entry: getEntry(emp.id, company.id), isEspPair: false })),
+                     ...[...espPairsFiltered].sort((a, b) => a.emp.name.localeCompare(b.emp.name, 'pt-BR')).map(({ emp, entry }) => ({ emp, entry, isEspPair: true })),
+                   ].map(({ emp, entry, isEspPair }) => {
                      const effectiveSalary = entry ? (entry.clt_moto_effective_salary || entry.base_salary || 0) : null;
-                     // Descontos quinzenais: débitos do grid + desconto de faltas
                      const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
                      const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
                      const bonificacoes = entry ? calcBonificacoes(entry) : null;
+                     const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
 
                      return (
-                       <tr key={emp.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                       <tr key={rowKey} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                          <td className="p-3 pl-6">
                            <div className="flex items-center gap-2">
                              <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
@@ -408,99 +431,109 @@ export default function Payroll() {
                          </td>
                          <td className="p-3 text-right font-mono">{bonificacoes !== null ? formatCurrency(bonificacoes) : '—'}</td>
                           <td className="p-3 text-center">
-                            {(() => {
-                              const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                              if (emp.contract_type === 'ESPORADICO') {
-                                // esporádico usa form próprio — sempre tem modelo
-                              } else if (!empJobRole?.payroll_type) {
-                                return <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300 bg-yellow-50">Sem modelo</Badge>;
-                              }
-                              if (entry?.status === 'closed') return <Badge variant="destructive" className="text-xs gap-1"><Lock className="w-2.5 h-2.5" />Fechado</Badge>;
-                              return <Badge variant={entry ? 'default' : 'outline'} className="text-xs">{entry ? 'Lançado' : 'Pendente'}</Badge>;
-                            })()}
-                          </td>
-                          <td className="p-3 pr-6 text-right">
-                            <div className="flex gap-1.5 justify-end">
-                             {entry && (
-                             <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Visualizar"
-                                onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Imprimir Recibo"
-                                onClick={() => {
-                                 const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                 const pType = emp.contract_type === 'ESPORADICO' ? 'ESPORADICO' : jr?.payroll_type;
-                                 setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
-                               }}
-                              >
-                                <Printer className="w-3.5 h-3.5" />
-                              </Button>
-                              {!readOnly && (entry.status === 'closed' ? (
+                              {(() => {
+                                const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                const espPayrollType = entry?.esporadico_payroll_type;
+                                if (emp.contract_type === 'ESPORADICO' && !espPayrollType && !entry) {
+                                  // sem entry ainda, aguardando adição
+                                } else if (emp.contract_type !== 'ESPORADICO' && !empJobRole?.payroll_type) {
+                                  return <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300 bg-yellow-50">Sem modelo</Badge>;
+                                }
+                                if (entry?.status === 'closed') return <Badge variant="destructive" className="text-xs gap-1"><Lock className="w-2.5 h-2.5" />Fechado</Badge>;
+                                return <Badge variant={entry ? 'default' : 'outline'} className="text-xs">{entry ? 'Lançado' : 'Pendente'}</Badge>;
+                              })()}
+                            </td>
+                            <td className="p-3 pr-6 text-right">
+                              <div className="flex gap-1.5 justify-end">
+                               {entry && (
+                               <>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  title="Reabrir folha deste colaborador"
+                                  title="Visualizar"
+                                  onClick={() => { setEditingEmployee(emp); setEditingEntry(entry); setViewOnly(true); setShowForm(true); }}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Imprimir Recibo"
                                   onClick={() => {
-                                    if (hasPaymentBaixa(entry)) {
-                                      setPaymentBlockAlert({ empName: emp.name });
-                                    } else {
-                                      setConfirmReopen({ type: 'entry', entry, empName: emp.name });
-                                    }
+                                   const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                   const pType = emp.contract_type === 'ESPORADICO' ? (entry.esporadico_payroll_type || 'ESPORADICO') : jr?.payroll_type;
+                                   setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === entry.company_id || c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
+                                 }}
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </Button>
+                                {!readOnly && (entry.status === 'closed' ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Reabrir folha deste colaborador"
+                                    onClick={() => {
+                                      if (hasPaymentBaixa(entry)) {
+                                        setPaymentBlockAlert({ empName: emp.name });
+                                      } else {
+                                        setConfirmReopen({ type: 'entry', entry, empName: emp.name });
+                                      }
+                                    }}
+                                  >
+                                    <Unlock className="w-3.5 h-3.5" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Fechar folha deste colaborador"
+                                    onClick={() => setConfirmClose({ type: 'entry', entry, empName: emp.name })}
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                  </Button>
+                                ))}
+                                {!readOnly && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Excluir este lançamento"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setConfirmDelete({ entry, empName: emp.name })}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
+                               </>
+                               )}
+                               {!readOnly && (() => {
+                               const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                               const hasPayrollType = emp.contract_type === 'ESPORADICO' || !!empJobRole?.payroll_type;
+                               return (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={closed || !hasPayrollType || entry?.status === 'closed'}
+                                  title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
+                                  onClick={() => {
+                                    setEditingEmployee(emp);
+                                    const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                    const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
+                                      ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
+                                      : null;
+                                    setEditingEntry(entry || prefilled);
+                                    setViewOnly(false);
+                                    setShowForm(true);
                                   }}
                                 >
-                                  <Unlock className="w-3.5 h-3.5" />
+                                  {entry ? 'Editar' : 'Lançar'}
                                 </Button>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title="Fechar folha deste colaborador"
-                                  onClick={() => setConfirmClose({ type: 'entry', entry, empName: emp.name })}
-                                >
-                                  <UserCheck className="w-3.5 h-3.5" />
-                                </Button>
-                              ))}
-                             </>
-                             )}
-                             {!readOnly && (() => {
-                             const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                             const hasPayrollType = emp.contract_type === 'ESPORADICO' || !!empJobRole?.payroll_type;
-                             return (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={closed || !hasPayrollType || entry?.status === 'closed'}
-                                title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
-                                onClick={() => {
-                                  setEditingEmployee(emp);
-                                  // Pré-preenche salário base do cargo SOMENTE se não há lançamento ainda
-                                  // (se já existe entry com base_salary > 0, não sobrepõe)
-                                  const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                  const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
-                                    ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
-                                    : null;
-                                  setEditingEntry(entry || prefilled);
-                                  setViewOnly(false);
-                                  setShowForm(true);
-                                }}
-                              >
-                                {entry ? 'Editar' : 'Lançar'}
-                              </Button>
-                             );
-                             })()}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                               );
+                               })()}
+                              </div>
+                            </td>
+                          </tr>
+                          );
+                          })}
                   </tbody>
                 </table>
               </div>
@@ -542,11 +575,20 @@ export default function Payroll() {
         }}
       />
 
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+        title="Excluir lançamento?"
+        description={`Deseja excluir o lançamento de ${confirmDelete?.empName}? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        confirmVariant="destructive"
+        onConfirm={() => handleDeleteEntry(confirmDelete.entry)}
+      />
+
       {addEsporadico && (
         <AddEsporadicoDialog
           companyId={addEsporadico.companyId}
           referenceMonth={selectedMonth}
-          existingEntries={entries.filter(e => e.company_id === addEsporadico.companyId)}
           onAdded={load}
           onClose={() => setAddEsporadico(null)}
         />
@@ -597,8 +639,15 @@ export default function Payroll() {
 
       {showForm && editingEmployee && (() => {
         const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(editingEmployee.job_role_tangerino_id)) || null;
-        const pt = editingEmployee.contract_type === 'ESPORADICO' ? 'ESPORADICO' : empJobRole?.payroll_type;
-        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'SOCIO' ? ProLaboreForm : pt === 'ESPORADICO' ? EsporadicoPayrollForm : PayrollEntryForm;
+        // Para esporádicos: usa o payroll_type gravado na entry; para outros: usa o do cargo
+        const pt = editingEmployee.contract_type === 'ESPORADICO'
+          ? (editingEntry?.esporadico_payroll_type || 'ESPORADICO')
+          : empJobRole?.payroll_type;
+        const FormComponent = pt === 'ESCRITORIO' ? EscritorioPayrollForm : pt === 'MOTOCICLISTA_MEI' ? MeiPayrollForm : pt === 'MOTOCICLISTA_CLT' ? PayrollEntryForm : pt === 'SOCIO' ? ProLaboreForm : pt === 'ESPORADICO' ? EsporadicoPayrollForm : PayrollEntryForm;
+        // Para esporádicos com modelo de cargo específico, cria um jobRole sintético
+        const effectiveJobRole = empJobRole || (editingEmployee.contract_type === 'ESPORADICO' && pt !== 'ESPORADICO'
+          ? { payroll_type: pt }
+          : null);
         return (
           <FormComponent
             key={`${editingEmployee.id}-${editingEntry?.id ?? 'new'}`}
@@ -608,7 +657,7 @@ export default function Payroll() {
             readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEntry?.company_id || editingEmployee?.company_id)}
             onSave={handleSaveEntry}
             onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
-            jobRole={empJobRole}
+            jobRole={effectiveJobRole}
           />
         );
       })()}

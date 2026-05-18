@@ -159,7 +159,11 @@ export default function Payments() {
   const getEmployee = (id) => employees.find(e => e.id === id);
   const getJobRoleName = (emp) => jobRoles.find(jr => String(jr.tangerino_id) === String(emp?.job_role_tangerino_id))?.name || '—';
   const getWorkplaceNames = (emp) => (emp?.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean).join(', ') || '—';
-  const getCompanyName = (emp) => companies.find(c => c.id === emp?.company_id)?.name || '—';
+  const getCompanyName = (empOrEntry) => {
+    // Prioriza company_id da folha (entry), pois esporádicos podem ter empresa diferente do cadastro
+    const id = empOrEntry?.company_id;
+    return companies.find(c => c.id === id)?.name || '—';
+  };
   const getPayStatus = (entryId) => paymentStatuses.find(p => p.payroll_entry_id === entryId);
 
   const updatePayStatus = useCallback(async (entry, updates) => {
@@ -175,7 +179,7 @@ export default function Payments() {
         const created = await base44.entities.PaymentStatus.create({
           payroll_entry_id: entry.id,
           employee_id: entry.employee_id,
-          company_id: emp?.company_id,
+          company_id: entry.company_id || emp?.company_id,
           reference_month: selectedMonth,
           ...updates,
         });
@@ -225,7 +229,7 @@ export default function Payments() {
       const ps = getPayStatus(entry.id);
       return {
         'Colaborador': emp?.name || '—',
-        'Empresa': getCompanyName(emp),
+        'Empresa': getCompanyName(entry),
         'Admissão': formatDate(emp?.admission_date),
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
@@ -259,7 +263,7 @@ export default function Payments() {
     if (!emp) return false;
     const ps = getPayStatus(entry.id);
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
-    const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
+    const matchCompany = selectedCompany === 'all' || entry.company_id === selectedCompany;
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
@@ -439,7 +443,7 @@ export default function Payments() {
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
                   <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
                   <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(emp.admission_date)}</td>
-                  <td className="p-2 text-xs text-muted-foreground truncate" title={getCompanyName(emp)}>{getCompanyName(emp)}</td>
+                  <td className="p-2 text-xs text-muted-foreground truncate" title={getCompanyName(entry)}>{getCompanyName(entry)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
