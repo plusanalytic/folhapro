@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded } from '@/lib/payrollCalculations';
+import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded, getContractWorkingDays } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
@@ -86,8 +86,8 @@ function calcAutoINSS(salaryEfetivo) {
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
-  // Dias úteis contrato (Seg-Sáb, exceto feriados) — editável pelo usuário
-  const defaultContractWorkingDays = getWorkingDaysInMonthSatIncluded(referenceMonth);
+  // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
+  const defaultContractWorkingDays = getContractWorkingDays(referenceMonth, employee?.admission_date);
   const [contractWorkingDays, setContractWorkingDays] = useState(
     entry?.contract_working_days ?? defaultContractWorkingDays
   );

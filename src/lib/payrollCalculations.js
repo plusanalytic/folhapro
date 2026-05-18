@@ -92,6 +92,33 @@ export function getWorkingDaysFromDate(fromDate, yearMonth) {
   return count;
 }
 
+/**
+ * Dias úteis contrato (Seg-Sáb, excl. feriados).
+ * Se o colaborador foi admitido no mesmo mês da folha, conta apenas a partir do dia de admissão.
+ * @param {string} yearMonth - 'YYYY-MM'
+ * @param {string|null} admissionDate - 'YYYY-MM-DD' ou null
+ */
+export function getContractWorkingDays(yearMonth, admissionDate = null) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  // Se admitido neste mês, começa a contar a partir do dia de admissão
+  let startDay = 1;
+  if (admissionDate && admissionDate.slice(0, 7) === yearMonth) {
+    startDay = parseInt(admissionDate.slice(8, 10), 10);
+  }
+  let count = 0;
+  for (let d = startDay; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d);
+    const dow = date.getDay();
+    if (dow === 0) continue; // exclui domingo
+    const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (nationalHolidays.includes(mmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
 // Calcula dias úteis de um mês contando Seg-Sáb (exclui apenas domingo e feriados nacionais fixos)
 export function getWorkingDaysInMonthSatIncluded(yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number);
