@@ -44,12 +44,13 @@ function calculateMeiPayroll(entry) {
   const costAllowance = entry.cost_allowance || 0;
   const motoRental = entry.motorcycle_rental || 0;
   const bonus = entry.bonus || 0;
+  const overtime = entry.overtime || 0;
   const otherBenefits = entry.other_benefits || 0;
   const foodVoucher = entry.food_voucher || 0;
   const lifeInsurance = entry.life_insurance || 0;
 
-  // Ajuda de custo NÃO entra no gross/net total — é paga exclusivamente na 2ª quinzena para evitar duplicidade
-  const grossTotal = remuneracao + kmBonus + motoRental + bonus + otherBenefits;
+  // bonus, overtime, ajuda de custo NÃO entram no gross/net total — são pagos na 2ª quinzena
+  const grossTotal = remuneracao + kmBonus + motoRental + otherBenefits;
   const netTotal = grossTotal;
 
   const diasQ1 = entry.working_days_first || 0;
@@ -65,7 +66,7 @@ function calculateMeiPayroll(entry) {
     - lifeInsurance
     - (entry.first_period_advance || 0)
     - (entry.first_period_discount || 0);
-  const secondPeriodNet = secondBase + foodVoucher + kmBonus + costAllowance
+  const secondPeriodNet = secondBase + foodVoucher + kmBonus + costAllowance + bonus + overtime
     - (entry.second_period_discount || 0);
 
   return {
@@ -97,6 +98,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     cost_allowance: entry?.cost_allowance ?? COST_ALLOWANCE_DEFAULT,
     motorcycle_rental: entry?.motorcycle_rental ?? 0,
     bonus: entry?.bonus ?? 0,
+    overtime: entry?.overtime ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
     life_insurance: entry?.life_insurance ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
@@ -254,6 +256,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       first_period_base: calc.first_period_base,
       second_period_base: calc.second_period_base,
       first_period_split: calc.split_first,
+      bonus: form.bonus || 0,
+      overtime: form.overtime || 0,
       reference_month: referenceMonth,
       pj_retention: 0,
       absence_discount: 0,
@@ -404,12 +408,21 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   <Input {...numericInput('food_voucher')} />
                 </div>
                 <div>
+                  <Label>Outros Benefícios</Label>
+                  <Input {...numericInput('other_benefits')} />
+                </div>
+              </div>
+
+              <Separator />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (pagas na 2ª quinzena — não somam ao bruto)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label>Bonificação / Prêmio</Label>
                   <Input {...numericInput('bonus')} />
                 </div>
                 <div>
-                  <Label>Outros Benefícios</Label>
-                  <Input {...numericInput('other_benefits')} />
+                  <Label>Hora Extra</Label>
+                  <Input {...numericInput('overtime')} />
                 </div>
               </div>
 
@@ -517,6 +530,18 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                  </div>
+                )}
+                {form.bonus > 0 && (
+                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <span className="text-xs text-amber-700 font-medium">+ Bonificação / Prêmio</span>
+                    <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.bonus)}</span>
+                  </div>
+                )}
+                {form.overtime > 0 && (
+                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <span className="text-xs text-amber-700 font-medium">+ Hora Extra</span>
+                    <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.overtime)}</span>
                   </div>
                 )}
                 {(calc.km_bonus > 0 || form.cost_allowance > 0) && (

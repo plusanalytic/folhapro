@@ -29,7 +29,10 @@ export function calcBonificacoes(entry) {
     (entry.km_bonus || 0) +               // Total KM adicional/excedente
     (entry.cost_allowance || 0) +         // Ajuda de custo
     (entry.bonus || 0) +                  // Bonificação / Prêmio (produtividade)
-    (entry.attendance_bonus || 0) +       // Bonificação por presença
+    (entry.delivery_bonus || 0) +         // Bonificação por Entrega (CLT Moto)
+    (entry.delivery_target_bonus || 0) +  // Bonificação Meta de Entrega (CLT Moto)
+    (entry.attendance_bonus || 0) +       // Bonificação por Presença
+    (entry.overtime || 0) +               // Hora Extra
     (entry.birthday_bonus || 0) +         // Bonificação de aniversário
     (entry.medical_plan || 0) +           // Convênio Médico
     (entry.quota_adjustment || 0) +       // Reajuste de cota (pró-labore)

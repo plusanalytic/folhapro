@@ -127,10 +127,25 @@
       "type": "number",
       "default": 0
     },
+    "delivery_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "CLT Moto: Bonifica\u00e7\u00e3o por Entrega \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+    },
+    "delivery_target_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "CLT Moto: Bonifica\u00e7\u00e3o Meta de Entrega \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+    },
     "attendance_bonus": {
       "type": "number",
       "default": 0,
-      "description": "Bonifica\u00e7\u00e3o por presen\u00e7a \u2014 adicionado diretamente na 2\u00aa quinzena (n\u00e3o soma ao bruto)"
+      "description": "Bonifica\u00e7\u00e3o por Presen\u00e7a \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+    },
+    "overtime": {
+      "type": "number",
+      "default": 0,
+      "description": "Hora Extra \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
     },
     "other_benefits": {
       "type": "number",

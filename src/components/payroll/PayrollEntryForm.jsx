@@ -120,6 +120,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     motorcycle_rental: entry?.motorcycle_rental ?? 0,
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0,
+    delivery_bonus: entry?.delivery_bonus ?? 0,
+    delivery_target_bonus: entry?.delivery_target_bonus ?? 0,
+    attendance_bonus: entry?.attendance_bonus ?? 0,
+    overtime: entry?.overtime ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
     union_contribution_value: entry?.union_contribution_value ?? 35,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 6 : 0),
@@ -367,12 +371,16 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     setInstallmentDialog(null);
   };
 
+  // Total das bonificações extras (CLT Moto) que são pagas na 2ª quinzena mas não somam ao bruto
+  const cltExtraBonusTotal = isCLTMoto
+    ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + (form.overtime || 0)
+    : 0;
+
   const handleSave = () => {
     onSave({
       ...form,
       ...calc,
       // Para CLT moto: base_salary salvo é o valor do contrato (clt_moto_base_salary), NÃO o efetivo
-      // O salário efetivo fica em clt_moto_effective_salary apenas para referência
       base_salary: form.clt_moto_base_salary > 0 && isCLTMoto ? form.clt_moto_base_salary : form.base_salary,
       clt_moto_effective_salary: isCLTMoto ? cltMotoEffectiveSalary : undefined,
       clt_moto_base_salary: form.clt_moto_base_salary,
@@ -402,6 +410,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       first_period_split: firstPeriodSplit,
       first_period_base: calc.first_period_base,
       second_period_base: calc.second_period_base,
+      // Bonificações extras CLT: somam ao second_period_net mas não ao gross/net total
+      delivery_bonus: form.delivery_bonus || 0,
+      delivery_target_bonus: form.delivery_target_bonus || 0,
+      attendance_bonus: form.attendance_bonus || 0,
+      overtime: form.overtime || 0,
+      second_period_net: (calc.second_period_net || 0) + cltExtraBonusTotal,
       reference_month: referenceMonth,
     });
   };
@@ -627,6 +641,31 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </div>
             </div>
 
+            {isCLTMoto && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (pagas na 2ª quinzena — não somam ao bruto)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Bonificação por Entrega</Label>
+                    <Input {...numericField('delivery_bonus')} />
+                  </div>
+                  <div>
+                    <Label>Bonificação Meta de Entrega</Label>
+                    <Input {...numericField('delivery_target_bonus')} />
+                  </div>
+                  <div>
+                    <Label>Bonificação por Presença</Label>
+                    <Input {...numericField('attendance_bonus')} />
+                  </div>
+                  <div>
+                    <Label>Hora Extra</Label>
+                    <Input {...numericField('overtime')} />
+                  </div>
+                </div>
+              </>
+            )}
+
             <Separator />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
             <div className="grid grid-cols-2 gap-4">
@@ -845,6 +884,34 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
                    </div>
                  )}
+                {isCLTMoto && (form.delivery_bonus > 0 || form.delivery_target_bonus > 0 || form.attendance_bonus > 0 || form.overtime > 0) && (
+                  <div className="space-y-1">
+                    {form.delivery_bonus > 0 && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-700 font-medium">+ Bonificação por Entrega</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.delivery_bonus)}</span>
+                      </div>
+                    )}
+                    {form.delivery_target_bonus > 0 && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-700 font-medium">+ Bonificação Meta de Entrega</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.delivery_target_bonus)}</span>
+                      </div>
+                    )}
+                    {form.attendance_bonus > 0 && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-700 font-medium">+ Bonificação por Presença</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.attendance_bonus)}</span>
+                      </div>
+                    )}
+                    {form.overtime > 0 && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-700 font-medium">+ Hora Extra</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.overtime)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {absenceSecond > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
                     <span className="text-xs text-destructive font-medium">− Desc. Faltas (dias 16–31)</span>
@@ -871,12 +938,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
                   <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
                 </div>
-                <div className={`${calc.second_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
+                <div className={`${(calc.second_period_net + cltExtraBonusTotal) < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                   <div>
-                    <p className="text-xs text-muted-foreground">{calc.second_period_net < 0 ? 'Saldo Negativo 2ª Quinzena' : 'Á Receber 2ª Quinzena'}</p>
+                    <p className="text-xs text-muted-foreground">{(calc.second_period_net + cltExtraBonusTotal) < 0 ? 'Saldo Negativo 2ª Quinzena' : 'Á Receber 2ª Quinzena'}</p>
                     <p className="text-xs text-muted-foreground">Descontos: {formatCurrency(secondDiscountTotal + absenceSecond)}</p>
                   </div>
-                  <p className={`font-mono font-bold text-lg ${calc.second_period_net < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(calc.second_period_net)}</p>
+                  <p className={`font-mono font-bold text-lg ${(calc.second_period_net + cltExtraBonusTotal) < 0 ? 'text-destructive' : 'text-primary'}`}>{formatCurrency(calc.second_period_net + cltExtraBonusTotal)}</p>
                 </div>
               </div>
             </div>
