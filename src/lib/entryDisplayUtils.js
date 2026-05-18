@@ -53,13 +53,48 @@ export function calcPeriodDebits(gridItems = [], absenceDiscount = 0) {
 
 /**
  * Retorna o desconto de faltas por quinzena a partir do entry.
- * Os campos absence_discount_first / absence_discount_second são persistidos
- * pelos formulários de folha. Para modelos que não separam por quinzena,
- * retorna metade do total em cada período como fallback.
+ *
+ * Prioridade:
+ * 1. Se o entry tem `absence_discounts` (objeto keyed por tangerino_id-YYYY-MM-DD),
+ *    calcula diretamente a partir dele separando por dia (1–15 = 1ªQ, 16–31 = 2ªQ).
+ *    Isso é a fonte mais precisa e funciona mesmo sem os campos pré-calculados.
+ * 2. Fallback: usa absence_discount_first / absence_discount_second se existirem.
+ * 3. Último recurso: divide absence_discount total ao meio.
  */
 export function getAbsenceByPeriod(entry) {
   if (!entry) return { first: 0, second: 0 };
-  const first = entry.absence_discount_first ?? 0;
-  const second = entry.absence_discount_second ?? 0;
-  return { first, second };
+
+  // Prioridade 1: recalcula a partir do objeto de descontos de ponto (mais preciso)
+  if (entry.absence_discounts && typeof entry.absence_discounts === 'object' && Object.keys(entry.absence_discounts).length > 0) {
+    let first = 0;
+    let second = 0;
+    for (const [key, disc] of Object.entries(entry.absence_discounts)) {
+      if (!disc || typeof disc !== 'object') continue;
+      const total = ['daily', 'vt', 'vr', 'dsr', 'moto', 'hazard'].reduce((s, k) => s + (parseFloat(disc[k]) || 0), 0);
+      const dateMatch = key.match(/(\d{4}-\d{2}-(\d{2}))$/);
+      const day = dateMatch ? parseInt(dateMatch[2], 10) : 0;
+      if (day >= 1 && day <= 15) {
+        first += total;
+      } else {
+        second += total;
+      }
+    }
+    return {
+      first: Math.round(first * 100) / 100,
+      second: Math.round(second * 100) / 100,
+    };
+  }
+
+  // Prioridade 2: campos pré-calculados (salvos pelos formulários mais recentes)
+  if (entry.absence_discount_first != null || entry.absence_discount_second != null) {
+    return {
+      first: entry.absence_discount_first ?? 0,
+      second: entry.absence_discount_second ?? 0,
+    };
+  }
+
+  // Prioridade 3: divide o total ao meio (registros muito antigos)
+  const total = entry.absence_discount ?? 0;
+  const half = Math.round(total / 2 * 100) / 100;
+  return { first: half, second: total - half };
 }
