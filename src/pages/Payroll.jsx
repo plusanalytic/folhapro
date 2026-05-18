@@ -60,6 +60,7 @@ export default function Payroll() {
   const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
   const [addEsporadico, setAddEsporadico] = useState(null); // { companyId }
   const [confirmDelete, setConfirmDelete] = useState(null); // { entry, empName }
+  const [editingEntryCompanyId, setEditingEntryCompanyId] = useState(null);
 
   const load = async () => {
     const [e, c, w, jr, p, m, ps] = await Promise.all([
@@ -129,7 +130,7 @@ export default function Payroll() {
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
   const handleSaveEntry = async (data) => {
-    const existing = editingEntry?.id ? entries.find(e => e.id === editingEntry.id) : getEntry(editingEmployee?.id, editingEmployee?.company_id);
+    const existing = editingEntry?.id ? entries.find(e => e.id === editingEntry.id) : getEntry(editingEmployee?.id, editingEntryCompanyId || editingEmployee?.company_id);
     if (existing) {
       await base44.entities.PayrollEntry.update(existing.id, data);
     } else {
@@ -138,6 +139,7 @@ export default function Payroll() {
     setShowForm(false);
     setEditingEntry(null);
     setEditingEmployee(null);
+    setEditingEntryCompanyId(null);
     load();
     toast.success('Lançamento salvo!');
   };
@@ -516,11 +518,19 @@ export default function Payroll() {
                                   title={!hasPayrollType ? 'Configure o modelo de folha do cargo antes de lançar.' : entry?.status === 'closed' ? 'Folha fechada. Reabra para editar.' : undefined}
                                   onClick={() => {
                                     setEditingEmployee(emp);
-                                    const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                    const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
-                                      ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
-                                      : null;
-                                    setEditingEntry(entry || prefilled);
+                                    if (emp.contract_type === 'ESPORADICO') {
+                                      // Esporádico: pré-preenche company_id da empresa atual
+                                      const prefilledEsp = entry || { company_id: company.id };
+                                      setEditingEntry(prefilledEsp);
+                                      setEditingEntryCompanyId(company.id);
+                                    } else {
+                                      const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                      const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
+                                        ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
+                                        : null;
+                                      setEditingEntry(entry || prefilled);
+                                      setEditingEntryCompanyId(null);
+                                    }
                                     setViewOnly(false);
                                     setShowForm(true);
                                   }}
@@ -656,7 +666,7 @@ export default function Payroll() {
             referenceMonth={selectedMonth}
             readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEntry?.company_id || editingEmployee?.company_id)}
             onSave={handleSaveEntry}
-            onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setViewOnly(false); }}
+            onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setEditingEntryCompanyId(null); setViewOnly(false); }}
             jobRole={effectiveJobRole}
           />
         );
