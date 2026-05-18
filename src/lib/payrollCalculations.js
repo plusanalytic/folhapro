@@ -92,6 +92,23 @@ export function getWorkingDaysFromDate(fromDate, yearMonth) {
   return count;
 }
 
+// Calcula dias úteis de um mês contando Seg-Sáb (exclui apenas domingo e feriados nacionais fixos)
+export function getWorkingDaysInMonthSatIncluded(yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  let count = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d);
+    const dow = date.getDay(); // 0=dom, 6=sab
+    if (dow === 0) continue; // só exclui domingo
+    const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (nationalHolidays.includes(mmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
 export function calculateAbsenceDiscount(salary, absenceDays, workingDaysInMonth = 30) {
   if (absenceDays <= 0) return 0;
   const dailyRate = salary / workingDaysInMonth;

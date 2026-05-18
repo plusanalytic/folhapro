@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate } from '@/lib/payrollCalculations';
+import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
@@ -86,6 +86,8 @@ function calcAutoINSS(salaryEfetivo) {
 
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
   const workingDays = getWorkingDaysInMonth(referenceMonth);
+  // Dias úteis contrato (Seg-Sáb, exceto feriados)
+  const contractWorkingDays = getWorkingDaysInMonthSatIncluded(referenceMonth);
   // Dias úteis para VR: proporcional se admissão ocorreu neste mês
   const vrWorkingDays = (() => {
     if (employee?.admission_date && employee.admission_date.slice(0, 7) === referenceMonth) {
@@ -184,6 +186,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
   // Override direto do valor base da 1ª quinzena (usado quando net_total = 0)
   const [firstBaseOverride, setFirstBaseOverride] = useState(entry?.first_period_base ?? null);
+
+  // Hora Extra: quantidade em hh:mm e valor hora separados (apenas UI — overtime = qty * hourValue)
+  const [overtimeHours, setOvertimeHours] = useState(() => {
+    if (entry?.overtime > 0 && entry?.overtime_hour_value > 0) {
+      const totalHours = entry.overtime / entry.overtime_hour_value;
+      const h = Math.floor(totalHours);
+      const m = Math.round((totalHours - h) * 60);
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    }
+    return '00:00';
+  });
+  const [overtimeHourValue, setOvertimeHourValue] = useState(entry?.overtime_hour_value ?? 0);
 
   // Parcelas
   const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
@@ -369,9 +383,24 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     setInstallmentDialog(null);
   };
 
+  // Converte hh:mm + valor/hora em total de hora extra
+  const overtimeDecimal = (() => {
+    const parts = overtimeHours.split(':');
+    const h = parseInt(parts[0]) || 0;
+    const m = parseInt(parts[1]) || 0;
+    return h + m / 60;
+  })();
+  const overtimeTotal = Math.round(overtimeDecimal * overtimeHourValue * 100) / 100;
+
+  // Referência HE para auxílio ao usuário
+  const heBase = isCLTMoto ? (cltMotoEffectiveSalary + (form.hazard_pay || 0)) : (form.base_salary + (form.hazard_pay || 0));
+  const heNormal = Math.round((heBase / 220) * 100) / 100;
+  const he50 = Math.round((heBase / 220 * 1.5) * 100) / 100;
+  const he100 = Math.round((heBase / 220 * 2) * 100) / 100;
+
   // Total das bonificações extras (CLT Moto) que são pagas na 2ª quinzena mas não somam ao bruto
   const cltExtraBonusTotal = isCLTMoto
-    ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + (form.overtime || 0)
+    ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + overtimeTotal
     : 0;
 
   const handleSave = () => {
@@ -412,7 +441,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       delivery_bonus: form.delivery_bonus || 0,
       delivery_target_bonus: form.delivery_target_bonus || 0,
       attendance_bonus: form.attendance_bonus || 0,
-      overtime: form.overtime || 0,
+      overtime: isCLTMoto ? overtimeTotal : (form.overtime || 0),
+      overtime_hour_value: isCLTMoto ? overtimeHourValue : 0,
       second_period_net: (calc.second_period_net || 0) + cltExtraBonusTotal,
       reference_month: referenceMonth,
     });
@@ -577,7 +607,22 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             {show('food_voucher') && (
               <div>
                 <Label>Vale Alimentação</Label>
-                <Input {...numericField('food_voucher')} />
+                <div className="flex gap-2 mt-1 items-end">
+                  <div className="flex-1">
+                    <Input {...numericField('food_voucher')} className="font-mono" placeholder="Valor total" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">÷</span>
+                  <div className="w-24">
+                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.food_voucher || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -605,13 +650,43 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   </div>
                 </div>
               </div>}
-              {show('km_bonus') && <div>
+              {show('km_bonus') && <div className="col-span-2">
                 <Label>Ajuda de Custo</Label>
-                <Input {...numericField('cost_allowance')} />
+                <div className="flex gap-2 mt-1 items-end">
+                  <div className="flex-1">
+                    <Input {...numericField('cost_allowance')} className="font-mono" placeholder="Valor total" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">÷</span>
+                  <div className="w-24">
+                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.cost_allowance || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                  </div>
+                </div>
               </div>}
-              {show('motorcycle_rental') && <div>
+              {show('motorcycle_rental') && <div className="col-span-2">
                 <Label>Aluguel da Motocicleta</Label>
-                <Input {...numericField('motorcycle_rental')} />
+                <div className="flex gap-2 mt-1 items-end">
+                  <div className="flex-1">
+                    <Input {...numericField('motorcycle_rental')} className="font-mono" placeholder="Valor total" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total (R$)</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">÷</span>
+                  <div className="w-24">
+                    <div className="px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm text-center">{contractWorkingDays}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Dias úteis contrato</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-32 bg-muted/40 rounded-lg p-2 text-right">
+                    <p className="font-mono font-semibold text-primary">{formatCurrency(contractWorkingDays > 0 ? Math.round((form.motorcycle_rental || 0) / contractWorkingDays * 100) / 100 : 0)}</p>
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                  </div>
+                </div>
               </div>}
               {show('hazard_pay') && <div>
                 <Label>Periculosidade (30% do salário efetivo)</Label>
@@ -667,9 +742,67 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>Bonificação por Presença</Label>
                     <Input {...numericField('attendance_bonus')} />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <Label>Hora Extra</Label>
-                    <Input {...numericField('overtime')} />
+                    {/* Painel informativo de referência */}
+                    {heBase > 0 && (
+                      <div className="mt-1 mb-2 flex gap-3 flex-wrap">
+                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1 text-xs text-blue-700">
+                          <span className="font-medium">Normal:</span>
+                          <span className="font-mono font-semibold">{formatCurrency(heNormal)}/h</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 text-xs text-amber-700">
+                          <span className="font-medium">HE 50%:</span>
+                          <span className="font-mono font-semibold">{formatCurrency(he50)}/h</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-md px-2.5 py-1 text-xs text-orange-700">
+                          <span className="font-medium">HE 100%:</span>
+                          <span className="font-mono font-semibold">{formatCurrency(he100)}/h</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground self-center">Base: (Sal. + Peric.) ÷ 220 = {formatCurrency(heNormal)}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-2 items-end">
+                      <div className="w-32">
+                        <input
+                          type="text"
+                          disabled={readOnly}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 mt-1"
+                          placeholder="hh:mm"
+                          value={overtimeHours}
+                          onChange={e => setOvertimeHours(e.target.value)}
+                          onBlur={e => {
+                            // Normaliza formato hh:mm
+                            const val = e.target.value.trim();
+                            if (/^\d+:\d{2}$/.test(val)) {
+                              const [h, m] = val.split(':').map(Number);
+                              setOvertimeHours(`${String(h).padStart(2,'0')}:${String(Math.min(59, m)).padStart(2,'0')}`);
+                            } else if (/^\d+$/.test(val)) {
+                              setOvertimeHours(`${String(parseInt(val)).padStart(2,'0')}:00`);
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-0.5">Qtd. Horas (hh:mm)</p>
+                      </div>
+                      <span className="text-muted-foreground pb-2">×</span>
+                      <div className="w-36">
+                        <Input
+                          type="number" step="any" disabled={readOnly}
+                          className="mt-1 font-mono"
+                          value={overtimeHourValue === 0 ? '' : String(overtimeHourValue)}
+                          onChange={e => setOvertimeHourValue(parseFloat(e.target.value) || 0)}
+                          onBlur={e => setOvertimeHourValue(parseFloat(e.target.value) || 0)}
+                          onFocus={e => setTimeout(() => e.target.select(), 0)}
+                          placeholder="R$/hora"
+                        />
+                        <p className="text-xs text-muted-foreground mt-0.5">Valor por Hora (R$)</p>
+                      </div>
+                      <span className="text-muted-foreground pb-2">=</span>
+                      <div className="flex-1 bg-muted/40 rounded-lg p-2 text-right">
+                        <p className="font-mono font-semibold text-primary">{formatCurrency(overtimeTotal)}</p>
+                        <p className="text-xs text-muted-foreground">Total Hora Extra</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>
@@ -913,10 +1046,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                         <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.attendance_bonus)}</span>
                       </div>
                     )}
-                    {form.overtime > 0 && (
+                    {overtimeTotal > 0 && (
                       <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        <span className="text-xs text-amber-700 font-medium">+ Hora Extra</span>
-                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.overtime)}</span>
+                        <span className="text-xs text-amber-700 font-medium">+ Hora Extra ({overtimeHours}h × {formatCurrency(overtimeHourValue)})</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(overtimeTotal)}</span>
                       </div>
                     )}
                   </div>
