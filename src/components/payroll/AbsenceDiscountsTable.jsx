@@ -105,6 +105,7 @@ function ObsInput({ value, disabled, onChange }) {
     <input
       type="text"
       disabled={disabled}
+      title={disabled && value ? value : undefined}
       className="h-7 text-xs border border-input rounded px-2 bg-transparent w-full min-w-[110px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
       placeholder={disabled ? '—' : 'Observação...'}
       value={value || ''}

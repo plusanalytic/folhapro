@@ -21,6 +21,7 @@ const ALL_MODULES = [
   { key: 'point-adjustments', label: 'Ajuste de Ponto' },
   { key: 'settings',          label: 'Configurações' },
   { key: 'access',            label: 'Gestão de Acessos' },
+  { key: 'readjustment',       label: 'Reajuste Salarial' },
 ];
 
 const PROFILE_LABELS = {
