@@ -33,6 +33,7 @@ export function calcBonificacoes(entry) {
     (entry.delivery_target_bonus || 0) +  // Bonificação Meta de Entrega (CLT Moto)
     (entry.attendance_bonus || 0) +       // Bonificação por Presença
     (entry.overtime || 0) +               // Hora Extra
+    (entry.route_sp_bonus || 0) +         // Bonificação Rota SP (CLT Moto)
     (entry.birthday_bonus || 0) +         // Bonificação de aniversário
     (entry.medical_plan || 0) +           // Convênio Médico
     (entry.quota_adjustment || 0) +       // Reajuste de cota (pró-labore)

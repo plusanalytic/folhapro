@@ -26,6 +26,7 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
     ? ALL_NAV_ITEMS.filter(item => allowedModules.includes(item.moduleKey))
     : ALL_NAV_ITEMS;
   const settingsAllowed = !allowedModules || allowedModules.includes('settings');
+  const readjustmentAllowed = !allowedModules || allowedModules.includes('readjustment');
 
   return (
     <>
@@ -73,17 +74,33 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
           })}
         </nav>
 
-        {settingsAllowed && (
+        {(settingsAllowed || readjustmentAllowed) && (
           <div className="p-2" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-            {collapsed ? (
-              <Link to="/settings" title="Configurações" className="flex items-center justify-center p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
-                <Settings className="w-4 h-4" />
-              </Link>
-            ) : (
-              <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all">
-                <Settings className="w-4 h-4" />
-                <span>Configurações</span>
-              </Link>
+            {readjustmentAllowed && (
+              collapsed ? (
+                <Link to="/readjustment" title="Reajuste Salarial" className="flex items-center justify-center p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all mb-0.5">
+                  <TrendingUp className="w-4 h-4" />
+                </Link>
+              ) : (
+                <Link to="/readjustment"
+                  style={location.pathname.startsWith('/readjustment') ? { backgroundColor: '#239BB6' } : undefined}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all mb-0.5 ${location.pathname.startsWith('/readjustment') ? 'text-white' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Reajuste Salarial</span>
+                </Link>
+              )
+            )}
+            {settingsAllowed && (
+              collapsed ? (
+                <Link to="/settings" title="Configurações" className="flex items-center justify-center p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                  <Settings className="w-4 h-4" />
+                </Link>
+              ) : (
+                <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                  <Settings className="w-4 h-4" />
+                  <span>Configurações</span>
+                </Link>
+              )
             )}
           </div>
         )}
@@ -131,16 +148,26 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
           })}
         </nav>
 
-        {settingsAllowed && (
+        {(settingsAllowed || readjustmentAllowed) && (
           <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-            <Link
-              to="/settings"
-              onClick={onMobileClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <Settings className="w-4 h-4" />
-              <span>Configurações</span>
-            </Link>
+            {readjustmentAllowed && (
+              <Link to="/readjustment" onClick={onMobileClose}
+                style={location.pathname.startsWith('/readjustment') ? { backgroundColor: '#239BB6' } : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all mb-0.5 ${location.pathname.startsWith('/readjustment') ? 'text-white' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                <TrendingUp className="w-4 h-4" />
+                <span>Reajuste Salarial</span>
+              </Link>
+            )}
+            {settingsAllowed && (
+              <Link
+                to="/settings"
+                onClick={onMobileClose}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Configurações</span>
+              </Link>
+            )}
           </div>
         )}
       </aside>

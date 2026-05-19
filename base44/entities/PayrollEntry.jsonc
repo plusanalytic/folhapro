@@ -152,6 +152,11 @@
       "default": 0,
       "description": "Bonifica\u00e7\u00e3o por Presen\u00e7a \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
     },
+    "route_sp_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "CLT Moto: Bonifica\u00e7\u00e3o Rota SP \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+    },
     "overtime": {
       "type": "number",
       "default": 0,

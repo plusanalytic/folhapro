@@ -137,6 +137,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     delivery_bonus: entry?.delivery_bonus ?? 0,
     delivery_target_bonus: entry?.delivery_target_bonus ?? 0,
     attendance_bonus: entry?.attendance_bonus ?? 0,
+    route_sp_bonus: entry?.route_sp_bonus ?? 0,
     overtime: entry?.overtime ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
     union_contribution_value: entry?.union_contribution_value ?? 35,
@@ -446,7 +447,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // Total das bonificações extras (CLT Moto) que são pagas na 2ª quinzena mas não somam ao bruto
   const cltExtraBonusTotal = isCLTMoto
-    ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + overtimeTotal
+    ? (form.delivery_bonus || 0) + (form.delivery_target_bonus || 0) + (form.attendance_bonus || 0) + (form.route_sp_bonus || 0) + overtimeTotal
     : 0;
 
   const handleSave = () => {
@@ -488,6 +489,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       delivery_bonus: form.delivery_bonus || 0,
       delivery_target_bonus: form.delivery_target_bonus || 0,
       attendance_bonus: form.attendance_bonus || 0,
+      route_sp_bonus: form.route_sp_bonus || 0,
       overtime: isCLTMoto ? overtimeTotal : (form.overtime || 0),
       overtime_hour_value: isCLTMoto ? overtimeHourValue : 0,
       second_period_net: (calc.second_period_net || 0) + cltExtraBonusTotal,
@@ -869,6 +871,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <div>
                     <Label>Bonificação por Presença</Label>
                     <Input {...numericField('attendance_bonus', q2ExtraLocked)} />
+                  </div>
+                  <div>
+                    <Label>Bonificação Rota SP</Label>
+                    <Input {...numericField('route_sp_bonus', q2ExtraLocked)} />
                   </div>
                   <div className="col-span-2">
                     <Label>Hora Extra</Label>
