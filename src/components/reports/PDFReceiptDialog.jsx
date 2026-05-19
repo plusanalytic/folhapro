@@ -88,14 +88,23 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         // Para CLT moto usa o salário efetivo; para outros usa base_salary
         const isCLTMotoPayroll = payrollType === 'MOTOCICLISTA_CLT';
         const baseSalaryForCalc = isCLTMotoPayroll ? cltMotoEffective : (entry?.base_salary ?? 0);
+
+        // Valores efetivos (proporcionais) para CLT moto — VA, Ajuda de Custo e Aluguel de Moto
+        const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
+        const contractDays  = entry?.contract_working_days ?? 0;
+        const motoRatio     = (isCLTMotoPayroll && fullMonthDays > 0) ? contractDays / fullMonthDays : 1;
+        const effFoodVoucher   = Math.round((entry?.food_voucher   ?? 0) * motoRatio * 100) / 100;
+        const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
+        const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
+
         const calcStd = calculatePayroll({
           base_salary: baseSalaryForCalc,
           absence_discount: 0,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0, meal_voucher_days: entry?.meal_voucher_days ?? 0,
-          food_voucher: entry?.food_voucher ?? 0, transport_voucher: entry?.transport_voucher ?? 0,
+          food_voucher: effFoodVoucher, transport_voucher: entry?.transport_voucher ?? 0,
           km_bonus_qty: entry?.km_bonus_qty ?? 0, km_bonus_value: entry?.km_bonus_value ?? 0,
-          cost_allowance: entry?.cost_allowance ?? 0, motorcycle_rental: entry?.motorcycle_rental ?? 0,
+          cost_allowance: effCostAllowance, motorcycle_rental: effMotoRental,
           hazard_pay: entry?.hazard_pay ?? 0, bonus: entry?.bonus ?? 0, other_benefits: entry?.other_benefits ?? 0,
           union_contribution_value: entry?.union_contribution_value ?? 35,
           meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
@@ -113,6 +122,10 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
           first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net,
+          // Sobrescreve com valores efetivos para exibição correta no holerite
+          food_voucher: effFoodVoucher,
+          cost_allowance: effCostAllowance,
+          motorcycle_rental: effMotoRental,
         });
       }
     });
