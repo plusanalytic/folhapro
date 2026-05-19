@@ -13,16 +13,15 @@
     "readjustment_scope": {
       "type": "string",
       "enum": [
-        "all",
-        "company",
+        "payroll_type",
         "employee"
       ],
-      "default": "all",
-      "description": "Escopo: todos / empresa / colaborador"
+      "default": "payroll_type",
+      "description": "Escopo: por folha de pagamento / colaborador espec\u00edfico"
     },
-    "company_id": {
+    "payroll_type": {
       "type": "string",
-      "description": "ID da empresa (quando scope=company)"
+      "description": "Tipo de folha (quando scope=payroll_type): MOTOCICLISTA_CLT, etc."
     },
     "employee_id": {
       "type": "string",

@@ -86,16 +86,29 @@ export default function ReadjustmentSimulationDialog({ rule, onClose }) {
 
   useEffect(() => {
     async function load() {
-      let entryQuery = { reference_month: rule.reference_month };
-      if (rule.readjustment_scope === 'company' && rule.company_id) entryQuery.company_id = rule.company_id;
+      const entryQuery = { reference_month: rule.reference_month };
       if (rule.readjustment_scope === 'employee' && rule.employee_id) entryQuery.employee_id = rule.employee_id;
 
-      const [allEntries, allEmployees] = await Promise.all([
+      const [allEntries, allEmployees, allJobRoles] = await Promise.all([
         base44.entities.PayrollEntry.filter(entryQuery),
         base44.entities.Employee.filter({ is_active: true }),
+        base44.entities.JobRole.list(),
       ]);
 
-      const cltMotoEntries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
+      let cltMotoEntries;
+      if (rule.readjustment_scope === 'payroll_type' && rule.payroll_type) {
+        const matchingRoles = allJobRoles.filter(jr => jr.payroll_type === rule.payroll_type);
+        const roleIds = new Set(matchingRoles.map(jr => String(jr.tangerino_id)).filter(Boolean));
+        const relevantEmployeeIds = new Set(
+          allEmployees
+            .filter(e => e.job_role_tangerino_id && roleIds.has(String(e.job_role_tangerino_id)))
+            .map(e => e.id)
+        );
+        cltMotoEntries = allEntries.filter(e => relevantEmployeeIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);
+      } else {
+        cltMotoEntries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
+      }
+
       setEntries(cltMotoEntries);
       setEmployees(allEmployees);
       if (cltMotoEntries.length === 1) setSelectedEntryId(cltMotoEntries[0].id);

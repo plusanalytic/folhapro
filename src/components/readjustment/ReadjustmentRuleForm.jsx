@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { base44 } from '@/api/base44Client';
 
 export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
-  const [companies, setCompanies] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [jobRoles, setJobRoles] = useState([]);
   const [form, setForm] = useState({
     description: rule?.description ?? '',
     reference_month: rule?.reference_month ?? '',
-    readjustment_scope: rule?.readjustment_scope ?? 'all',
-    company_id: rule?.company_id ?? '',
+    readjustment_scope: rule?.readjustment_scope ?? 'payroll_type',
+    payroll_type: rule?.payroll_type ?? 'MOTOCICLISTA_CLT',
     employee_id: rule?.employee_id ?? '',
     effective_salary_pct: rule?.effective_salary_pct ?? 3,
     meal_voucher_day_value_pct: rule?.meal_voucher_day_value_pct ?? 30,
@@ -24,8 +24,8 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    base44.entities.Company.filter({ is_active: true }).then(setCompanies);
-    base44.entities.Employee.filter({ is_active: true, contract_type: 'CLT' }).then(setEmployees);
+    base44.entities.Employee.filter({ is_active: true }).then(setEmployees);
+    base44.entities.JobRole.list().then(jrs => setJobRoles(jrs.filter(j => j.payroll_type)));
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -34,7 +34,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     if (!form.reference_month) return alert('Informe o mês de referência');
     setSaving(true);
     const data = { ...form };
-    if (data.readjustment_scope !== 'company') data.company_id = '';
+    if (data.readjustment_scope !== 'payroll_type') data.payroll_type = '';
     if (data.readjustment_scope !== 'employee') data.employee_id = '';
     if (rule?.id) {
       await base44.entities.ReadjustmentRule.update(rule.id, data);
@@ -68,20 +68,27 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
             <Select value={form.readjustment_scope} onValueChange={v => set('readjustment_scope', v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os colaboradores CLT Moto</SelectItem>
-                <SelectItem value="company">Empresa específica</SelectItem>
-                <SelectItem value="employee">Colaborador específico</SelectItem>
+                <SelectItem value="payroll_type">Por Folha de Pagamento</SelectItem>
+                <SelectItem value="employee">Colaborador Específico</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {form.readjustment_scope === 'company' && (
+          {form.readjustment_scope === 'payroll_type' && (
             <div>
-              <Label>Empresa</Label>
-              <Select value={form.company_id} onValueChange={v => set('company_id', v)}>
+              <Label>Modelo de Folha de Pagamento</Label>
+              <Select value={form.payroll_type} onValueChange={v => set('payroll_type', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
-                  {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {[...new Set(jobRoles.map(j => j.payroll_type))].map(pt => (
+                    <SelectItem key={pt} value={pt}>{pt.replace('_', ' ')}</SelectItem>
+                  ))}
+                  {jobRoles.length === 0 && [
+                    { value: 'MOTOCICLISTA_CLT', label: 'Motociclista CLT' },
+                    { value: 'MOTOCICLISTA_MEI', label: 'Motociclista MEI' },
+                    { value: 'ESCRITORIO', label: 'Escritório' },
+                    { value: 'SOCIO', label: 'Sócio (Pró-Labore)' },
+                  ].map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -14,7 +14,15 @@ const STATUS_CONFIG = {
   reverted: { label: 'Revertido', className: 'bg-red-100 text-red-700 border-red-300' },
 };
 
-const SCOPE_LABEL = { all: 'Todos CLT Moto', company: 'Empresa', employee: 'Colaborador' };
+const SCOPE_LABEL = { payroll_type: 'Por Folha', employee: 'Colaborador' };
+
+const PAYROLL_TYPE_LABEL = {
+  MOTOCICLISTA_CLT: 'Motociclista CLT',
+  MOTOCICLISTA_MEI: 'Motociclista MEI',
+  ESCRITORIO: 'Escritório',
+  SOCIO: 'Sócio (Pró-Labore)',
+  ESPORADICO: 'Esporádico',
+};
 
 export default function Readjustment() {
   const [rules, setRules] = useState([]);
@@ -22,6 +30,7 @@ export default function Readjustment() {
   const [editingRule, setEditingRule] = useState(null);
   const [simulatingRule, setSimulatingRule] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null); // {type, rule}
+  const [applyToSecondOnly, setApplyToSecondOnly] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -53,7 +62,7 @@ export default function Readjustment() {
 
   const handleApply = async (rule) => {
     setActionLoading(true);
-    const res = await base44.functions.invoke('applyReadjustment', { ruleId: rule.id });
+    const res = await base44.functions.invoke('applyReadjustment', { ruleId: rule.id, applyToSecondOnly });
     setActionLoading(false);
     if (res.data?.success) {
       toast.success(`Reajuste aplicado em ${res.data.updatedCount} folha(s)`);
@@ -118,7 +127,7 @@ export default function Readjustment() {
                       <Badge variant="outline">{getMonthName(rule.reference_month)}</Badge>
                       <Badge variant="outline" className="text-muted-foreground">
                         {SCOPE_LABEL[rule.readjustment_scope]}
-                        {rule.readjustment_scope === 'company' && rule.company_id && `: ${companyName(rule.company_id)}`}
+                        {rule.readjustment_scope === 'payroll_type' && rule.payroll_type && `: ${PAYROLL_TYPE_LABEL[rule.payroll_type] ?? rule.payroll_type}`}
                         {rule.readjustment_scope === 'employee' && rule.employee_id && `: ${employeeName(rule.employee_id)}`}
                       </Badge>
                     </div>
@@ -208,7 +217,23 @@ export default function Readjustment() {
                   {confirmAction.type === 'delete' && 'Excluir Reajuste'}
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {confirmAction.type === 'apply' && 'As folhas de pagamento do escopo selecionado serão atualizadas com os novos valores. Um snapshot será salvo para permitir reversão.'}
+                  {confirmAction.type === 'apply' && (
+                    <>
+                      As folhas do escopo selecionado serão atualizadas e o salário base dos colaboradores será atualizado para os próximos meses.
+                      <div className="mt-3 flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <input
+                          type="checkbox"
+                          id="applyToSecondOnly"
+                          className="mt-0.5 cursor-pointer"
+                          checked={applyToSecondOnly}
+                          onChange={e => setApplyToSecondOnly(e.target.checked)}
+                        />
+                        <label htmlFor="applyToSecondOnly" className="cursor-pointer text-sm text-orange-800">
+                          <strong>1ª quinzena já foi paga</strong> — lançar a diferença do reajuste apenas na 2ª quinzena, sem alterar o valor já pago na 1ª.
+                        </label>
+                      </div>
+                    </>
+                  )}
                   {confirmAction.type === 'revert' && 'Todas as folhas serão restauradas aos valores originais. Esta ação não pode ser desfeita sem reaplicar o reajuste.'}
                   {confirmAction.type === 'delete' && 'O reajuste será excluído permanentemente.'}
                 </p>

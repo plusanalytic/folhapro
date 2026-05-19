@@ -18,6 +18,14 @@ Deno.serve(async (req) => {
     for (const original of snapshot) {
       const { id, created_date, updated_date, created_by, ...fields } = original;
       await base44.asServiceRole.entities.PayrollEntry.update(id, fields);
+
+      // Revert Employee.base_salary to original clt_moto_base_salary
+      if ((original.clt_moto_base_salary ?? 0) > 0 && original.employee_id) {
+        await base44.asServiceRole.entities.Employee.update(original.employee_id, {
+          base_salary: original.clt_moto_base_salary,
+        });
+      }
+
       revertedCount++;
     }
 
