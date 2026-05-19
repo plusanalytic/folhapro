@@ -676,6 +676,7 @@ export default function Payroll() {
             onSave={handleSaveEntry}
             onClose={() => { setShowForm(false); setEditingEntry(null); setEditingEmployee(null); setEditingEntryCompanyId(null); setViewOnly(false); }}
             jobRole={effectiveJobRole}
+            paymentStatus={paymentStatuses.find(p => p.payroll_entry_id === editingEntry?.id)}
           />
         );
       })()}

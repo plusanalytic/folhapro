@@ -84,7 +84,12 @@ function calcAutoINSS(salaryEfetivo) {
   return { pct: 13, discount: 198.49 };
 }
 
-export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
+const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
+export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
+  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
+
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
   const defaultContractWorkingDays = getContractWorkingDays(referenceMonth, employee?.admission_date);
@@ -1101,6 +1106,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 1ª Quinzena */}
               <div className="space-y-3 border border-border rounded-xl p-4">
+                {q1Locked && (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                    🔒 1ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q1}</strong>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
@@ -1113,11 +1123,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 )}
                 <div>
                   <Label className="text-xs">Adiantamento</Label>
-                  <Input {...numericField('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
+                  <Input {...numericField('first_period_advance')} disabled={readOnly || q1Locked} className="mt-1 font-mono h-8 text-sm" />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                  <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                  <PeriodDiscountsTable items={firstDiscounts} onChange={(readOnly || q1Locked) ? () => {} : setFirstDiscounts} readOnly={readOnly || q1Locked} onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')} />
                 </div>
                 <div className={`${calc.first_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                   <div>
@@ -1130,6 +1140,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
               {/* 2ª Quinzena */}
               <div className="space-y-3 border border-border rounded-xl p-4">
+                {q2Locked && (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                    🔒 2ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q2}</strong>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
@@ -1192,7 +1207,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 )}
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                  <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                  <PeriodDiscountsTable items={secondDiscounts} onChange={(readOnly || q2Locked) ? () => {} : setSecondDiscounts} readOnly={readOnly || q2Locked} onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')} />
                 </div>
                 <div className={`${(calc.second_period_net + cltExtraBonusTotal) < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                   <div>
@@ -1335,6 +1350,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         )}
 
         <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {(q1Locked || q2Locked) && !readOnly && (
+            <div className="mb-2 px-1">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ⚠️ Campos da quinzena bloqueada não serão salvos. Apenas a quinzena em aberto pode ser alterada.
+              </div>
+            </div>
+          )}
           {!readOnly && (
             <div className="mb-3">
               <Label className="text-xs">Observação (aparece no PDF)</Label>
