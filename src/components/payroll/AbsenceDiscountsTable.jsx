@@ -99,6 +99,20 @@ function calcAutoForReason(reasonId, payrollForm, isMotocyclist) {
   };
 }
 
+// ObsInput — campo de texto livre por linha (informativo)
+function ObsInput({ value, disabled, onChange }) {
+  return (
+    <input
+      type="text"
+      disabled={disabled}
+      className="h-7 text-xs border border-input rounded px-2 bg-transparent w-full min-w-[110px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+      placeholder={disabled ? '—' : 'Observação...'}
+      value={value || ''}
+      onChange={onChange}
+    />
+  );
+}
+
 // CellInput extraído para FORA do componente pai para evitar perda de foco
 function CellInput({ value, disabled, onChange, onBlur }) {
   return (
@@ -162,6 +176,13 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
     setAbsenceDiscounts(prev => ({
       ...prev,
       [key]: { ...(prev[key] || {}), [col]: parseFloat(val) || 0, _manual: true },
+    }));
+  };
+
+  const setObs = (key, val) => {
+    setAbsenceDiscounts(prev => ({
+      ...prev,
+      [key]: { ...(prev[key] || {}), obs: val },
     }));
   };
 
@@ -235,6 +256,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                 <th className="text-right px-2 py-2 font-medium text-destructive">Periculosidade</th>
               </>}
               {!readOnly && <th className="text-center px-2 py-2 font-medium text-muted-foreground">Auto</th>}
+              <th className="text-left px-2 py-2 font-medium text-muted-foreground min-w-[120px]">Nota</th>
               <th className="text-right px-3 py-2 font-medium text-foreground bg-muted/60">Total</th>
             </tr>
           </thead>
@@ -269,7 +291,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
 
                   {isAbsence && isSunday ? (
                     <>
-                      <td className="px-2 py-2 text-center text-muted-foreground text-xs" colSpan={isMotocyclist ? (readOnly ? 6 : 7) : (readOnly ? 4 : 5)}>
+                      <td className="px-2 py-2 text-center text-muted-foreground text-xs" colSpan={isMotocyclist ? (readOnly ? 7 : 8) : (readOnly ? 5 : 6)}>
                         Domingo — sem desconto
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground bg-muted/30">—</td>
@@ -298,6 +320,13 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                           </Button>
                         </td>
                       )}
+                      <td className="px-2 py-1.5">
+                        <ObsInput
+                          value={absenceDiscounts[key]?.obs || ''}
+                          disabled={readOnly}
+                          onChange={e => setObs(key, e.target.value)}
+                        />
+                      </td>
                       <td className="px-3 py-2 text-right font-mono font-semibold text-destructive bg-muted/30 whitespace-nowrap">
                         {total > 0 ? formatCurrency(total) : '—'}
                       </td>
@@ -314,6 +343,13 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                         <td className="px-2 py-2 text-center text-muted-foreground">—</td>
                       </>}
                       {!readOnly && <td className="px-2 py-2 text-center text-muted-foreground">—</td>}
+                      <td className="px-2 py-1.5">
+                        <ObsInput
+                          value={absenceDiscounts[key]?.obs || ''}
+                          disabled={readOnly}
+                          onChange={e => setObs(key, e.target.value)}
+                        />
+                      </td>
                       <td className="px-3 py-2 text-center text-muted-foreground bg-muted/30">—</td>
                     </>
                   )}
@@ -324,7 +360,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           {absenceRows.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 border-t-2 border-border font-semibold">
-                <td colSpan={isMotocyclist ? (readOnly ? 9 : 10) : (readOnly ? 7 : 8)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
+                <td colSpan={isMotocyclist ? (readOnly ? 10 : 11) : (readOnly ? 8 : 9)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
                   Total Desconto Faltas
                 </td>
                 <td className="px-3 py-2 text-right font-mono text-destructive">

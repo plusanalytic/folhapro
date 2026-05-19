@@ -1170,7 +1170,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                      <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(foodVoucherEffective)}</span>
                    </div>
                  )}
-                {isCLTMoto && (form.delivery_bonus > 0 || form.delivery_target_bonus > 0 || form.attendance_bonus > 0 || form.overtime > 0 || overtimeTotal > 0) && (
+                {isCLTMoto && (form.delivery_bonus > 0 || form.delivery_target_bonus > 0 || form.attendance_bonus > 0 || form.route_sp_bonus > 0 || form.overtime > 0 || overtimeTotal > 0) && (
                   <div className="space-y-1">
                     {form.delivery_bonus > 0 && (
                       <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -1188,6 +1188,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         <span className="text-xs text-amber-700 font-medium">+ Bonificação por Presença</span>
                         <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.attendance_bonus)}</span>
+                      </div>
+                    )}
+                    {form.route_sp_bonus > 0 && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-700 font-medium">+ Bonificação Rota SP</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">+ {formatCurrency(form.route_sp_bonus)}</span>
                       </div>
                     )}
                     {overtimeTotal > 0 && (

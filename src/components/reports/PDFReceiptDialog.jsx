@@ -121,7 +121,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
-          first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net,
+          first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net + (isCLTMotoPayroll ? (entry?.route_sp_bonus ?? 0) : 0),
           // Sobrescreve com valores efetivos para exibição correta no holerite
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
