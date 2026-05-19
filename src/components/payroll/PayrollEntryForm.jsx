@@ -89,6 +89,10 @@ const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO',
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
+  // baseLocked: campos que afetam net_total (rateado entre as duas quinzenas)
+  const baseLocked = readOnly || q1Locked || q2Locked;
+  // q2ExtraLocked: campos que só impactam a 2ª quinzena (food_voucher, km, ajuda de custo, bonificações CLT moto)
+  const q2ExtraLocked = readOnly || q2Locked;
 
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
@@ -324,12 +328,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // - Não sai do campo ao digitar (usa set() em vez de setNum() no onChange)
   // - Converte para número só no blur
   // - Permite zerar (mostra "" quando o valor é 0)
-  const numericField = useCallback((key) => {
+  const numericField = useCallback((key, forceDisabled) => {
     const externalVal = form[key] ?? 0;
     return {
       type: 'number',
       step: 'any',
-      disabled: readOnly,
+      disabled: forceDisabled !== undefined ? forceDisabled : readOnly,
       className: 'mt-1 font-mono',
       value: externalVal === 0 ? '' : String(externalVal),
       onChange: (e) => set(key, e.target.value),
@@ -537,6 +541,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 Modo visualização — nenhuma alteração pode ser realizada.
               </div>
             )}
+            {!readOnly && (q1Locked || q2Locked) && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
+                🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena bloqueada — campos que afetam o rateio estão desabilitados.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
+              </div>
+            )}
             {/* Salário e Faltas — CLT Moto: campos de dias trabalhados */}
             {isCLTMoto && (
               <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
@@ -546,7 +555,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>Salário Base Informado (R$)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Valor do contrato</p>
                     <Input
-                      type="number" step="any" disabled={readOnly} className="mt-1 font-mono"
+                      type="number" step="any" disabled={baseLocked} className="mt-1 font-mono"
                       value={form.clt_moto_base_salary === 0 ? '' : String(form.clt_moto_base_salary)}
                       onChange={e => { if (!readOnly) setForm(f => ({ ...f, clt_moto_base_salary: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 })); }}
                       onBlur={e => {
@@ -572,7 +581,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                         : 'Padrão: 30'}
                     </p>
                     <Input
-                      type="number" step="1" min="0" max="30" disabled={readOnly} className="mt-1 font-mono"
+                      type="number" step="1" min="0" max="30" disabled={baseLocked} className="mt-1 font-mono"
                       value={form.clt_moto_worked_days_str ?? String(form.clt_moto_worked_days)}
                       onChange={e => {
                         if (!readOnly) {
@@ -642,7 +651,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               {!isCLTMoto && <div>
                 <Label>Salário Base / Valor Fixo</Label>
-                <Input {...numericField('base_salary')} />
+                <Input {...numericField('base_salary', baseLocked)} />
               </div>}
               <div>
                 <Label>Desconto de Faltas (R$)</Label>
@@ -672,12 +681,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <Label>Vale Refeição</Label>
               <div className="flex gap-2 mt-1 items-center">
                 <div className="flex-1">
-                  <Input {...numericField('meal_voucher_day_value')} className="font-mono" placeholder="Valor/dia" />
+                  <Input {...numericField('meal_voucher_day_value', baseLocked)} className="font-mono" placeholder="Valor/dia" />
                   <p className="text-xs text-muted-foreground mt-0.5">Valor por dia</p>
                 </div>
                 <span className="text-muted-foreground font-bold text-lg">×</span>
                 <div className="w-24">
-                  <Input {...numericField('meal_voucher_days')} className="font-mono text-center" />
+                  <Input {...numericField('meal_voucher_days', baseLocked)} className="font-mono text-center" />
                   <p className="text-xs text-muted-foreground mt-0.5 text-center">
                     {!entry && employee?.admission_date?.slice(0, 7) === referenceMonth ? 'Dias (admissão)' : 'Dias úteis'}
                   </p>
@@ -695,7 +704,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Vale Alimentação</Label>
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
-                    <Input {...numericField('food_voucher')} className="font-mono" placeholder="Valor total" />
+                    <Input {...numericField('food_voucher', q2ExtraLocked)} className="font-mono" placeholder="Valor total" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
@@ -726,7 +735,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Ajuda de Custo</Label>
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
-                    <Input {...numericField('cost_allowance')} className="font-mono" placeholder="Valor total" />
+                    <Input {...numericField('cost_allowance', q2ExtraLocked)} className="font-mono" placeholder="Valor total" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
@@ -757,7 +766,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Aluguel da Motocicleta</Label>
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
-                    <Input {...numericField('motorcycle_rental')} className="font-mono" placeholder="Valor total" />
+                    <Input {...numericField('motorcycle_rental', q2ExtraLocked)} className="font-mono" placeholder="Valor total" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
@@ -786,18 +795,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               {show('transport_voucher') && <div>
                 <Label>Vale Transporte</Label>
-                <Input {...numericField('transport_voucher')} />
+                <Input {...numericField('transport_voucher', baseLocked)} />
               </div>}
               {show('km_bonus') && <div className="col-span-2">
                 <Label>KM Adicional</Label>
                 <div className="flex gap-2 mt-1 items-center">
                   <div className="flex-1">
-                    <Input {...numericField('km_bonus_qty')} className="font-mono" placeholder="Qtd. KM" />
+                    <Input {...numericField('km_bonus_qty', q2ExtraLocked)} className="font-mono" placeholder="Qtd. KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Quantidade de KM</p>
                   </div>
                   <span className="text-muted-foreground font-bold text-lg">×</span>
                   <div className="flex-1">
-                    <Input {...numericField('km_bonus_value')} className="font-mono" placeholder="R$/KM" />
+                    <Input {...numericField('km_bonus_value', q2ExtraLocked)} className="font-mono" placeholder="R$/KM" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor por KM (R$)</p>
                   </div>
                   <span className="text-muted-foreground">=</span>
@@ -810,7 +819,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {show('hazard_pay') && <div>
                 <Label>Periculosidade (30% do salário efetivo)</Label>
                 <Input
-                  {...numericField('hazard_pay')}
+                  {...numericField('hazard_pay', baseLocked)}
                   onFocus={(e) => { setTimeout(() => e.target.select(), 0); }}
                   onChange={(e) => { set('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
                   onBlur={(e) => { setNum('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
@@ -836,11 +845,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               </div>}
               <div>
                 <Label>Bonificação / Prêmio</Label>
-                <Input {...numericField('bonus')} />
+                <Input {...numericField('bonus', baseLocked)} />
               </div>
               <div>
                 <Label>Outros Benefícios</Label>
-                <Input {...numericField('other_benefits')} />
+                <Input {...numericField('other_benefits', baseLocked)} />
               </div>
             </div>
 
@@ -851,15 +860,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Bonificação por Entrega</Label>
-                    <Input {...numericField('delivery_bonus')} />
+                    <Input {...numericField('delivery_bonus', q2ExtraLocked)} />
                   </div>
                   <div>
                     <Label>Bonificação Meta de Entrega</Label>
-                    <Input {...numericField('delivery_target_bonus')} />
+                    <Input {...numericField('delivery_target_bonus', q2ExtraLocked)} />
                   </div>
                   <div>
                     <Label>Bonificação por Presença</Label>
-                    <Input {...numericField('attendance_bonus')} />
+                    <Input {...numericField('attendance_bonus', q2ExtraLocked)} />
                   </div>
                   <div className="col-span-2">
                     <Label>Hora Extra</Label>
@@ -885,7 +894,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       <div className="w-32">
                         <input
                           type="text"
-                          disabled={readOnly}
+                          disabled={q2ExtraLocked}
                           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 mt-1"
                           placeholder="hh:mm"
                           value={overtimeHours}
@@ -906,7 +915,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       <span className="text-muted-foreground pb-2">×</span>
                       <div className="w-36">
                         <Input
-                          type="number" step="any" disabled={readOnly}
+                          type="number" step="any" disabled={q2ExtraLocked}
                           className="mt-1 font-mono"
                           value={overtimeHourValue === 0 ? '' : String(overtimeHourValue)}
                           onChange={e => setOvertimeHourValue(parseFloat(e.target.value) || 0)}
@@ -932,18 +941,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
               {show('union_contribution_pct') && <div>
                 <Label>Contribuição Assistencial (R$)</Label>
-                <Input {...numericField('union_contribution_value')} />
+                <Input {...numericField('union_contribution_value', baseLocked)} />
               </div>}
               {show('meal_voucher_discount_pct') && <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
                 <div className="flex gap-2 mt-1 items-center">
-                  <Input {...numericField('meal_voucher_discount_pct')} className="font-mono" placeholder="%" />
+                  <Input {...numericField('meal_voucher_discount_pct', baseLocked)} className="font-mono" placeholder="%" />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.meal_voucher_discount)}</span>
                 </div>
               </div>}
               {show('life_insurance') && <div>
                 <Label>Seguro de Vida (R$)</Label>
-                <Input {...numericField('life_insurance')} />
+                <Input {...numericField('life_insurance', baseLocked)} />
               </div>}
             </div>
 
@@ -954,7 +963,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Retenção PJ</Label>
-                    <Input {...numericField('pj_retention')} />
+                    <Input {...numericField('pj_retention', baseLocked)} />
                   </div>
                 </div>
               </>
@@ -974,7 +983,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>INSS %</Label>
                     <div className="flex gap-2 mt-1 items-center">
                       <Input
-                        {...numericField('inss_pct')}
+                        {...numericField('inss_pct', baseLocked)}
                         className="font-mono"
                         placeholder="% INSS"
                         onChange={e => { set('inss_pct', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
@@ -994,7 +1003,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     <Label>Desconto INSS (R$)</Label>
                     <div className="flex gap-2 mt-1 items-center">
                       <Input
-                        {...numericField('inss_discount')}
+                        {...numericField('inss_discount', baseLocked)}
                         className="font-mono"
                         placeholder="Desconto"
                         onChange={e => { set('inss_discount', e.target.value); if (isCLTMoto) setInssManuallyEdited(true); }}
