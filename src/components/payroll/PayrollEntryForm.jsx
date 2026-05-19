@@ -1158,13 +1158,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
                 </div>
-                {show('food_voucher') && form.food_voucher > 0 && (
+                {show('food_voucher') && foodVoucherEffective > 0 && (
                    <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
                      <span className="text-xs text-secondary font-medium">+ Vale Alimentação (pago na 2ª quinzena)</span>
-                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.food_voucher)}</span>
+                     <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(foodVoucherEffective)}</span>
                    </div>
                  )}
-                {isCLTMoto && (form.delivery_bonus > 0 || form.delivery_target_bonus > 0 || form.attendance_bonus > 0 || form.overtime > 0) && (
+                {isCLTMoto && (form.delivery_bonus > 0 || form.delivery_target_bonus > 0 || form.attendance_bonus > 0 || form.overtime > 0 || overtimeTotal > 0) && (
                   <div className="space-y-1">
                     {form.delivery_bonus > 0 && (
                       <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -1206,10 +1206,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                         <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(calc.km_bonus)}</span>
                       </div>
                     )}
-                    {form.cost_allowance > 0 && (
+                    {costAllowanceEffective > 0 && (
                       <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
                         <span className="text-xs text-secondary font-medium">+ Ajuda de Custo</span>
-                        <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.cost_allowance)}</span>
+                        <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(costAllowanceEffective)}</span>
                       </div>
                     )}
                   </div>
