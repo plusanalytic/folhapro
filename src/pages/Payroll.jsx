@@ -165,9 +165,13 @@ export default function Payroll() {
     toast.success('Folha do colaborador fechada!');
   };
 
+  const PAYMENT_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
+  // Só bloqueia a reabertura se AMBAS as quinzenas estiverem com status bloqueante.
+  // Se apenas uma estiver bloqueada, permite reabrir — o formulário cuidará de bloquear apenas aquela quinzena.
   const hasPaymentBaixa = (entry) => {
     const ps = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
-    return ps?.status_q1 === 'PAGO' || ps?.status_q2 === 'PAGO';
+    return PAYMENT_BLOCKED_STATUSES.includes(ps?.status_q1) && PAYMENT_BLOCKED_STATUSES.includes(ps?.status_q2);
   };
 
   const handleReopenEmployeeEntry = async (entry, empName) => {
@@ -644,9 +648,9 @@ export default function Payroll() {
               Folha não pode ser reaberta
             </AlertDialogTitle>
             <AlertDialogDescription>
-              A folha de <strong>{paymentBlockAlert?.empName}</strong> não pode ser reaberta pois já existe uma <strong>baixa de pagamento realizada</strong> em uma ou mais quinzenas.
+              A folha de <strong>{paymentBlockAlert?.empName}</strong> não pode ser reaberta pois <strong>ambas as quinzenas</strong> já possuem pagamento registrado.
               <br /><br />
-              Para reabrir a folha, acesse o módulo de <strong>Pagamentos</strong> e estorne o pagamento antes de tentar reabrir.
+              Para reabrir a folha, acesse o módulo de <strong>Pagamentos</strong> e estorne os pagamentos de ambas as quinzenas antes de tentar reabrir.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
