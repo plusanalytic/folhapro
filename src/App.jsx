@@ -20,6 +20,7 @@ import JobRoles from '@/pages/JobRoles';
 import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';
 import AccessManagement from '@/pages/AccessManagement';
+import Readjustment from '@/pages/Readjustment';
 import AppLogin from '@/pages/AppLogin';
 import { AppUserContext } from '@/lib/AppUserContext';
 import { Navigate } from 'react-router-dom';
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
         <Route path="/point-adjustments" element={can('point-adjustments') ? <PointAdjustments /> : <Navigate to="/" replace />} />
         <Route path="/payments"          element={can('payments')          ? <Payments />     : <Navigate to="/" replace />} />
         <Route path="/access"            element={can('access')            ? <AccessManagement currentAppUser={appUser} /> : <Navigate to="/" replace />} />
+        <Route path="/readjustment"       element={can('readjustment')       ? <Readjustment /> : <Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
