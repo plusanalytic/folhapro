@@ -161,9 +161,12 @@ export default function Payments() {
   const getEmployee = (id) => employees.find(e => e.id === id);
   const getJobRoleName = (emp) => jobRoles.find(jr => String(jr.tangerino_id) === String(emp?.job_role_tangerino_id))?.name || '—';
   const getWorkplaceNames = (emp) => (emp?.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean).join(', ') || '—';
-  const getCompanyName = (empOrEntry) => {
-    // Prioriza company_id da folha (entry), pois esporádicos podem ter empresa diferente do cadastro
-    const id = empOrEntry?.company_id;
+  const getCompanyName = (entry) => {
+    // Para não-esporádicos: usa company_id do colaborador (sempre atualizado).
+    // Para esporádicos: usa company_id da folha (podem trabalhar em empresas diferentes).
+    const emp = getEmployee(entry?.employee_id);
+    const isEsporadico = emp?.contract_type === 'ESPORADICO';
+    const id = isEsporadico ? entry?.company_id : (emp?.company_id || entry?.company_id);
     return companies.find(c => c.id === id)?.name || '—';
   };
   const getPayStatus = (entryId) => paymentStatuses.find(p => p.payroll_entry_id === entryId);
@@ -265,7 +268,9 @@ export default function Payments() {
     if (!emp) return false;
     const ps = getPayStatus(entry.id);
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
-    const matchCompany = selectedCompany === 'all' || entry.company_id === selectedCompany;
+    // Verifica empresa pela entry OU pelo company_id atual do colaborador (cobre troca de empresa)
+    const effectiveCompanyId = (emp?.contract_type !== 'ESPORADICO' && emp?.company_id) ? emp.company_id : entry.company_id;
+    const matchCompany = selectedCompany === 'all' || entry.company_id === selectedCompany || effectiveCompanyId === selectedCompany;
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
