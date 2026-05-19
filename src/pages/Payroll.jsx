@@ -106,7 +106,11 @@ export default function Payroll() {
   // getEntry retorna a entry do colaborador para a empresa corrente (usada em contexto de empresa).
   const getEntry = (empId, companyId) => {
     if (companyId) {
-      return entries.find(e => e.employee_id === empId && e.company_id === companyId && e.reference_month === selectedMonth);
+      // Busca pela empresa atual; se não achar, busca pela employee_id+mês (caso empresa tenha sido trocada)
+      const exact = entries.find(e => e.employee_id === empId && e.company_id === companyId && e.reference_month === selectedMonth);
+      if (exact) return exact;
+      // Fallback: entry do colaborador neste mês (empresa pode ter sido trocada no sistema)
+      return entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth && e.company_id !== companyId);
     }
     return entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
   };
@@ -528,7 +532,11 @@ export default function Payroll() {
                                       const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
                                         ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
                                         : null;
-                                      setEditingEntry(entry || prefilled);
+                                      // Se a entry veio de outra empresa (troca de empresa), força company_id novo ao salvar
+                                      const entryToEdit = (entry && entry.company_id !== company.id)
+                                        ? { ...entry, company_id: company.id }
+                                        : (entry || prefilled);
+                                      setEditingEntry(entryToEdit);
                                       setEditingEntryCompanyId(null);
                                     }
                                     setViewOnly(false);
