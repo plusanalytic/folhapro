@@ -71,8 +71,6 @@ function computeNewEntry(entry, rule) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { ruleId } = await req.json();
     if (!ruleId) return Response.json({ error: 'ruleId obrigatório' }, { status: 400 });
