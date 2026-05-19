@@ -611,6 +611,7 @@ export default function Payroll() {
         <AddEsporadicoDialog
           companyId={addEsporadico.companyId}
           referenceMonth={selectedMonth}
+          existingEntries={entries}
           onAdded={load}
           onClose={() => setAddEsporadico(null)}
         />

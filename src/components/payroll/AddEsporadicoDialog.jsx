@@ -15,7 +15,7 @@ const PAYROLL_TYPES = [
   { value: 'SOCIO', label: 'Sócio' },
 ];
 
-export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded, onClose }) {
+export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded, onClose, existingEntries = [] }) {
   const [allEsporadicos, setAllEsporadicos] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,7 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [payrollType, setPayrollType] = useState('ESPORADICO');
   const [saving, setSaving] = useState(false);
+  const [participation, setParticipation] = useState('');
 
   useEffect(() => {
     base44.entities.Employee.list().then(list => {
@@ -36,9 +37,15 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
     (e.cpf_cnpj || '').includes(search)
   );
 
+  // Verifica se o colaborador já tem alguma entrada nesta empresa+mês
+  const existingCount = (emp) => existingEntries.filter(
+    e => e.employee_id === emp.id && e.company_id === companyId && e.reference_month === referenceMonth
+  ).length;
+
   const handleSelectEmp = (emp) => {
     setSelectedEmp(emp);
     setPayrollType('ESPORADICO');
+    setParticipation('');
     setStep('payroll_type');
   };
 
@@ -52,6 +59,7 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
         base_salary: selectedEmp.base_salary || 0,
         esporadico_payroll_type: payrollType,
         status: 'open',
+        participation: participation.trim() || undefined,
       });
       toast.success(`${selectedEmp.name} adicionado à folha como "${PAYROLL_TYPES.find(p => p.value === payrollType)?.label}"!`);
       onAdded();
@@ -78,7 +86,7 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
                 {step === 'list' ? 'Adicionar Prestador Esporádico' : `Tipo de Folha — ${selectedEmp?.name}`}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {step === 'list' ? 'O mesmo prestador pode ser adicionado para empresas diferentes' : 'Selecione o modelo de folha para este lançamento'}
+                {step === 'list' ? 'Um mesmo prestador pode ter múltiplos lançamentos na mesma empresa' : 'Selecione o modelo de folha para este lançamento'}
               </p>
             </div>
           </div>
@@ -107,22 +115,28 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
                   <span className="text-xs">Cadastre colaboradores com contrato "ESPORÁDICO" em Colaboradores.</span>
                 </p>
               )}
-              {filtered.map(emp => (
-                <div key={emp.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/40 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
-                      {emp.name.slice(0, 2).toUpperCase()}
+              {filtered.map(emp => {
+                const count = existingCount(emp);
+                return (
+                  <div key={emp.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
+                        {emp.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{emp.name}</p>
+                        <p className="text-xs text-muted-foreground">{emp.cpf_cnpj || 'CPF não informado'} · {emp.position || 'Sem cargo'}</p>
+                        {count > 0 && (
+                          <p className="text-xs text-amber-600 font-medium">⚠️ Já possui {count} lançamento{count > 1 ? 's' : ''} nesta empresa este mês</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{emp.name}</p>
-                      <p className="text-xs text-muted-foreground">{emp.cpf_cnpj || 'CPF não informado'} · {emp.position || 'Sem cargo'}</p>
-                    </div>
+                    <Button size="sm" className="gap-1.5" onClick={() => handleSelectEmp(emp)}>
+                      <UserPlus className="w-3.5 h-3.5" /> {count > 0 ? 'Adicionar 2º' : 'Selecionar'}
+                    </Button>
                   </div>
-                  <Button size="sm" className="gap-1.5" onClick={() => handleSelectEmp(emp)}>
-                    <UserPlus className="w-3.5 h-3.5" /> Selecionar
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         ) : (
@@ -137,6 +151,21 @@ export default function AddEsporadicoDialog({ companyId, referenceMonth, onAdded
               </div>
             </div>
 
+            {existingCount(selectedEmp) > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+                ⚠️ <strong>{selectedEmp?.name}</strong> já tem {existingCount(selectedEmp)} lançamento(s) nesta empresa em {referenceMonth}. Um novo lançamento independente será criado.
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Participação / Descrição (opcional)</Label>
+              <input
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder="Ex: Cobertura 1ª quinzena, Serviço extra..."
+                value={participation}
+                onChange={e => setParticipation(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Identifica este lançamento na folha e no recibo.</p>
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Modelo de Folha de Pagamento</Label>
               <Select value={payrollType} onValueChange={setPayrollType}>
