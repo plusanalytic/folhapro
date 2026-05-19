@@ -319,7 +319,8 @@ export default function Payroll() {
 
       {companiesInView.map(company => {
         const closed = isMonthClosed(company.id);
-        const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id);
+        // Esporádicos são sempre exibidos via espPairs (suportam múltiplas entries na mesma empresa)
+        const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
         // Esporádicos: representados como { emp, entry } para suportar múltiplas entries
         const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp }) =>
           emp.name.toLowerCase().includes(search.toLowerCase())
