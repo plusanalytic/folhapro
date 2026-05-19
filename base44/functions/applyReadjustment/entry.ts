@@ -43,23 +43,35 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
   const origNetTotal = entry.net_total ?? 0;
   const splitFirst   = entry.first_period_split ?? 0.5;
 
-  const kmBonus      = r((entry.km_bonus_qty ?? 0) * (entry.km_bonus_value ?? 0));
-  const costAllow    = r((entry.cost_allowance ?? 0) * motoRatio);
-  const absSecond    = entry.absence_discount_second ?? 0;
-  const secDiscount  = entry.second_period_discount ?? 0;
+  const kmBonus    = r((entry.km_bonus_qty ?? 0) * (entry.km_bonus_value ?? 0));
+  const costAllow  = r((entry.cost_allowance ?? 0) * motoRatio);
+  const absSecond  = entry.absence_discount_second ?? 0;
+  const secDiscount= entry.second_period_discount ?? 0;
 
-  let newFirstPeriodNet, newSecondPeriodNet;
+  let newFirstPeriodNet, newSecondPeriodNet, newFirstBase, newSecondBase, newSplit, baseLocked;
 
   if (applyToSecondOnly) {
-    // 1ª quinzena já foi paga: congela o valor original, joga retroativo na 2ª
+    // 1ª quinzena já foi paga — congela base e net da 1ª, toda diferença vai para a 2ª
+    const oldFirstBase = entry.first_period_base ?? r(origNetTotal * splitFirst);
+    newFirstBase       = oldFirstBase;
+    newSecondBase      = r(newNetTotal - oldFirstBase);
+    newSplit           = newNetTotal > 0 ? oldFirstBase / newNetTotal : splitFirst;
     newFirstPeriodNet  = entry.first_period_net ?? 0;
     const retroativo   = r(newNetTotal - origNetTotal);
     newSecondPeriodNet = r((entry.second_period_net ?? 0) + retroativo);
+    baseLocked         = true;
   } else {
     // Distribui proporcionalmente entre as quinzenas
-    const origFirstBase = r(origNetTotal * splitFirst);
-    newFirstPeriodNet   = r(origFirstBase + (newNetTotal - origNetTotal) * splitFirst);
-    newSecondPeriodNet  = r(newNetTotal - newFirstPeriodNet + newFoodVEff + kmBonus + costAllow - secDiscount - absSecond);
+    newFirstBase  = r(newNetTotal * splitFirst);
+    newSecondBase = r(newNetTotal - newFirstBase);
+    newSplit      = splitFirst;
+    const firstAdv   = entry.first_period_advance ?? 0;
+    const absFirst   = entry.absence_discount_first ?? 0;
+    const firstDiscountTotal = (entry.first_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount||0) : s + (d.amount||0), 0);
+    const secondDiscountTotal = (entry.second_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount||0) : s + (d.amount||0), 0);
+    newFirstPeriodNet  = r(newFirstBase - firstAdv - firstDiscountTotal - absFirst);
+    newSecondPeriodNet = r(newSecondBase + newFoodVEff + kmBonus + costAllow - (entry.second_period_discount ?? secondDiscountTotal) - absSecond);
+    baseLocked         = false;
   }
 
   return {
@@ -73,9 +85,13 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
     inss_discount:           inssDiscount,
     gross_total:             newGrossTotal,
     net_total:               newNetTotal,
+    first_period_base:       newFirstBase,
+    second_period_base:      newSecondBase,
+    first_period_split:      newSplit,
     first_period_net:        newFirstPeriodNet,
     second_period_net:       newSecondPeriodNet,
-    _new_base_salary:        newCltMotoBase, // used to update Employee
+    first_period_base_locked: baseLocked,
+    _new_base_salary:        newCltMotoBase,
   };
 }
 
@@ -90,15 +106,12 @@ Deno.serve(async (req) => {
     if (!rule) return Response.json({ error: 'Regra não encontrada' }, { status: 404 });
     if (rule.status === 'applied') return Response.json({ error: 'Reajuste já aplicado' }, { status: 400 });
 
-    // Fetch all entries for the reference month
     const allEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: rule.reference_month });
 
     let entries = [];
-
     if (rule.readjustment_scope === 'employee' && rule.employee_id) {
       entries = allEntries.filter(e => e.employee_id === rule.employee_id && (e.clt_moto_base_salary ?? 0) > 0);
     } else if (rule.readjustment_scope === 'payroll_type' && rule.payroll_type) {
-      // Get job roles with this payroll type, then match employees
       const [jobRoles, allEmployees] = await Promise.all([
         base44.asServiceRole.entities.JobRole.list(),
         base44.asServiceRole.entities.Employee.filter({ is_active: true }),
@@ -112,7 +125,6 @@ Deno.serve(async (req) => {
       );
       entries = allEntries.filter(e => relevantEmployeeIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);
     } else {
-      // fallback: all CLT moto in the month
       entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
     }
 
@@ -120,10 +132,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Nenhuma folha encontrada para o escopo selecionado' }, { status: 400 });
     }
 
-    // Save snapshot
     const snapshot = entries.map(e => ({ ...e }));
 
-    // Apply readjustment to each entry and update Employee base_salary
     let updatedCount = 0;
     for (const entry of entries) {
       const newFields = computeNewEntry(entry, rule, applyToSecondOnly);
@@ -131,7 +141,6 @@ Deno.serve(async (req) => {
 
       await base44.asServiceRole.entities.PayrollEntry.update(entry.id, entryFields);
 
-      // Update Employee.base_salary so future months carry the new value
       if (_new_base_salary > 0 && entry.employee_id) {
         await base44.asServiceRole.entities.Employee.update(entry.employee_id, { base_salary: _new_base_salary });
       }

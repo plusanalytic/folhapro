@@ -1070,11 +1070,16 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           </TabsContent>
 
           <TabsContent value="quinzenal" className="space-y-5 mt-4">
+            {entry?.first_period_base_locked && (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
+                🔒 Base da 1ª Quinzena congelada pelo reajuste salarial — a diferença foi lançada integralmente na 2ª Quinzena.
+              </div>
+            )}
             {/* Rateio editável */}
             <div className="grid grid-cols-2 gap-4">
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-            {readOnly ? (
+            {(readOnly || entry?.first_period_base_locked) ? (
               <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
             ) : (
               <PeriodBaseInput

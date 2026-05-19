@@ -37,13 +37,11 @@
     },
     "full_month_contract_working_days": {
       "type": "number",
-      "default": 0,
-      "description": "Total dias \u00fateis contrato (Seg-S\u00e1b, excl. feriados) \u2014 m\u00eas cheio sem considerar admiss\u00e3o"
+      "default": 0
     },
     "contract_working_days": {
       "type": "number",
-      "default": 0,
-      "description": "Dias \u00fateis trabalhados contrato (Seg-S\u00e1b, excl. feriados) \u2014 usado para calcular valor efetivo de benef\u00edcios"
+      "default": 0
     },
     "working_days_month": {
       "type": "number",
@@ -139,33 +137,27 @@
     },
     "delivery_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "CLT Moto: Bonifica\u00e7\u00e3o por Entrega \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+      "default": 0
     },
     "delivery_target_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "CLT Moto: Bonifica\u00e7\u00e3o Meta de Entrega \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+      "default": 0
     },
     "attendance_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "Bonifica\u00e7\u00e3o por Presen\u00e7a \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+      "default": 0
     },
     "route_sp_bonus": {
       "type": "number",
-      "default": 0,
-      "description": "CLT Moto: Bonifica\u00e7\u00e3o Rota SP \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+      "default": 0
     },
     "overtime": {
       "type": "number",
-      "default": 0,
-      "description": "Hora Extra \u2014 paga na 2\u00aa quinzena, n\u00e3o soma ao bruto"
+      "default": 0
     },
     "overtime_hour_value": {
       "type": "number",
-      "default": 0,
-      "description": "Valor por hora para c\u00e1lculo de Hora Extra"
+      "default": 0
     },
     "other_benefits": {
       "type": "number",
@@ -253,6 +245,11 @@
       "type": "number",
       "default": 0.5
     },
+    "first_period_base_locked": {
+      "type": "boolean",
+      "default": false,
+      "description": "Quando true, a Base da 1\u00aa Quinzena foi congelada pelo reajuste (1\u00aa quinzena j\u00e1 paga). Impede edi\u00e7\u00e3o manual no formul\u00e1rio."
+    },
     "gross_total": {
       "type": "number"
     },
@@ -286,8 +283,7 @@
     },
     "medical_plan": {
       "type": "number",
-      "default": 0,
-      "description": "Conv\u00eanio M\u00e9dico \u2014 benef\u00edcio adicionado diretamente na 2\u00aa quinzena (n\u00e3o soma ao bruto)"
+      "default": 0
     },
     "birthday_bonus": {
       "type": "number",
@@ -295,22 +291,18 @@
     },
     "quota_adjustment": {
       "type": "number",
-      "default": 0,
-      "description": "Pr\u00f3-Labore: Reajuste de cota"
+      "default": 0
     },
     "profit_distribution": {
       "type": "number",
-      "default": 0,
-      "description": "Pr\u00f3-Labore: Distribui\u00e7\u00e3o de lucros"
+      "default": 0
     },
     "other_discounts": {
       "type": "number",
-      "default": 0,
-      "description": "Pr\u00f3-Labore: Outros descontos"
+      "default": 0
     },
     "participation": {
-      "type": "string",
-      "description": "Pr\u00f3-Labore: Participa\u00e7\u00e3o societ\u00e1ria (ex: 50% das quotas)"
+      "type": "string"
     }
   },
   "required": [
