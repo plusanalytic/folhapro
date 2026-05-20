@@ -29,7 +29,8 @@
         "DESLIGADO",
         "F\u00c9RIAS",
         "AFASTADO",
-        "SALDO NEGATIVO"
+        "SALDO NEGATIVO",
+        "COBRIDOR"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 1\u00aa quinzena"
@@ -54,7 +55,8 @@
         "DESLIGADO",
         "F\u00c9RIAS",
         "AFASTADO",
-        "SALDO NEGATIVO"
+        "SALDO NEGATIVO",
+        "COBRIDOR"
       ],
       "default": "PENDENTE",
       "description": "Status do pagamento da 2\u00aa quinzena"

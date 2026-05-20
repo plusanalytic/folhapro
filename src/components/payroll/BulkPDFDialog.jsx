@@ -15,11 +15,10 @@ import ProLaboreReceiptContent from '@/components/reports/ProLaboreReceiptConten
 
 /**
  * Renderiza um componente React em um container offscreen e captura como PDF blob.
- * Usa os MESMOS componentes do botão "Imprimir Recibo".
+ * Usa os MESMOS componentes do botão "Imprimir Recibo" — escala 2x, sem corte de conteúdo.
  */
 async function renderComponentToPDFBlob(ReactComponent, props) {
   return new Promise(async (resolve, reject) => {
-    // Container offscreen
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '-9999px';
@@ -32,33 +31,29 @@ async function renderComponentToPDFBlob(ReactComponent, props) {
     const root = createRoot(container);
     root.render(<ReactComponent {...props} />);
 
-    // Aguarda renderização
-    await new Promise(r => setTimeout(r, 800));
+    // Aguarda renderização completa
+    await new Promise(r => setTimeout(r, 1000));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
 
       const canvas = await html2canvas(container, {
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
+        logging: false,
         width: 794,
         windowWidth: 794,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const A4_W = 210; // mm
+      const imgH = (canvas.height / canvas.width) * A4_W; // mm
 
-      let yPos = 0;
-      while (yPos < pdfH) {
-        if (yPos > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfW, pdfH);
-        yPos += pageHeight;
-      }
+      // Cria PDF com página customizada (altura = conteúdo real) — elimina cortes
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [A4_W, imgH] });
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4_W, imgH);
 
       const blob = pdf.output('blob');
       root.unmount();
@@ -120,6 +115,7 @@ async function buildMergedEntry(employee, entry, payrollType) {
       first_discounts: firstDiscounts, second_discounts: secondDiscounts,
       first_period_discount: firstTotal, second_period_discount: secondTotal,
       absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
+      absence_discount: absenceFirst + absenceSecond,
       first_period_net: calcEsc.first_period_net, second_period_net: calcEsc.second_period_net,
     };
   }
@@ -142,23 +138,37 @@ async function buildMergedEntry(employee, entry, payrollType) {
       first_discounts: firstDiscounts, second_discounts: secondDiscounts,
       first_period_discount: firstTotal, second_period_discount: secondTotal,
       first_period_base: firstBase, second_period_base: secondBase,
-      first_period_net:  Math.round((firstBase + foodVoucher - lifeIns - firstAdv - firstTotal) * 100) / 100,
-      second_period_net: Math.round((secondBase + kmBonus + costAllow - secondTotal) * 100) / 100,
+      first_period_net:  Math.round((firstBase - lifeIns - firstAdv - firstTotal) * 100) / 100,
+      second_period_net: Math.round((secondBase + kmBonus + costAllow + foodVoucher - secondTotal) * 100) / 100,
     };
   }
 
-  // Padrão CLT / SOCIO
+  // CLT moto / demais CLT — lógica idêntica ao PDFReceiptDialog
+  const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
+  const cltMotoDays = entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : 30;
+  const cltMotoEffective = entry?.clt_moto_effective_salary
+    ?? (cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0));
+  const isCLTMoto = payrollType === 'MOTOCICLISTA_CLT';
+  const baseSalaryForCalc = isCLTMoto ? cltMotoEffective : (entry?.base_salary ?? 0);
+
+  const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
+  const contractDays  = entry?.contract_working_days ?? 0;
+  const motoRatio = (isCLTMoto && fullMonthDays > 0) ? contractDays / fullMonthDays : 1;
+  const effFoodVoucher   = Math.round((entry?.food_voucher   ?? 0) * motoRatio * 100) / 100;
+  const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
+  const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
+
   const calcStd = calculatePayroll({
-    base_salary: entry?.base_salary ?? 0,
+    base_salary: baseSalaryForCalc,
     absence_discount: 0,
     absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? 0,
-    food_voucher: entry?.food_voucher ?? 0,
+    food_voucher: effFoodVoucher,
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0, km_bonus_value: entry?.km_bonus_value ?? 0,
-    cost_allowance: entry?.cost_allowance ?? 0,
-    motorcycle_rental: entry?.motorcycle_rental ?? 0,
+    cost_allowance: effCostAllowance,
+    motorcycle_rental: effMotoRental,
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0, other_benefits: entry?.other_benefits ?? 0,
     union_contribution_value: entry?.union_contribution_value ?? 35,
@@ -176,7 +186,12 @@ async function buildMergedEntry(employee, entry, payrollType) {
     first_discounts: firstDiscounts, second_discounts: secondDiscounts,
     first_period_discount: firstTotal, second_period_discount: secondTotal,
     absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
-    first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net,
+    absence_discount: absenceFirst + absenceSecond,
+    first_period_net: calcStd.first_period_net,
+    second_period_net: calcStd.second_period_net + (isCLTMoto ? (entry?.route_sp_bonus ?? 0) : 0),
+    food_voucher: effFoodVoucher,
+    cost_allowance: effCostAllowance,
+    motorcycle_rental: effMotoRental,
   };
 }
 
