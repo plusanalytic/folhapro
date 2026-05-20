@@ -364,8 +364,8 @@ export default function Payroll() {
                     variant="outline"
                     size="sm"
                     className="gap-1.5 text-violet-700 border-violet-200 hover:bg-violet-50"
-                    title="Gerar PDF em lote para todos os colaboradores desta empresa"
-                    onClick={() => setBulkPDF({ company, employees: [...fixedEmps, ...espPairsFiltered.map(p => p.emp)] })}
+                    title="Funcionalidade temporariamente desativada"
+                    disabled
                   >
                     <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
                   </Button>
