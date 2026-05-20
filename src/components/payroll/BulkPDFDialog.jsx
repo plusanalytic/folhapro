@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { FileArchive, Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
+import { FileArchive, Loader2, CheckCircle2, XCircle, Download, StopCircle } from 'lucide-react';
 import { getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
 import { absenceDiscountByPeriod } from '@/components/payroll/AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
@@ -210,32 +210,49 @@ async function buildMergedEntry(employee, entry, payrollType) {
 export default function BulkPDFDialog({ company, employees, entries, jobRoles, referenceMonth, onClose }) {
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(0);
+  const [currentName, setCurrentName] = useState('');
   const [log, setLog] = useState([]);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const blobsRef = useRef([]);
+  const cancelledRef = useRef(false);
 
   const empWithEntries = employees.filter(emp =>
     entries.find(e => e.employee_id === emp.id && e.reference_month === referenceMonth)
   );
 
-  const addLog = (msg, type = 'info') => setLog(prev => [...prev, { msg, type }]);
+  const addLog = useCallback((msg, type = 'info') => setLog(prev => [...prev, { msg, type }]), []);
+
+  const handleCancel = () => {
+    cancelledRef.current = true;
+    setStatus('cancelled');
+    addLog('Geração cancelada pelo usuário.', 'error');
+  };
 
   const handleGenerate = async () => {
     if (empWithEntries.length === 0) return;
     setStatus('generating');
     setProgress(0);
+    setCurrentName('');
     setLog([]);
     setDownloadUrl(null);
     blobsRef.current = [];
+    cancelledRef.current = false;
 
     try {
       for (let i = 0; i < empWithEntries.length; i++) {
+        // Verifica cancelamento antes de cada colaborador
+        if (cancelledRef.current) break;
+
+        // Yield para liberar o event loop e atualizar a UI antes de cada renderização
+        await new Promise(r => setTimeout(r, 30));
+
         const emp = empWithEntries[i];
         const entry = entries.find(e => e.employee_id === emp.id && e.reference_month === referenceMonth);
         const jr = jobRoles.find(r => r.tangerino_id && String(r.tangerino_id) === String(emp.job_role_tangerino_id));
         const payrollType = jr?.payroll_type || 'CLT';
         const empWithPos = { ...emp, position: emp.position || jr?.name };
 
+        setCurrentName(emp.name);
         addLog(`Gerando PDF: ${emp.name}...`);
 
         // Usa a mesma lógica de merge do PDFReceiptDialog
@@ -261,7 +278,14 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
 
         addLog(`✓ ${emp.name}`, 'success');
         setProgress(Math.round(((i + 1) / empWithEntries.length) * 100));
+        // Yield extra após renderização pesada para manter a UI responsiva
+        await new Promise(r => setTimeout(r, 10));
       }
+
+      if (cancelledRef.current) return;
+
+      addLog('Compactando em ZIP...', 'info');
+      await new Promise(r => setTimeout(r, 30)); // yield para UI mostrar mensagem
 
       // ZIP com fflate (sem dependência de bundle)
       const { zipSync } = await import('https://esm.sh/fflate@0.8.2');
@@ -274,9 +298,11 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
       const zipBlob = new Blob([zipped], { type: 'application/zip' });
       setDownloadUrl(URL.createObjectURL(zipBlob));
       setStatus('done');
-      addLog(`Concluído! ${empWithEntries.length} PDF(s) gerados.`, 'success');
+      setCurrentName('');
+      addLog(`✅ Concluído! ${blobsRef.current.length} PDF(s) gerados.`, 'success');
     } catch (err) {
       setStatus('error');
+      setCurrentName('');
       addLog(`Erro: ${err.message}`, 'error');
     }
   };
@@ -326,12 +352,23 @@ export default function BulkPDFDialog({ company, employees, entries, jobRoles, r
 
               {status === 'generating' && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    Gerando PDFs... {progress}%
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span>{progress}% — {currentName && <span className="text-foreground font-medium">{currentName}</span>}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive gap-1" onClick={handleCancel}>
+                      <StopCircle className="w-4 h-4" /> Cancelar
+                    </Button>
                   </div>
                   <Progress value={progress} className="h-2" />
                 </div>
+              )}
+
+              {status === 'cancelled' && (
+                <Button className="w-full gap-2" onClick={handleGenerate} variant="outline">
+                  Reiniciar Geração
+                </Button>
               )}
 
               {status === 'done' && (
