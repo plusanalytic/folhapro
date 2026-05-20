@@ -13,33 +13,44 @@ import { base44 } from '@/api/base44Client';
 import { HoleriteContent, MeiHoleriteContent, EscritorioHoleriteContent } from '@/components/reports/ReceiptContents';
 import ProLaboreReceiptContent from '@/components/reports/ProLaboreReceiptContent';
 
+// Pré-carrega as libs uma vez só (evita import repetido por colaborador)
+let _html2canvas = null;
+let _jsPDF = null;
+async function getLibs() {
+  if (!_html2canvas) _html2canvas = (await import('html2canvas')).default;
+  if (!_jsPDF) _jsPDF = (await import('jspdf')).jsPDF;
+  return { html2canvas: _html2canvas, jsPDF: _jsPDF };
+}
+
+// Container offscreen reutilizável
+let _sharedContainer = null;
+let _sharedRoot = null;
+function getSharedContainer() {
+  if (!_sharedContainer) {
+    _sharedContainer = document.createElement('div');
+    _sharedContainer.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1;';
+    document.body.appendChild(_sharedContainer);
+    _sharedRoot = createRoot(_sharedContainer);
+  }
+  return { container: _sharedContainer, root: _sharedRoot };
+}
+
 /**
- * Renderiza um componente React em um container offscreen e captura como PDF blob.
- * Usa os MESMOS componentes do botão "Imprimir Recibo" — escala 2x, sem corte de conteúdo.
+ * Renderiza um componente React em PDF blob — otimizado: libs e container reutilizados.
+ * Split A4 por páginas (sub-recibos ficam em páginas separadas pois conteúdo principal
+ * já ocupa ~297mm, igual ao comportamento do botão Imprimir Recibo).
  */
 async function renderComponentToPDFBlob(ReactComponent, props) {
   return new Promise(async (resolve, reject) => {
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.width = '794px';
-    container.style.background = '#fff';
-    container.style.zIndex = '-1';
-    document.body.appendChild(container);
-
-    const root = createRoot(container);
+    const { container, root } = getSharedContainer();
     root.render(<ReactComponent {...props} />);
-
-    // Aguarda renderização completa
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 600));
 
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      const { html2canvas, jsPDF } = await getLibs();
 
       const canvas = await html2canvas(container, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
@@ -47,21 +58,22 @@ async function renderComponentToPDFBlob(ReactComponent, props) {
         windowWidth: 794,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const A4_W = 210; // mm
-      const imgH = (canvas.height / canvas.width) * A4_W; // mm
+      const imgData = canvas.toDataURL('image/jpeg', 0.88);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();   // 210mm
+      const pageH = pdf.internal.pageSize.getHeight(); // 297mm
+      const imgH = (canvas.height / canvas.width) * pdfW;
 
-      // Cria PDF com página customizada (altura = conteúdo real) — elimina cortes
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [A4_W, imgH] });
-      pdf.addImage(imgData, 'JPEG', 0, 0, A4_W, imgH);
+      // Split A4: cada 297mm = nova página — sub-recibos ficam em páginas próprias
+      let yPos = 0;
+      while (yPos < imgH) {
+        if (yPos > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfW, imgH);
+        yPos += pageH;
+      }
 
-      const blob = pdf.output('blob');
-      root.unmount();
-      document.body.removeChild(container);
-      resolve(blob);
+      resolve(pdf.output('blob'));
     } catch (err) {
-      root.unmount();
-      document.body.removeChild(container);
       reject(err);
     }
   });
