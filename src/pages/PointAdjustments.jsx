@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { RefreshCw, Download, Search, Calendar, User, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import ImportProgressDialog from '@/components/pointadjustments/ImportProgressDialog';
 import { useQuery } from '@tanstack/react-query';
@@ -175,20 +176,14 @@ export default function PointAdjustments() {
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <User className="w-3 h-3" /> Colaborador
               </Label>
-              <Select value={filterEmployee || '_all'} onValueChange={v => setFilterEmployee(v === '_all' ? '' : v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_all">Todos os colaboradores</SelectItem>
-                  {employees
-                    .filter(e => e.is_active !== false)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={filterEmployee || '_all'}
+                onValueChange={v => setFilterEmployee(v === '_all' ? '' : v)}
+                allLabel="Todos os colaboradores"
+                allValue="_all"
+                className="w-full h-9"
+                options={employees.filter(e => e.is_active !== false).sort((a, b) => a.name.localeCompare(b.name)).map(e => ({ value: e.id, label: e.name }))}
+              />
             </div>
 
             {/* Data Inicial */}
@@ -220,17 +215,14 @@ export default function PointAdjustments() {
             {/* Motivo */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Motivo do Ajuste</Label>
-              <Select value={filterReason || '_all'} onValueChange={v => setFilterReason(v === '_all' ? '' : v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_all">Todos os motivos</SelectItem>
-                  {uniqueReasons.map(r => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={filterReason || '_all'}
+                onValueChange={v => setFilterReason(v === '_all' ? '' : v)}
+                allLabel="Todos os motivos"
+                allValue="_all"
+                className="w-full h-9"
+                options={uniqueReasons.map(r => ({ value: r, label: r }))}
+              />
             </div>
           </div>
 
