@@ -83,7 +83,11 @@ async function renderComponentToPDFBlob(ReactComponent, props) {
  * Resolve o mergedEntry para um colaborador, exatamente como o PDFReceiptDialog faz.
  */
 async function buildMergedEntry(employee, entry, payrollType) {
-  const cashOuts = await base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: entry.reference_month });
+  const [cashOuts, allPA] = await Promise.all([
+    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: entry.reference_month }),
+    base44.entities.PointAdjustment.filter({ employee_id: employee.id }),
+  ]);
+  const pointAdjustments = allPA.filter(a => (a.start_date || '').startsWith(entry.reference_month));
 
   const firstFromCash  = cashOuts.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
   const secondFromCash = cashOuts.filter(c => c.period === 'second').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
@@ -129,6 +133,7 @@ async function buildMergedEntry(employee, entry, payrollType) {
       absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
       absence_discount: absenceFirst + absenceSecond,
       first_period_net: calcEsc.first_period_net, second_period_net: calcEsc.second_period_net,
+      _pointAdjustments: pointAdjustments,
     };
   }
 
@@ -152,6 +157,7 @@ async function buildMergedEntry(employee, entry, payrollType) {
       first_period_base: firstBase, second_period_base: secondBase,
       first_period_net:  Math.round((firstBase - lifeIns - firstAdv - firstTotal) * 100) / 100,
       second_period_net: Math.round((secondBase + kmBonus + costAllow + foodVoucher - secondTotal) * 100) / 100,
+      _pointAdjustments: pointAdjustments,
     };
   }
 
@@ -204,6 +210,7 @@ async function buildMergedEntry(employee, entry, payrollType) {
     food_voucher: effFoodVoucher,
     cost_allowance: effCostAllowance,
     motorcycle_rental: effMotoRental,
+    _pointAdjustments: pointAdjustments,
   };
 }
 

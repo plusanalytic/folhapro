@@ -4,11 +4,62 @@
  * Garantia de layout e dados 100% idênticos entre os dois fluxos.
  */
 import { formatCurrency, numberToWords, getMonthName, calculatePayroll, calculateEscritorioPayroll } from '@/lib/payrollCalculations';
+import { rowTotal } from '@/components/payroll/AbsenceDiscountsTable';
 
 function formatAdmissionDate(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
+}
+
+// Retorna detalhes individuais das faltas de um período usando entry.absence_discounts e entry._pointAdjustments
+function getAbsenceDetails(entry, period) {
+  const absenceDiscounts = entry?.absence_discounts ?? {};
+  const pointAdjustments = entry?._pointAdjustments ?? [];
+  const details = [];
+  for (const [key, disc] of Object.entries(absenceDiscounts)) {
+    const total = rowTotal(disc);
+    if (total <= 0) continue;
+    const dateMatch = key.match(/([0-9]{4}-[0-9]{2}-([0-9]{2}))$/);
+    if (!dateMatch) continue;
+    const dateStr = dateMatch[1];
+    const day = parseInt(dateMatch[2], 10);
+    const inPeriod = period === 'first' ? (day >= 1 && day <= 15) : (day >= 16);
+    if (!inPeriod) continue;
+    const tangId = key.replace(/-[0-9]{4}-[0-9]{2}-[0-9]{2}$/, '');
+    const adj = pointAdjustments.find(a => String(a.tangerino_id) === tangId);
+    const [yr, mo, dy] = dateStr.split('-');
+    details.push({ date: dy + '/' + mo + '/' + yr, motivo: adj?.adjustment_reason_description || 'Falta', total });
+  }
+  return details.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function AbsenceDetailLines({ entry, period, aggregateTotal, label }) {
+  const details = getAbsenceDetails(entry, period);
+  if (details.length > 0) return (
+    <div style={{ marginBottom: '3px' }}>
+      <div style={{ fontSize: '9px', color: '#b91c1c', fontWeight: 'bold', marginBottom: '1px' }}>{'Faltas descontadas (' + label + '):'}</div>
+      {details.map((d, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#dc2626', marginBottom: '1px', paddingLeft: '6px' }}>
+          <span>{d.date} &middot; {d.motivo}</span>
+          <span style={{ fontFamily: 'monospace' }}>{' - ' + formatCurrency(d.total)}</span>
+        </div>
+      ))}
+      {details.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#dc2626', fontWeight: 'bold', paddingLeft: '6px', borderTop: '1px dotted #fca5a5', paddingTop: '1px' }}>
+          <span>Total faltas</span>
+          <span style={{ fontFamily: 'monospace' }}>{' - ' + formatCurrency(aggregateTotal)}</span>
+        </div>
+      )}
+    </div>
+  );
+  if (aggregateTotal > 0) return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}>
+      <span>{'Desc. Faltas (' + label + ')'}</span>
+      <span style={{ fontFamily: 'monospace' }}>{' - ' + formatCurrency(aggregateTotal)}</span>
+    </div>
+  );
+  return null;
 }
 
 // ─── Recibo Vale Refeição ─────────────────────────────────────────────────────
@@ -242,7 +293,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%</div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
-            {absenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceFirst)}</span></div>}
+            <AbsenceDetailLines entry={entry} period="first" aggregateTotal={absenceFirst} label="1–15" />
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
             {firstDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
@@ -261,7 +312,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
             {(entry?.attendance_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação por Presença</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.attendance_bonus)}</span></div>}
             {(entry?.route_sp_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação Rota SP</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.route_sp_bonus)}</span></div>}
             {(entry?.overtime ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Hora Extra{entry?.overtime_hour_value > 0 ? ` (${formatCurrency(entry.overtime_hour_value)}/h)` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.overtime)}</span></div>}
-            {absenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceSecond)}</span></div>}
+            <AbsenceDetailLines entry={entry} period="second" aggregateTotal={absenceSecond} label="16–30" />
             {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
             {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de Custo</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
             {secondDiscounts.map((d, i) => {
@@ -705,7 +756,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
             {(entry?.food_voucher ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.food_voucher)}</span></div>}
-            {escAbsenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceFirst)}</span></div>}
+            <AbsenceDetailLines entry={entry} period="first" aggregateTotal={escAbsenceFirst} label="1–15" />
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
             {firstDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
@@ -722,7 +773,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
             {(entry?.bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação de Produtividade</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.bonus)}</span></div>}
             {(entry?.attendance_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação por Presença</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.attendance_bonus)}</span></div>}
             {(entry?.birthday_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Bonificação Aniversário</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.birthday_bonus)}</span></div>}
-            {escAbsenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceSecond)}</span></div>}
+            <AbsenceDetailLines entry={entry} period="second" aggregateTotal={escAbsenceSecond} label="16–30" />
             {secondDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;

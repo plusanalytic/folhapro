@@ -14,7 +14,11 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
   const [mergedEntry, setMergedEntry] = useState(entry);
 
   useEffect(() => {
-    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
+    Promise.all([
+      base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }),
+      base44.entities.PointAdjustment.filter({ employee_id: employee.id }),
+    ]).then(([cashOuts, allPA]) => {
+      const pointAdjustments = allPA.filter(a => (a.start_date || '').startsWith(referenceMonth));
       // Apenas descontar no PDF se estiver marcado "Descontar do colaborador"
       const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
       const firstFromCash  = toDeduct.filter(c => c.period === 'first').map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
@@ -57,6 +61,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
           first_period_net: calcEsc.first_period_net, second_period_net: calcEsc.second_period_net,
+          _pointAdjustments: pointAdjustments,
         });
       } else if (payrollType === 'MOTOCICLISTA_MEI') {
         const diasQ1     = entry?.working_days_first  ?? 0;
@@ -77,6 +82,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_base: firstBase, second_period_base: secondBase,
           first_period_net:  Math.round((firstBase - lifeIns - firstAdv - firstTotal) * 100) / 100,
           second_period_net: Math.round((secondBase + kmBonus + costAllow + foodVoucher - secondTotal) * 100) / 100,
+          _pointAdjustments: pointAdjustments,
         });
       } else {
         // Para CLT moto: usa clt_moto_effective_salary salvo, ou recalcula a partir dos campos salvos
@@ -126,6 +132,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
           motorcycle_rental: effMotoRental,
+          _pointAdjustments: pointAdjustments,
         });
       }
     });
