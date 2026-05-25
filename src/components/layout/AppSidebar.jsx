@@ -45,7 +45,7 @@ export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMob
           <img
             src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69aee345ac5d3a8418bfc552/93c0376ec_LOGOCONTACTA-SEMFUNDO-EMP-atual.png"
             alt="Contacta RH"
-            className="h-14 object-contain brightness-0 invert mx-auto" />
+            className="object-contain brightness-0 invert mx-auto h-24" />
 
           }
 
