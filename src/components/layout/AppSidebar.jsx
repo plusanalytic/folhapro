@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, ChevronLeft, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppUser } from '@/lib/AppUserContext';
 
@@ -18,7 +19,8 @@ const ALL_NAV_ITEMS = [
   { path: '/readjustment',       moduleKey: 'readjustment',      icon: TrendingUp,     label: 'Reajuste Salarial' },
 ];
 
-export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
+export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMobileClose }) {
+  const [collapsed, setCollapsed] = useState(collapsedProp ?? false);
   const location = useLocation();
   const appUser = useAppUser();
   const allowedModules = appUser?.allowed_modules;
