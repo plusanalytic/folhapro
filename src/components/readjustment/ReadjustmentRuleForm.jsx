@@ -28,7 +28,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   useEffect(() => {
     base44.entities.Employee.filter({ is_active: true }).then(setEmployees);
     base44.entities.JobRole.list().then(jrs => setJobRoles(jrs.filter(j => j.payroll_type)));
-    base44.entities.Company.list('name').then(setCompanies);
+    base44.entities.Company.filter({ is_active: true }).then(setCompanies);
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -78,7 +78,6 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
           </div>
 
           {form.readjustment_scope === 'payroll_type' && (
-            <>
             <div>
               <Label>Modelo de Folha de Pagamento</Label>
               <Select value={form.payroll_type} onValueChange={v => set('payroll_type', v)}>
@@ -96,8 +95,11 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {form.readjustment_scope === 'payroll_type' && (
             <div>
-              <Label>Empresa <span className="text-xs text-muted-foreground font-normal">(opcional — deixe em branco para todas)</span></Label>
+              <Label>Empresa <span className="text-muted-foreground text-xs">(opcional — filtra somente colaboradores desta empresa)</span></Label>
               <Select value={form.company_id || '_all'} onValueChange={v => set('company_id', v === '_all' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Todas as empresas" /></SelectTrigger>
                 <SelectContent>
@@ -105,11 +107,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
                   {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {form.company_id && (
-                <p className="text-xs text-amber-600 mt-1">⚠ Reajuste limitado aos colaboradores desta empresa com o modelo selecionado.</p>
-              )}
             </div>
-            </>
           )}
 
           {form.readjustment_scope === 'employee' && (

@@ -382,7 +382,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Ajuda de Custo Pacote de Dados (R$)</Label>
+                  <Label>Ajuda de custo pacote de dados (R$)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -554,7 +554,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       )}
                       {form.cost_allowance > 0 && (
                         <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                          <span className="text-xs text-secondary font-medium">+ Ajuda de Custo Pacote de Dados</span>
+                          <span className="text-xs text-secondary font-medium">+ Ajuda de custo pacote de dados</span>
                           <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(form.cost_allowance)}</span>
                         </div>
                       )}
@@ -565,7 +565,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                       <p className="text-xs font-medium text-muted-foreground">Descontos da 2ª Quinzena</p>
                       {!readOnly && (
                         <Button size="sm" variant="outline" className="gap-1 h-6 text-xs border-orange-300 text-orange-700 hover:bg-orange-50" onClick={recalcCostAllowance}>
-                          <RefreshCw className="w-3 h-3" /> Recalc. Ajuda de Custo Pac. Dados
+                          <RefreshCw className="w-3 h-3" /> Recalc. Ajuda de Custo
                           {totalFaltas > 0 && <span className="ml-1 bg-red-500 text-white rounded-full text-[10px] px-1">{totalFaltas}</span>}
                         </Button>
                       )}
@@ -612,7 +612,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     <span className="font-mono">{formatCurrency(calc.km_bonus)}</span>
                   </div>
                 )}
-                {form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo Pacote de Dados <span className="text-xs">(paga na 2ª quinzena)</span></span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
+                {form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de custo pacote de dados <span className="text-xs">(paga na 2ª quinzena)</span></span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
                 {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
                 {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação / Prêmio</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}

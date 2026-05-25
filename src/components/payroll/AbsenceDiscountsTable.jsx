@@ -132,7 +132,7 @@ function CellInput({ value, disabled, onChange, onBlur }) {
   );
 }
 
-export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscounts, setAbsenceDiscounts, readOnly, isMotocyclist, payrollForm }) {
+export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscounts, setAbsenceDiscounts, readOnly, isMotocyclist, payrollForm, lockedPeriods = {} }) {
   // Ao montar ou quando os ajustes mudam, pré-preenche automaticamente linhas ainda zeradas E não editadas manualmente
   useEffect(() => {
     if (readOnly || !payrollForm) return;
@@ -307,20 +307,25 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                         <td className="px-2 py-1.5">{renderCell(key, 'moto')}</td>
                         <td className="px-2 py-1.5">{renderCell(key, 'hazard')}</td>
                       </>}
-                      {!readOnly && (
-                        <td className="px-2 py-1.5 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={`h-7 w-7 ${isManual ? 'text-amber-500 hover:text-primary' : 'text-muted-foreground hover:text-primary'}`}
-                            title={isManual ? 'Editado manualmente — clique para recalcular automaticamente' : 'Recalcular automaticamente'}
-                            onClick={() => recalcRow(key, a.adjustment_reason_id, a.date)}
-                          >
-                            <Wand2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </td>
-                      )}
+                      {!readOnly && (() => {
+                        const rowDay = a.date ? parseInt(a.date.split('-')[2], 10) : 0;
+                        const rowPeriodLocked = rowDay > 0 && (rowDay <= 15 ? !!lockedPeriods.first : !!lockedPeriods.second);
+                        return (
+                          <td className="px-2 py-1.5 text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={rowPeriodLocked}
+                              className={`h-7 w-7 ${rowPeriodLocked ? 'opacity-30 cursor-not-allowed' : isManual ? 'text-amber-500 hover:text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                              title={rowPeriodLocked ? 'Quinzena já paga — recálculo bloqueado para preservar o valor pago' : isManual ? 'Editado manualmente — clique para recalcular automaticamente' : 'Recalcular automaticamente'}
+                              onClick={() => { if (!rowPeriodLocked) recalcRow(key, a.adjustment_reason_id, a.date); }}
+                            >
+                              <Wand2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </td>
+                        );
+                      })()}
                       <td className="px-2 py-1.5">
                         <ObsInput
                           value={absenceDiscounts[key]?.obs || ''}

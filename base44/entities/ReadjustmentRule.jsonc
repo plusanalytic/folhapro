@@ -25,7 +25,7 @@
     },
     "company_id": {
       "type": "string",
-      "description": "ID da empresa \u2014 aplica o reajuste apenas para colaboradores desta empresa (opcional)"
+      "description": "ID da empresa (quando scope=payroll_type \u2014 filtra somente colaboradores desta empresa)"
     },
     "employee_id": {
       "type": "string",
