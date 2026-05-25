@@ -45,7 +45,7 @@ export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMob
           <img
             src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69aee345ac5d3a8418bfc552/93c0376ec_LOGOCONTACTA-SEMFUNDO-EMP-atual.png"
             alt="Contacta RH"
-            className="object-contain brightness-0 invert mx-auto h-24" />
+            className="h-14 object-contain brightness-0 invert mx-auto" />
 
           }
 
@@ -59,7 +59,7 @@ export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMob
             onClick={() => setCollapsed((c) => !c)}
             className="p-1 rounded-lg hover:bg-white/20 transition-colors mt-1">
             
-    {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} className="hidden" />}
+    {collapsed ? <ChevronRight size={16} /> : null}
   </button>
 </div>
 
