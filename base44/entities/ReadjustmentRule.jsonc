@@ -23,6 +23,10 @@
       "type": "string",
       "description": "Tipo de folha (quando scope=payroll_type): MOTOCICLISTA_CLT, etc."
     },
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa \u2014 aplica o reajuste apenas para colaboradores desta empresa (opcional)"
+    },
     "employee_id": {
       "type": "string",
       "description": "ID do colaborador (quando scope=employee)"

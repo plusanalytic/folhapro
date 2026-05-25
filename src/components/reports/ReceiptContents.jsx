@@ -268,7 +268,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
     { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Vale Alimentação (${entry.contract_working_days} dias úteis)` : 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
     { label: 'Vale Transporte', value: transport, show: transport > 0 },
     { label: `Adicional KM (${kmBonusQty} km × ${formatCurrency(kmBonusVal)})`, value: kmBonus, show: kmBonus > 0 },
-    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Ajuda de Custo (${entry.contract_working_days} dias úteis)` : 'Ajuda de Custo', value: costAllowance, show: costAllowance > 0 },
+    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Ajuda de Custo Pacote de Dados (${entry.contract_working_days} dias úteis)` : 'Ajuda de Custo Pacote de Dados', value: costAllowance, show: costAllowance > 0 },
     { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Aluguel da Motocicleta (${entry.contract_working_days} dias úteis)` : 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
     { label: 'Periculosidade', value: hazardPay, show: hazardPay > 0 },
     { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
@@ -376,7 +376,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
             {(entry?.overtime ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Hora Extra{entry?.overtime_hour_value > 0 ? ` (${formatCurrency(entry.overtime_hour_value)}/h)` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.overtime)}</span></div>}
             {absenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceSecond)}</span></div>}
             {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
-            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de Custo</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
+            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de Custo Pacote de Dados</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
             {secondDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
@@ -587,7 +587,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base proporcional</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
             {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
-            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de Custo</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
+            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de Custo Pacote de Dados</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
             {secondDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;

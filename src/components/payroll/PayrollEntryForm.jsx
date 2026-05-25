@@ -89,10 +89,13 @@ const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO',
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
-  // baseLocked: campos que afetam net_total (rateado entre as duas quinzenas)
-  const baseLocked = readOnly || q1Locked || q2Locked;
-  // q2ExtraLocked: campos que só impactam a 2ª quinzena (food_voucher, km, ajuda de custo, bonificações CLT moto)
+  // baseLocked: bloqueia edição apenas quando AMBAS as quinzenas estão pagas ou readOnly
+  // Quando só Q1 está paga, a edição é permitida mas a base da 1ª quinzena é travada
+  const baseLocked = readOnly || (q1Locked && q2Locked);
+  // q2ExtraLocked: campos que só impactam a 2ª quinzena
   const q2ExtraLocked = readOnly || q2Locked;
+  // Base travada da 1ª quinzena quando ela já foi paga
+  const lockedQ1Base = q1Locked ? (entry?.first_period_base ?? null) : null;
 
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
@@ -223,7 +226,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // Ajustes de ponto (faltas) do colaborador no mês
   const [pointAdjustments, setPointAdjustments] = useState([]);
   // Mapa de desconto por ajuste: { [tangerino_id_do_ajuste]: valor }
-  const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
+  // Entradas salvas no banco são marcadas como _manual para evitar recálculo automático
+  const [absenceDiscounts, setAbsenceDiscounts] = useState(() => {
+    const saved = entry?.absence_discounts ?? {};
+    const result = {};
+    for (const [key, val] of Object.entries(saved)) {
+      result[key] = { ...val, _manual: true };
+    }
+    return result;
+  });
 
   // Adiciona taxa sindical automaticamente para admissão no mês (somente após confirmar o salário base)
   // Disparado pelo confirmedDailyValue (atualizado no blur do campo salário base)
@@ -391,12 +402,38 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_split: firstPeriodSplit,
   };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
-  // Quando net_total = 0, aplica override direto do valor da 1ª base
-  const calc = (calcRaw.net_total === 0 && firstBaseOverride !== null)
-    ? { ...calcRaw, first_period_base: firstBaseOverride, second_period_base: -firstBaseOverride,
+  // Override: quando Q1 PAGA → trava base Q1 e absorve diferença na Q2
+  // Quando net_total = 0 → usa override manual da base
+  const calc = (() => {
+    if (q1Locked && lockedQ1Base !== null && calcRaw.net_total !== 0) {
+      const newSecondBase = Math.round((calcRaw.net_total - lockedQ1Base) * 100) / 100;
+      const newSecondNet = Math.round((
+        newSecondBase
+        + (show('food_voucher') ? foodVoucherEffective : 0)
+        + (calcRaw.km_bonus || 0)
+        + (show('km_bonus') ? costAllowanceEffective : 0)
+        - secondDiscountTotal - absenceSecond
+      ) * 100) / 100;
+      return {
+        ...calcRaw,
+        first_period_base: lockedQ1Base,
+        second_period_base: newSecondBase,
+        first_period_net: entry?.first_period_net ?? calcRaw.first_period_net,
+        second_period_net: newSecondNet,
+        first_period_split: calcRaw.net_total > 0 ? lockedQ1Base / calcRaw.net_total : firstPeriodSplit,
+      };
+    }
+    if (calcRaw.net_total === 0 && firstBaseOverride !== null) {
+      return {
+        ...calcRaw,
+        first_period_base: firstBaseOverride,
+        second_period_base: -firstBaseOverride,
         first_period_net: firstBaseOverride - (form.first_period_advance || 0) - firstDiscountTotal - absenceFirst,
-        second_period_net: -firstBaseOverride - secondDiscountTotal - absenceSecond }
-    : calcRaw;
+        second_period_net: -firstBaseOverride - secondDiscountTotal - absenceSecond,
+      };
+    }
+    return calcRaw;
+  })();
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -482,7 +519,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       second_period_discount: secondDiscountTotal,
       first_discounts: firstDiscounts,
       second_discounts: secondDiscounts,
-      first_period_split: firstPeriodSplit,
+      first_period_split: q1Locked && lockedQ1Base !== null ? calc.first_period_split : firstPeriodSplit,
       first_period_base: calc.first_period_base,
       second_period_base: calc.second_period_base,
       // Bonificações extras CLT: somam ao second_period_net mas não ao gross/net total
@@ -545,7 +582,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             )}
             {!readOnly && (q1Locked || q2Locked) && (
               <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
-                🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena bloqueada — campos que afetam o rateio estão desabilitados.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
+                🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena já PAGA — a base da 1ª quinzena está travada. Qualquer alteração de valor será aplicada automaticamente na base da 2ª quinzena.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
               </div>
             )}
             {/* Salário e Faltas — CLT Moto: campos de dias trabalhados */}
@@ -734,7 +771,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
             {show('km_bonus') && (
               <div>
-                <Label>Ajuda de Custo</Label>
+                <Label>Ajuda de Custo Pacote de Dados</Label>
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
                     <Input {...numericField('cost_allowance', q2ExtraLocked)} className="font-mono" placeholder="Valor total" />
@@ -1079,8 +1116,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <div className="grid grid-cols-2 gap-4">
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-            {(readOnly || entry?.first_period_base_locked) ? (
-              <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
+            {(readOnly || entry?.first_period_base_locked || q1Locked) ? (
+              <div>
+                <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
+                {q1Locked && <p className="text-xs text-amber-600 mt-1">🔒 Base travada (1ª quinzena PAGA)</p>}
+              </div>
             ) : (
               <PeriodBaseInput
                 value={calc.net_total !== 0 ? (calc.first_period_base ?? calc.net_total / 2) : (firstBaseOverride ?? 0)}
@@ -1225,7 +1265,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     )}
                     {costAllowanceEffective > 0 && (
                       <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-3 py-2">
-                        <span className="text-xs text-secondary font-medium">+ Ajuda de Custo</span>
+                        <span className="text-xs text-secondary font-medium">+ Ajuda de Custo Pacote de Dados</span>
                         <span className="font-mono text-xs font-semibold text-secondary">+ {formatCurrency(costAllowanceEffective)}</span>
                       </div>
                     )}
@@ -1274,7 +1314,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 { label: 'Vale Alimentação', value: form.food_voucher },
                 { label: 'Vale Transporte', value: form.transport_voucher },
                 { label: 'KM Adicional', value: calc.km_bonus || 0 },
-                { label: 'Ajuda de Custo', value: form.cost_allowance },
+                { label: 'Ajuda de Custo Pacote de Dados', value: form.cost_allowance },
                 { label: 'Aluguel da Motocicleta', value: form.motorcycle_rental },
                 { label: 'Periculosidade', value: form.hazard_pay },
                 { label: 'Bonificação / Prêmio', value: form.bonus },
@@ -1305,7 +1345,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {show('food_voucher') && form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
               {form.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte</span><span className="font-mono">{formatCurrency(form.transport_voucher)}</span></div>}
               {show('km_bonus') && calc.km_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">KM Adicional ({form.km_bonus_qty} km × {formatCurrency(form.km_bonus_value)})</span><span className="font-mono">{formatCurrency(calc.km_bonus)}</span></div>}
-              {show('km_bonus') && form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
+              {show('km_bonus') && form.cost_allowance > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Ajuda de Custo Pacote de Dados</span><span className="font-mono">{formatCurrency(form.cost_allowance)}</span></div>}
               {form.motorcycle_rental > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Aluguel da Motocicleta</span><span className="font-mono">{formatCurrency(form.motorcycle_rental)}</span></div>}
               {form.hazard_pay > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Periculosidade</span><span className="font-mono">{formatCurrency(form.hazard_pay)}</span></div>}
               {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}

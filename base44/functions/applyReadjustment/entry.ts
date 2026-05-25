@@ -120,7 +120,11 @@ Deno.serve(async (req) => {
       const roleIds = new Set(matchingRoles.map(jr => String(jr.tangerino_id)).filter(Boolean));
       const relevantEmployeeIds = new Set(
         allEmployees
-          .filter(e => e.job_role_tangerino_id && roleIds.has(String(e.job_role_tangerino_id)))
+          .filter(e =>
+            e.job_role_tangerino_id &&
+            roleIds.has(String(e.job_role_tangerino_id)) &&
+            (!rule.company_id || e.company_id === rule.company_id)
+          )
           .map(e => e.id)
       );
       entries = allEntries.filter(e => relevantEmployeeIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);

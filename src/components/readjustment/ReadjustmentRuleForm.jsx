@@ -9,11 +9,13 @@ import { base44 } from '@/api/base44Client';
 export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   const [employees, setEmployees] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [form, setForm] = useState({
     description: rule?.description ?? '',
     reference_month: rule?.reference_month ?? '',
     readjustment_scope: rule?.readjustment_scope ?? 'payroll_type',
     payroll_type: rule?.payroll_type ?? 'MOTOCICLISTA_CLT',
+    company_id: rule?.company_id ?? '',
     employee_id: rule?.employee_id ?? '',
     effective_salary_pct: rule?.effective_salary_pct ?? 3,
     meal_voucher_day_value_pct: rule?.meal_voucher_day_value_pct ?? 30,
@@ -26,6 +28,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   useEffect(() => {
     base44.entities.Employee.filter({ is_active: true }).then(setEmployees);
     base44.entities.JobRole.list().then(jrs => setJobRoles(jrs.filter(j => j.payroll_type)));
+    base44.entities.Company.list('name').then(setCompanies);
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -34,7 +37,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     if (!form.reference_month) return alert('Informe o mês de referência');
     setSaving(true);
     const data = { ...form };
-    if (data.readjustment_scope !== 'payroll_type') data.payroll_type = '';
+    if (data.readjustment_scope !== 'payroll_type') { data.payroll_type = ''; data.company_id = ''; }
     if (data.readjustment_scope !== 'employee') data.employee_id = '';
     if (rule?.id) {
       await base44.entities.ReadjustmentRule.update(rule.id, data);
@@ -75,6 +78,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
           </div>
 
           {form.readjustment_scope === 'payroll_type' && (
+            <>
             <div>
               <Label>Modelo de Folha de Pagamento</Label>
               <Select value={form.payroll_type} onValueChange={v => set('payroll_type', v)}>
@@ -92,6 +96,20 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Empresa <span className="text-xs text-muted-foreground font-normal">(opcional — deixe em branco para todas)</span></Label>
+              <Select value={form.company_id || '_all'} onValueChange={v => set('company_id', v === '_all' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="Todas as empresas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">Todas as empresas</SelectItem>
+                  {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {form.company_id && (
+                <p className="text-xs text-amber-600 mt-1">⚠ Reajuste limitado aos colaboradores desta empresa com o modelo selecionado.</p>
+              )}
+            </div>
+            </>
           )}
 
           {form.readjustment_scope === 'employee' && (
