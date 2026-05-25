@@ -140,7 +140,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     route_sp_bonus: entry?.route_sp_bonus ?? 0,
     overtime: entry?.overtime ?? 0,
     other_benefits: entry?.other_benefits ?? 0,
-    union_contribution_value: entry?.union_contribution_value ?? 35,
+    union_contribution_value: entry?.union_contribution_value ?? 0,
     meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 6 : 0),
     life_insurance: entry?.life_insurance ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 17.50 : 0),
     inss_pct: entry?.inss_pct ?? 0,
@@ -168,6 +168,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // INSS automático para CLT moto (se não foi editado manualmente)
   const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
+  // Para novos lançamentos: contribuição assistencial é automática (2%). Para lançamentos salvos: usa o valor salvo.
+  const [unionContribManuallyEdited, setUnionContribManuallyEdited] = useState(!!entry);
 
   // Controla se o usuário editou manualmente a periculosidade
   const [hazardPayManuallyEdited, setHazardPayManuallyEdited] = useState(false);
@@ -187,6 +189,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     const { pct, discount } = calcAutoINSS(cltMotoEffectiveSalary + hazard);
     setForm(f => ({ ...f, inss_pct: pct, inss_discount: discount }));
   }, [cltMotoEffectiveSalary, form.hazard_pay, isCLTMoto, inssManuallyEdited]); // eslint-disable-line
+
+  // Contribuição assistencial automática: 2% do salário base (somente novos lançamentos)
+  useEffect(() => {
+    if (unionContribManuallyEdited || readOnly) return;
+    const baseSal = isCLTMoto ? cltMotoEffectiveSalary : (form.base_salary || 0);
+    if (baseSal > 0) {
+      setForm(f => ({ ...f, union_contribution_value: Math.round(baseSal * 0.02 * 100) / 100 }));
+    }
+  }, [cltMotoEffectiveSalary, form.base_salary, isCLTMoto, unionContribManuallyEdited, readOnly]); // eslint-disable-line
 
   // Desconto taxa sindical automático para admissão no mês (CLT moto)
   // Só é adicionado quando o usuário confirma o salário base (blur no campo)
@@ -391,12 +402,31 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_split: firstPeriodSplit,
   };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
-  // Quando net_total = 0, aplica override direto do valor da 1ª base
-  const calc = (calcRaw.net_total === 0 && firstBaseOverride !== null)
-    ? { ...calcRaw, first_period_base: firstBaseOverride, second_period_base: -firstBaseOverride,
+  // Quando 1ª quinzena está paga: congela base da 1ª e absorve todo delta (reajuste, benefícios, contribuição) na 2ª quinzena
+  const calc = (() => {
+    const frozenFirst = q1Locked && entry?.first_period_base > 0 ? entry.first_period_base : null;
+    if (frozenFirst !== null && calcRaw.net_total !== 0) {
+      // Delta = quanto a 1ª mudou em relação ao congelado — absolvido integralmente pela 2ª
+      const delta = calcRaw.first_period_base - frozenFirst;
+      return {
+        ...calcRaw,
+        first_period_base: frozenFirst,
+        second_period_base: calcRaw.net_total - frozenFirst,
+        first_period_net: frozenFirst - (form.first_period_advance || 0) - firstDiscountTotal - absenceFirst,
+        second_period_net: calcRaw.second_period_net + delta,
+      };
+    }
+    if (calcRaw.net_total === 0 && firstBaseOverride !== null) {
+      return {
+        ...calcRaw,
+        first_period_base: firstBaseOverride,
+        second_period_base: -firstBaseOverride,
         first_period_net: firstBaseOverride - (form.first_period_advance || 0) - firstDiscountTotal - absenceFirst,
-        second_period_net: -firstBaseOverride - secondDiscountTotal - absenceSecond }
-    : calcRaw;
+        second_period_net: -firstBaseOverride - secondDiscountTotal - absenceSecond,
+      };
+    }
+    return calcRaw;
+  })();
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -946,8 +976,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
             <div className="grid grid-cols-2 gap-4">
               {show('union_contribution_pct') && <div>
-                <Label>Contribuição Assistencial (R$)</Label>
-                <Input {...numericField('union_contribution_value', baseLocked)} />
+                <Label>Contribuição Assistencial (2% do salário base)</Label>
+                <div className="flex gap-2 mt-1 items-center">
+                  <Input
+                    {...numericField('union_contribution_value', baseLocked)}
+                    onChange={e => { set('union_contribution_value', e.target.value); if (!entry) setUnionContribManuallyEdited(true); }}
+                    onBlur={e => { setNum('union_contribution_value', e.target.value); if (!entry) setUnionContribManuallyEdited(true); }}
+                  />
+                  {!readOnly && !entry && (
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatCurrency(Math.round((isCLTMoto ? cltMotoEffectiveSalary : form.base_salary) * 0.02 * 100) / 100)} (2%)
+                      {unionContribManuallyEdited && <button className="ml-1 text-primary underline" onClick={() => setUnionContribManuallyEdited(false)}>Resetar</button>}
+                    </span>
+                  )}
+                </div>
               </div>}
               {show('meal_voucher_discount_pct') && <div>
                 <Label>Desconto VR (% sobre total do VR)</Label>
