@@ -37,18 +37,29 @@ export default function AppSidebar({ collapsed, mobileOpen, onMobileClose }) {
         )}
         style={{ backgroundColor: '#6a3eaf' }}
       >
-        <div className="p-3 flex items-center justify-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', minHeight: '64px' }}>
-          {!collapsed ? (
-            <img
-              src="https://media.base44.com/images/public/69dfcba2fae1c77226b7a4da/324c9c675_LOGOCONTACTA-SEMFUNDO-DEITADO1.png"
-              alt="Contacta"
-              className="h-9 w-auto object-contain"
-              style={{ filter: 'brightness(0) invert(1)' }}
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">C</div>
-          )}
-        </div>
+{/* Logo area */}
+<div className={`flex flex-col items-center border-b border-white/20 transition-all duration-300 ${collapsed ? 'px-1 py-3 gap-3' : 'px-3 pt-4 pb-3 gap-4'}`}>
+  {!collapsed && (
+    <img
+      src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69aee345ac5d3a8418bfc552/93c0376ec_LOGOCONTACTA-SEMFUNDO-EMP-atual.png"
+      alt="Contacta RH"
+      className="h-14 object-contain brightness-0 invert mx-auto"
+    />
+  )}
+
+  {collapsed && (
+    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+      <span className="text-white font-bold text-sm">C</span>
+    </div>
+  )}
+
+  <button
+    onClick={() => setCollapsed(c => !c)}
+    className="p-1 rounded-lg hover:bg-white/20 transition-colors mt-1"
+  >
+    {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+  </button>
+</div>
 
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {navItems.map(({ path, icon: Icon, label }) => {
