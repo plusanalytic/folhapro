@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     payroll_type: rule?.payroll_type ?? 'MOTOCICLISTA_CLT',
     company_id: rule?.company_id ?? '',
     employee_id: rule?.employee_id ?? '',
+    excluded_employee_ids: rule?.excluded_employee_ids ?? [],
     effective_salary_pct: rule?.effective_salary_pct ?? 3,
     meal_voucher_day_value_pct: rule?.meal_voucher_day_value_pct ?? 30,
     food_voucher_day_value_pct: rule?.food_voucher_day_value_pct ?? 30,
@@ -33,11 +34,35 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // Employees filtered by selected company
+  const companyEmployees = useMemo(() => {
+    if (!form.company_id || form.readjustment_scope !== 'payroll_type') return [];
+    return employees.filter(e => e.company_id === form.company_id);
+  }, [employees, form.company_id, form.readjustment_scope]);
+
+  // When company changes, reset excluded_employee_ids (all included by default)
+  const handleCompanyChange = (v) => {
+    set('company_id', v === '_all' ? '' : v);
+    set('excluded_employee_ids', []);
+  };
+
+  const toggleEmployee = (empId) => {
+    setForm(f => {
+      const excluded = f.excluded_employee_ids ?? [];
+      return {
+        ...f,
+        excluded_employee_ids: excluded.includes(empId)
+          ? excluded.filter(id => id !== empId)
+          : [...excluded, empId],
+      };
+    });
+  };
+
   const handleSave = async () => {
     if (!form.reference_month) return alert('Informe o mês de referência');
     setSaving(true);
     const data = { ...form };
-    if (data.readjustment_scope !== 'payroll_type') { data.payroll_type = ''; data.company_id = ''; }
+    if (data.readjustment_scope !== 'payroll_type') { data.payroll_type = ''; data.company_id = ''; data.excluded_employee_ids = []; }
     if (data.readjustment_scope !== 'employee') data.employee_id = '';
     if (rule?.id) {
       await base44.entities.ReadjustmentRule.update(rule.id, data);
@@ -100,13 +125,41 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
           {form.readjustment_scope === 'payroll_type' && (
             <div>
               <Label>Empresa <span className="text-muted-foreground text-xs">(opcional — filtra somente colaboradores desta empresa)</span></Label>
-              <Select value={form.company_id || '_all'} onValueChange={v => set('company_id', v === '_all' ? '' : v)}>
+              <Select value={form.company_id || '_all'} onValueChange={handleCompanyChange}>
                 <SelectTrigger><SelectValue placeholder="Todas as empresas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_all">Todas as empresas</SelectItem>
                   {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {form.readjustment_scope === 'payroll_type' && form.company_id && companyEmployees.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Colaboradores desta empresa <span className="text-muted-foreground text-xs">({companyEmployees.length - (form.excluded_employee_ids?.length ?? 0)} selecionados)</span></Label>
+                <div className="flex gap-2">
+                  <button type="button" className="text-xs text-primary underline" onClick={() => set('excluded_employee_ids', [])}>Selecionar todos</button>
+                  <button type="button" className="text-xs text-muted-foreground underline" onClick={() => set('excluded_employee_ids', companyEmployees.map(e => e.id))}>Limpar todos</button>
+                </div>
+              </div>
+              <div className="border rounded-lg p-3 max-h-52 overflow-y-auto space-y-1 bg-muted/20">
+                {companyEmployees.map(emp => {
+                  const excluded = (form.excluded_employee_ids ?? []).includes(emp.id);
+                  return (
+                    <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 px-2 py-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={!excluded}
+                        onChange={() => toggleEmployee(emp.id)}
+                        className="cursor-pointer"
+                      />
+                      <span className={`text-sm ${excluded ? 'line-through text-muted-foreground' : ''}`}>{emp.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
 

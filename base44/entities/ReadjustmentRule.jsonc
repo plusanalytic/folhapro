@@ -31,6 +31,14 @@
       "type": "string",
       "description": "ID do colaborador (quando scope=employee)"
     },
+    "excluded_employee_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs de colaboradores exclu\u00eddos do reajuste (mesmo que estejam no escopo)"
+    },
     "effective_salary_pct": {
       "type": "number",
       "default": 0,

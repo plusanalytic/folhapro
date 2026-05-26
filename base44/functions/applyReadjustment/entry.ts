@@ -124,8 +124,16 @@ Deno.serve(async (req) => {
           .map(e => e.id)
       );
       entries = allEntries.filter(e => relevantEmployeeIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);
+    } else if (rule.readjustment_scope === 'payroll_type' && !rule.payroll_type) {
+      entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
     } else {
       entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
+    }
+
+    // Filter out explicitly excluded employees
+    if (rule.excluded_employee_ids && rule.excluded_employee_ids.length > 0) {
+      const excludedSet = new Set(rule.excluded_employee_ids);
+      entries = entries.filter(e => !excludedSet.has(e.employee_id));
     }
 
     if (entries.length === 0) {
