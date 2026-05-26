@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { base44 } from '@/api/base44Client';
 import { getMonthName } from '@/lib/payrollCalculations';
-import { Plus, Play, CheckCircle2, RotateCcw, Trash2, Edit, AlertTriangle, Zap } from 'lucide-react';
+import { Plus, Play, CheckCircle2, RotateCcw, Trash2, Edit, AlertTriangle, Zap, Users } from 'lucide-react';
 import ReadjustmentRuleForm from '@/components/readjustment/ReadjustmentRuleForm';
 import ReadjustmentSimulationDialog from '@/components/readjustment/ReadjustmentSimulationDialog';
 import { toast } from 'sonner';
@@ -77,6 +77,28 @@ export default function Readjustment() {
         }
       } catch { /* ignora erros de poll */ }
     }, 1500);
+  };
+
+  const handleUnionContrib = async (rule, revert = false) => {
+    setConfirmAction(null);
+    setActionLoading(true);
+    setProgress({ current: 0, total: 0, label: revert ? 'Revertendo contribuição assistencial...' : 'Aplicando contribuição assistencial...' });
+    try {
+      const fnName = revert ? 'revertUnionContribAdjustment' : 'applyUnionContribAdjustment';
+      const res = await base44.functions.invoke(fnName, { ruleId: rule.id });
+      if (res.data?.success) {
+        const count = res.data.updatedCount ?? res.data.revertedCount ?? 0;
+        toast.success(`Contribuição assistencial ${revert ? 'revertida' : 'ajustada'} em ${count} folha(s)`);
+      } else {
+        toast.error(res.data?.error ?? 'Erro ao processar contribuição assistencial');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error ?? err?.message ?? 'Erro');
+    } finally {
+      setProgress(null);
+      setActionLoading(false);
+      loadRules();
+    }
   };
 
   const handleDelete = async (rule) => {
@@ -228,6 +250,19 @@ export default function Readjustment() {
                           onClick={() => setSimulatingRule(rule)}>
                           <Play className="w-3.5 h-3.5" /> Ver Simulação
                         </Button>
+                        {!rule.union_contrib_applied ? (
+                          <Button size="sm" variant="outline" className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50"
+                            title="Atualizar Contribuição Assistencial de R$35 para R$36,50 (-R$1,50 na 2ª quinzena)"
+                            onClick={() => setConfirmAction({ type: 'unionContrib', rule })}>
+                            <Users className="w-3.5 h-3.5" /> Contrib. Assist.
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="gap-1.5 text-gray-500 border-gray-300 hover:bg-gray-50"
+                            title="Reverter ajuste de contribuição assistencial"
+                            onClick={() => setConfirmAction({ type: 'revertUnionContrib', rule })}>
+                            <Users className="w-3.5 h-3.5" /> Reverter Contrib.
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50"
                           onClick={() => setConfirmAction({ type: 'revert', rule })}>
                           <RotateCcw className="w-3.5 h-3.5" /> Reverter
@@ -299,6 +334,8 @@ export default function Readjustment() {
                   {confirmAction.type === 'apply' && 'Aplicar Reajuste'}
                   {confirmAction.type === 'revert' && 'Reverter Reajuste'}
                   {confirmAction.type === 'forceRevert' && '⚠️ Reverter por Matemática Inversa'}
+                  {confirmAction.type === 'unionContrib' && 'Ajustar Contribuição Assistencial'}
+                  {confirmAction.type === 'revertUnionContrib' && 'Reverter Contribuição Assistencial'}
                   {confirmAction.type === 'delete' && 'Excluir Reajuste'}
                 </h3>
                 <div className="text-sm text-muted-foreground mt-2">
@@ -329,6 +366,20 @@ export default function Readjustment() {
                       Verifique os valores após a reversão.</p>
                     </div>
                   )}
+                  {confirmAction.type === 'unionContrib' && (
+                    <div className="space-y-2">
+                      <p>Para todas as folhas do reajuste selecionado:</p>
+                      <ul className="text-sm space-y-1 list-disc pl-4">
+                        <li>Contribuição Assistencial: <strong>R$35,00 → R$36,50</strong></li>
+                        <li>Desconto na 2ª quinzena: <strong>-R$1,50</strong></li>
+                        <li>1ª quinzena: sem alteração</li>
+                      </ul>
+                      <p className="text-xs text-green-700 mt-1">✅ Reversível a qualquer momento pelo botão "Reverter Contrib."</p>
+                    </div>
+                  )}
+                  {confirmAction.type === 'revertUnionContrib' && (
+                    <p>Os valores de Contribuição Assistencial e 2ª quinzena serão restaurados aos valores anteriores ao ajuste.</p>
+                  )}
                   {confirmAction.type === 'delete' && <p>O reajuste será excluído permanentemente.</p>}
                 </div>
               </div>
@@ -336,17 +387,21 @@ export default function Readjustment() {
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancelar</Button>
               <Button
-                variant={['delete', 'revert', 'forceRevert'].includes(confirmAction.type) ? 'destructive' : 'default'}
+                variant={['delete', 'revert', 'forceRevert', 'revertUnionContrib'].includes(confirmAction.type) ? 'destructive' : 'default'}
                 onClick={() => {
                   if (confirmAction.type === 'apply') handleApply(confirmAction.rule);
                   else if (confirmAction.type === 'revert') handleRevert(confirmAction.rule, false);
                   else if (confirmAction.type === 'forceRevert') handleRevert(confirmAction.rule, true);
+                  else if (confirmAction.type === 'unionContrib') handleUnionContrib(confirmAction.rule, false);
+                  else if (confirmAction.type === 'revertUnionContrib') handleUnionContrib(confirmAction.rule, true);
                   else if (confirmAction.type === 'delete') handleDelete(confirmAction.rule);
                 }}
               >
                 {confirmAction.type === 'apply' ? 'Confirmar Aplicação' :
                  confirmAction.type === 'revert' ? 'Confirmar Reversão' :
-                 confirmAction.type === 'forceRevert' ? 'Reverter (Matemática Inversa)' : 'Excluir'}
+                 confirmAction.type === 'forceRevert' ? 'Reverter (Matemática Inversa)' :
+                 confirmAction.type === 'unionContrib' ? 'Confirmar Ajuste' :
+                 confirmAction.type === 'revertUnionContrib' ? 'Reverter Ajuste' : 'Excluir'}
               </Button>
             </div>
           </div>

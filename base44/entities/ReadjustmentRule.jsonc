@@ -90,7 +90,30 @@
         "type": "object"
       },
       "default": [],
-      "description": "Snapshot das folhas originais (para revers\u00e3o)"
+      "description": "Snapshot das folhas originais (para revers\u00e3o do reajuste salarial)"
+    },
+    "union_contrib_applied": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ajuste de contribui\u00e7\u00e3o assistencial aplicado"
+    },
+    "union_contrib_applied_date": {
+      "type": "string"
+    },
+    "union_contrib_reverted_date": {
+      "type": "string"
+    },
+    "union_contrib_updated_count": {
+      "type": "number",
+      "default": 0
+    },
+    "union_contrib_snapshot": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": [],
+      "description": "Snapshot dos campos de contribui\u00e7\u00e3o assistencial (para revers\u00e3o)"
     }
   },
   "required": [
