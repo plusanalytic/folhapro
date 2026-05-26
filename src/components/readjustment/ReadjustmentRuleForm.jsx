@@ -10,6 +10,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   const [employees, setEmployees] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [payrollEmployeeIds, setPayrollEmployeeIds] = useState(null); // null = not loaded yet
   const [form, setForm] = useState({
     description: rule?.description ?? '',
     reference_month: rule?.reference_month ?? '',
@@ -27,18 +28,33 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    base44.entities.Employee.filter({ is_active: true }).then(setEmployees);
+    base44.entities.Employee.list().then(setEmployees);
     base44.entities.JobRole.list().then(jrs => setJobRoles(jrs.filter(j => j.payroll_type)));
     base44.entities.Company.filter({ is_active: true }).then(setCompanies);
   }, []);
 
+  // When company + month are set, load payroll entries to know who has a launch
+  useEffect(() => {
+    if (form.company_id && form.reference_month && form.readjustment_scope === 'payroll_type') {
+      setPayrollEmployeeIds(null);
+      base44.entities.PayrollEntry.filter({ company_id: form.company_id, reference_month: form.reference_month })
+        .then(entries => setPayrollEmployeeIds(new Set(entries.map(e => e.employee_id))));
+    } else {
+      setPayrollEmployeeIds(null);
+    }
+  }, [form.company_id, form.reference_month, form.readjustment_scope]);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Employees filtered by selected company
+  // Employees filtered by selected company AND who have a payroll entry for the reference month
   const companyEmployees = useMemo(() => {
     if (!form.company_id || form.readjustment_scope !== 'payroll_type') return [];
-    return employees.filter(e => e.company_id === form.company_id);
-  }, [employees, form.company_id, form.readjustment_scope]);
+    let list = employees.filter(e => e.company_id === form.company_id);
+    if (payrollEmployeeIds !== null) {
+      list = list.filter(e => payrollEmployeeIds.has(e.id));
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees, form.company_id, form.readjustment_scope, payrollEmployeeIds]);
 
   // When company changes, reset excluded_employee_ids (all included by default)
   const handleCompanyChange = (v) => {
