@@ -122,14 +122,16 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_split: entry?.first_period_split ?? 0.5,
         }, employee.contract_type, payrollType);
         // Para CLT moto com 1ª quinzena travada (1ª quinzena já paga + reajuste aplicado):
-        // calcStd usa union_contribution_value=36.05 no net_total, o que reduz firstBase proporcionalmente
-        // pelo split — desconta indevidamente R$0.52 da 1ª quinzena.
-        // Nesse caso, reconstrói first_period_net a partir do first_period_base travado (salvo pelo reajuste),
-        // que é imune a alterações na contribuição assistencial.
+        // calcStd usa union_contribution_value=36.05 no net_total, distribuindo o aumento
+        // proporcionalmente via split — o que reduz indevidamente a 1ª quinzena em ~R$0,50.
+        // Solução: quando first_period_base_locked=true, parte do entry.first_period_net salvo
+        // (que está correto/travado), aplicando apenas o delta de novos cashouts e faltas.
+        const firstFromCashTotal = firstFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
+        const savedAbsenceFirst = entry?.absence_discount_first ?? 0;
+        const absenceDeltaFirst = absenceFirst - savedAbsenceFirst;
         const isFirstLocked = isCLTMotoPayroll && (entry?.first_period_base_locked === true);
-        const lockedFirstBase = isFirstLocked ? (entry?.first_period_base ?? calcStd.first_period_base ?? 0) : null;
         const firstPeriodNetFinal = isFirstLocked
-          ? Math.round((lockedFirstBase - (entry?.first_period_advance ?? 0) - firstTotal - absenceFirst) * 100) / 100
+          ? Math.round(((entry?.first_period_net ?? 0) - firstFromCashTotal - absenceDeltaFirst) * 100) / 100
           : calcStd.first_period_net;
 
         setMergedEntry({
