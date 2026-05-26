@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const NEW_VALUE = 36.50;
+const NEW_VALUE = 36.05;
 const OLD_VALUE = 35.00;
 const DIFF      = NEW_VALUE - OLD_VALUE; // 1.50
 
