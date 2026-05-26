@@ -58,12 +58,18 @@ Deno.serve(async (req) => {
       const snap = unionSnapshot[i];
       if (!snap.id) continue;
 
-      await updateWithRetry(base44.asServiceRole.entities, snap.id, {
+      // Restaura campos — inclui net_total se estava no snapshot
+      // (entradas processadas pela versão antiga tinham net_total alterado incorretamente)
+      const restoreData = {
         union_contribution_value: snap.union_contribution_value,
         union_contribution:       snap.union_contribution,
         second_period_net:        snap.second_period_net,
-        // first_period_net não foi alterado, não precisa reverter
-      });
+        // first_period_net não foi alterado — não precisa reverter
+      };
+      if (snap.net_total != null && snap.net_total > 0) {
+        restoreData.net_total = snap.net_total;
+      }
+      await updateWithRetry(base44.asServiceRole.entities, snap.id, restoreData);
 
       revertedCount++;
 

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { base44 } from '@/api/base44Client';
 import { getMonthName } from '@/lib/payrollCalculations';
-import { Plus, Play, CheckCircle2, RotateCcw, Trash2, Edit, AlertTriangle, Zap, Users } from 'lucide-react';
+import { Plus, Play, CheckCircle2, RotateCcw, Trash2, Edit, AlertTriangle, Zap, Users, Wrench } from 'lucide-react';
 import ReadjustmentRuleForm from '@/components/readjustment/ReadjustmentRuleForm';
 import ReadjustmentSimulationDialog from '@/components/readjustment/ReadjustmentSimulationDialog';
 import { toast } from 'sonner';
@@ -124,6 +124,27 @@ export default function Readjustment() {
     } finally {
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = null;
+      setProgress(null);
+      setActionLoading(false);
+      loadRules();
+    }
+  };
+
+  const handleFixNetTotal = async (rule) => {
+    setConfirmAction(null);
+    setActionLoading(true);
+    setProgress({ current: 0, total: 0, label: 'Corrigindo net_total das folhas...' });
+    try {
+      const res = await base44.functions.invoke('fixUnionContribNetTotal', { ruleId: rule.id });
+      if (res.data?.success) {
+        const count = res.data.fixedCount ?? 0;
+        toast.success(count > 0 ? `net_total corrigido em ${count} folha(s). PDF atualizado.` : res.data.message);
+      } else {
+        toast.error(res.data?.error ?? 'Erro ao corrigir');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error ?? err?.message ?? 'Erro');
+    } finally {
       setProgress(null);
       setActionLoading(false);
       loadRules();
@@ -292,11 +313,18 @@ export default function Readjustment() {
                             </Button>
                           )
                         ) : (
-                          <Button size="sm" variant="outline" className="gap-1.5 text-gray-500 border-gray-300 hover:bg-gray-50"
-                            title={`Reverter ajuste de contribuição assistencial${(rule.union_contrib_updated_count ?? 0) < (rule.union_contrib_progress_total ?? 0) ? ' (parcial)' : ''}`}
-                            onClick={() => setConfirmAction({ type: 'revertUnionContrib', rule })}>
-                            <Users className="w-3.5 h-3.5" /> Reverter Contrib.
-                          </Button>
+                          <>
+                            <Button size="sm" variant="outline" className="gap-1.5 text-gray-500 border-gray-300 hover:bg-gray-50"
+                              title={`Reverter ajuste de contribuição assistencial${(rule.union_contrib_updated_count ?? 0) < (rule.union_contrib_progress_total ?? 0) ? ' (parcial)' : ''}`}
+                              onClick={() => setConfirmAction({ type: 'revertUnionContrib', rule })}>
+                              <Users className="w-3.5 h-3.5" /> Reverter Contrib.
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-1.5 text-orange-500 border-orange-300 hover:bg-orange-50"
+                              title="Corrigir net_total das folhas (desfaz alteração incorreta do net_total pela versão antiga)"
+                              onClick={() => setConfirmAction({ type: 'fixNetTotal', rule })}>
+                              <Wrench className="w-3.5 h-3.5" /> Corrigir PDF
+                            </Button>
+                          </>
                         )}
                         <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50"
                           onClick={() => setConfirmAction({ type: 'revert', rule })}>
@@ -415,6 +443,13 @@ export default function Readjustment() {
                   {confirmAction.type === 'revertUnionContrib' && (
                     <p>Os valores de Contribuição Assistencial e 2ª quinzena serão restaurados aos valores anteriores ao ajuste.</p>
                   )}
+                  {confirmAction.type === 'fixNetTotal' && (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 space-y-1">
+                      <p className="font-medium">Corrige folhas processadas pela versão anterior.</p>
+                      <p>Restaura <strong>net_total</strong> ao valor original (mantendo o ajuste da contribuição assistencial e 2ª quinzena intactos).</p>
+                      <p className="text-xs">Isso corrige a exibição no PDF para folhas onde o net_total foi incorretamente reduzido.</p>
+                    </div>
+                  )}
                   {confirmAction.type === 'delete' && <p>O reajuste será excluído permanentemente.</p>}
                 </div>
               </div>
@@ -429,6 +464,7 @@ export default function Readjustment() {
                   else if (confirmAction.type === 'forceRevert') handleRevert(confirmAction.rule, true);
                   else if (confirmAction.type === 'unionContrib') handleUnionContrib(confirmAction.rule, false);
                   else if (confirmAction.type === 'revertUnionContrib') handleUnionContrib(confirmAction.rule, true);
+                  else if (confirmAction.type === 'fixNetTotal') handleFixNetTotal(confirmAction.rule);
                   else if (confirmAction.type === 'delete') handleDelete(confirmAction.rule);
                 }}
               >
@@ -436,7 +472,8 @@ export default function Readjustment() {
                  confirmAction.type === 'revert' ? 'Confirmar Reversão' :
                  confirmAction.type === 'forceRevert' ? 'Reverter (Matemática Inversa)' :
                  confirmAction.type === 'unionContrib' ? 'Confirmar Ajuste' :
-                 confirmAction.type === 'revertUnionContrib' ? 'Reverter Ajuste' : 'Excluir'}
+                 confirmAction.type === 'revertUnionContrib' ? 'Reverter Ajuste' :
+                 confirmAction.type === 'fixNetTotal' ? 'Corrigir net_total' : 'Excluir'}
               </Button>
             </div>
           </div>

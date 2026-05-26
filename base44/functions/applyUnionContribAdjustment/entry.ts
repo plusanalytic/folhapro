@@ -78,11 +78,13 @@ Deno.serve(async (req) => {
       const entry = entries[i];
 
       // Salva valores ORIGINAIS desta entrada no snapshot incremental ANTES de alterar
+      // Inclui net_total para que fixUnionContribNetTotal e revert possam restaurá-lo se necessário
       incrementalSnapshot.push({
         id: entry.id,
         union_contribution_value: entry.union_contribution_value ?? OLD_VALUE,
         union_contribution:       entry.union_contribution ?? 0,
         second_period_net:        entry.second_period_net ?? 0,
+        net_total:                entry.net_total ?? 0,  // salvo para referência e reversão
         // first_period_net NÃO é alterado — não precisa no snapshot
       });
 
