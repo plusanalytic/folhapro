@@ -62,15 +62,21 @@ export default function Readjustment() {
 
   const handleApply = async (rule) => {
     setActionLoading(true);
-    const res = await base44.functions.invoke('applyReadjustment', { ruleId: rule.id, applyToSecondOnly });
-    setActionLoading(false);
-    if (res.data?.success) {
-      toast.success(`Reajuste aplicado em ${res.data.updatedCount} folha(s)`);
-      loadRules();
-    } else {
-      toast.error(res.data?.error ?? 'Erro ao aplicar reajuste');
+    try {
+      const res = await base44.functions.invoke('applyReadjustment', { ruleId: rule.id, applyToSecondOnly });
+      if (res.data?.success) {
+        toast.success(`Reajuste aplicado em ${res.data.updatedCount} folha(s)`);
+        loadRules();
+      } else {
+        toast.error(res.data?.error ?? 'Erro ao aplicar reajuste');
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Erro ao aplicar reajuste';
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+      setConfirmAction(null);
     }
-    setConfirmAction(null);
   };
 
   const handleRevert = async (rule) => {
