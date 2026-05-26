@@ -21,11 +21,11 @@
     },
     "payroll_type": {
       "type": "string",
-      "description": "Tipo de folha (quando scope=payroll_type): MOTOCICLISTA_CLT, etc."
+      "description": "Tipo de folha (quando scope=payroll_type)"
     },
     "company_id": {
       "type": "string",
-      "description": "ID da empresa (quando scope=payroll_type \u2014 filtra somente colaboradores desta empresa)"
+      "description": "ID da empresa"
     },
     "employee_id": {
       "type": "string",
@@ -37,55 +37,52 @@
         "type": "string"
       },
       "default": [],
-      "description": "IDs de colaboradores exclu\u00eddos do reajuste (mesmo que estejam no escopo)"
+      "description": "IDs de colaboradores exclu\u00eddos do reajuste"
     },
     "effective_salary_pct": {
       "type": "number",
-      "default": 0,
-      "description": "% de reajuste do sal\u00e1rio efetivo"
+      "default": 0
     },
     "meal_voucher_day_value_pct": {
       "type": "number",
-      "default": 0,
-      "description": "% de reajuste do Vale Refei\u00e7\u00e3o (valor/dia)"
+      "default": 0
     },
     "food_voucher_day_value_pct": {
       "type": "number",
-      "default": 0,
-      "description": "% de reajuste do Vale Alimenta\u00e7\u00e3o efetivo"
+      "default": 0
     },
     "motorcycle_rental_pct": {
       "type": "number",
-      "default": 0,
-      "description": "% de reajuste do Aluguel da Moto efetivo"
+      "default": 0
     },
     "hazard_pay_pct_on_salary": {
       "type": "number",
-      "default": 30,
-      "description": "% da Periculosidade sobre o novo sal\u00e1rio efetivo"
+      "default": 30
     },
     "status": {
       "type": "string",
       "enum": [
         "draft",
+        "applying",
         "applied",
         "reverted"
       ],
-      "default": "draft",
-      "description": "Status do reajuste"
+      "default": "draft"
     },
     "applied_date": {
-      "type": "string",
-      "description": "Data/hora de aplica\u00e7\u00e3o"
+      "type": "string"
     },
     "reverted_date": {
-      "type": "string",
-      "description": "Data/hora de revers\u00e3o"
+      "type": "string"
     },
     "affected_entries_count": {
       "type": "number",
+      "default": 0
+    },
+    "progress_total": {
+      "type": "number",
       "default": 0,
-      "description": "Quantidade de folhas afetadas"
+      "description": "Total de folhas a processar (para barra de progresso)"
     },
     "affected_payroll_entries_snapshot": {
       "type": "array",

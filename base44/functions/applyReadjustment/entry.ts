@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-function r(v) { return Math.round((v ?? 0) * 100) / 100; }
+const r = (v) => Math.round((v ?? 0) * 100) / 100;
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 function computeNewEntry(entry, rule, applyToSecondOnly) {
   const cltMotoBase = entry.clt_moto_base_salary ?? 0;
@@ -43,15 +44,13 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
   const origNetTotal = entry.net_total ?? 0;
   const splitFirst   = entry.first_period_split ?? 0.5;
 
-  const kmBonus    = r((entry.km_bonus_qty ?? 0) * (entry.km_bonus_value ?? 0));
-  const costAllow  = r((entry.cost_allowance ?? 0) * motoRatio);
-  const absSecond  = entry.absence_discount_second ?? 0;
-  const secDiscount= entry.second_period_discount ?? 0;
+  const kmBonus   = r((entry.km_bonus_qty ?? 0) * (entry.km_bonus_value ?? 0));
+  const costAllow = r((entry.cost_allowance ?? 0) * motoRatio);
+  const absSecond = entry.absence_discount_second ?? 0;
 
   let newFirstPeriodNet, newSecondPeriodNet, newFirstBase, newSecondBase, newSplit, baseLocked;
 
   if (applyToSecondOnly) {
-    // 1ª quinzena já foi paga — congela base e net da 1ª, toda diferença vai para a 2ª
     const oldFirstBase = entry.first_period_base ?? r(origNetTotal * splitFirst);
     newFirstBase       = oldFirstBase;
     newSecondBase      = r(newNetTotal - oldFirstBase);
@@ -61,13 +60,12 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
     newSecondPeriodNet = r((entry.second_period_net ?? 0) + retroativo);
     baseLocked         = true;
   } else {
-    // Distribui proporcionalmente entre as quinzenas
     newFirstBase  = r(newNetTotal * splitFirst);
     newSecondBase = r(newNetTotal - newFirstBase);
     newSplit      = splitFirst;
     const firstAdv   = entry.first_period_advance ?? 0;
     const absFirst   = entry.absence_discount_first ?? 0;
-    const firstDiscountTotal = (entry.first_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount||0) : s + (d.amount||0), 0);
+    const firstDiscountTotal  = (entry.first_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount||0) : s + (d.amount||0), 0);
     const secondDiscountTotal = (entry.second_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount||0) : s + (d.amount||0), 0);
     newFirstPeriodNet  = r(newFirstBase - firstAdv - firstDiscountTotal - absFirst);
     newSecondPeriodNet = r(newSecondBase + newFoodVEff + kmBonus + costAllow - (entry.second_period_discount ?? secondDiscountTotal) - absSecond);
@@ -75,23 +73,23 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
   }
 
   return {
-    clt_moto_base_salary:    newCltMotoBase,
+    clt_moto_base_salary:      newCltMotoBase,
     clt_moto_effective_salary: newEffSalary,
-    hazard_pay:              newHazardPay,
-    motorcycle_rental:       newMotoRentalFull,
-    food_voucher:            newFoodVFull,
-    meal_voucher_day_value:  newMealVDayValue,
-    inss:                    inssGrossNew,
-    inss_discount:           inssDiscount,
-    gross_total:             newGrossTotal,
-    net_total:               newNetTotal,
-    first_period_base:       newFirstBase,
-    second_period_base:      newSecondBase,
-    first_period_split:      newSplit,
-    first_period_net:        newFirstPeriodNet,
-    second_period_net:       newSecondPeriodNet,
-    first_period_base_locked: baseLocked,
-    _new_base_salary:        newCltMotoBase,
+    hazard_pay:                newHazardPay,
+    motorcycle_rental:         newMotoRentalFull,
+    food_voucher:              newFoodVFull,
+    meal_voucher_day_value:    newMealVDayValue,
+    inss:                      inssGrossNew,
+    inss_discount:             inssDiscount,
+    gross_total:               newGrossTotal,
+    net_total:                 newNetTotal,
+    first_period_base:         newFirstBase,
+    second_period_base:        newSecondBase,
+    first_period_split:        newSplit,
+    first_period_net:          newFirstPeriodNet,
+    second_period_net:         newSecondPeriodNet,
+    first_period_base_locked:  baseLocked,
+    _new_base_salary:          newCltMotoBase,
   };
 }
 
@@ -114,7 +112,7 @@ Deno.serve(async (req) => {
     } else if (rule.readjustment_scope === 'payroll_type' && rule.payroll_type) {
       const [jobRoles, allEmployees] = await Promise.all([
         base44.asServiceRole.entities.JobRole.list(),
-        base44.asServiceRole.entities.Employee.filter({ is_active: true }),
+        base44.asServiceRole.entities.Employee.list(),
       ]);
       const matchingRoles = jobRoles.filter(jr => jr.payroll_type === rule.payroll_type);
       const roleIds = new Set(matchingRoles.map(jr => String(jr.tangerino_id)).filter(Boolean));
@@ -124,13 +122,10 @@ Deno.serve(async (req) => {
           .map(e => e.id)
       );
       entries = allEntries.filter(e => relevantEmployeeIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);
-    } else if (rule.readjustment_scope === 'payroll_type' && !rule.payroll_type) {
-      entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
     } else {
       entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
     }
 
-    // Filter out explicitly excluded employees
     if (rule.excluded_employee_ids && rule.excluded_employee_ids.length > 0) {
       const excludedSet = new Set(rule.excluded_employee_ids);
       entries = entries.filter(e => !excludedSet.has(e.employee_id));
@@ -140,10 +135,21 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Nenhuma folha encontrada para o escopo selecionado' }, { status: 400 });
     }
 
+    // ✅ Salva snapshot e inicia status ANTES de qualquer update (proteção contra crash/rate limit)
     const snapshot = entries.map(e => ({ ...e }));
+    await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
+      status: 'applying',
+      affected_entries_count: 0,
+      progress_total: entries.length,
+      affected_payroll_entries_snapshot: snapshot,
+    });
 
     let updatedCount = 0;
-    for (const entry of entries) {
+    const BATCH_SIZE = 5;
+    const DELAY_MS = 300; // 300ms entre batches para evitar rate limit
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
       const newFields = computeNewEntry(entry, rule, applyToSecondOnly);
       const { _new_base_salary, ...entryFields } = newFields;
 
@@ -154,13 +160,21 @@ Deno.serve(async (req) => {
       }
 
       updatedCount++;
+
+      // Atualiza progresso a cada BATCH_SIZE entradas
+      if (updatedCount % BATCH_SIZE === 0) {
+        await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
+          affected_entries_count: updatedCount,
+        });
+        await sleep(DELAY_MS);
+      }
     }
 
+    // Finaliza com status applied
     await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
       status: 'applied',
       applied_date: new Date().toISOString(),
       affected_entries_count: updatedCount,
-      affected_payroll_entries_snapshot: snapshot,
     });
 
     return Response.json({ success: true, updatedCount });
