@@ -121,13 +121,24 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           first_period_split: entry?.first_period_split ?? 0.5,
         }, employee.contract_type, payrollType);
+        // Para CLT moto com 1ª quinzena travada (1ª quinzena já paga + reajuste aplicado):
+        // calcStd usa union_contribution_value=36.05 no net_total, o que reduz firstBase proporcionalmente
+        // pelo split — desconta indevidamente R$0.52 da 1ª quinzena.
+        // Nesse caso, reconstrói first_period_net a partir do first_period_base travado (salvo pelo reajuste),
+        // que é imune a alterações na contribuição assistencial.
+        const isFirstLocked = isCLTMotoPayroll && (entry?.first_period_base_locked === true);
+        const lockedFirstBase = isFirstLocked ? (entry?.first_period_base ?? calcStd.first_period_base ?? 0) : null;
+        const firstPeriodNetFinal = isFirstLocked
+          ? Math.round((lockedFirstBase - (entry?.first_period_advance ?? 0) - firstTotal - absenceFirst) * 100) / 100
+          : calcStd.first_period_net;
+
         setMergedEntry({
           ...entry,
           first_discounts: firstDiscounts, second_discounts: secondDiscounts,
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
-          first_period_net: calcStd.first_period_net, second_period_net: calcStd.second_period_net + (isCLTMotoPayroll ? (entry?.route_sp_bonus ?? 0) : 0),
+          first_period_net: firstPeriodNetFinal, second_period_net: calcStd.second_period_net + (isCLTMotoPayroll ? (entry?.route_sp_bonus ?? 0) : 0),
           // Sobrescreve com valores efetivos para exibição correta no holerite
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
