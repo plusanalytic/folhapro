@@ -60,15 +60,37 @@ export default function Readjustment() {
   const companyName = (id) => companies.find(c => c.id === id)?.name ?? id;
   const employeeName = (id) => employees.find(e => e.id === id)?.name ?? id;
 
-  const startPolling = (ruleId, label) => {
+  const startPolling = (ruleId, label, stopCondition = null) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
         const updated = await base44.entities.ReadjustmentRule.get(ruleId);
+        // Condição de parada customizável (para union contrib)
+        const shouldStop = stopCondition ? stopCondition(updated) : (updated?.status !== 'applying');
         const current = updated?.affected_entries_count ?? 0;
         const total   = updated?.progress_total ?? 0;
         setProgress({ current, total, label });
-        if (updated?.status !== 'applying') {
+        if (shouldStop) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setProgress(null);
+          setActionLoading(false);
+          loadRules();
+        }
+      } catch { /* ignora erros de poll */ }
+    }, 1500);
+  };
+
+  const startUnionPolling = (ruleId, label) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const updated = await base44.entities.ReadjustmentRule.get(ruleId);
+        const current = updated?.union_contrib_updated_count ?? 0;
+        const total   = updated?.union_contrib_progress_total ?? 0;
+        setProgress({ current, total, label });
+        const done = !updated?.union_contrib_in_progress;
+        if (done) {
           clearInterval(pollRef.current);
           pollRef.current = null;
           setProgress(null);
@@ -82,19 +104,26 @@ export default function Readjustment() {
   const handleUnionContrib = async (rule, revert = false) => {
     setConfirmAction(null);
     setActionLoading(true);
-    setProgress({ current: 0, total: 0, label: revert ? 'Revertendo contribuição assistencial...' : 'Aplicando contribuição assistencial...' });
+    const label = revert ? 'Revertendo contribuição assistencial...' : 'Aplicando contribuição assistencial...';
+    setProgress({ current: 0, total: 0, label });
+    if (!revert) {
+      startUnionPolling(rule.id, label);
+    }
     try {
       const fnName = revert ? 'revertUnionContribAdjustment' : 'applyUnionContribAdjustment';
       const res = await base44.functions.invoke(fnName, { ruleId: rule.id });
       if (res.data?.success) {
         const count = res.data.updatedCount ?? res.data.revertedCount ?? 0;
-        toast.success(`Contribuição assistencial ${revert ? 'revertida' : 'ajustada'} em ${count} folha(s)`);
+        const partialMsg = res.data.isPartial ? ` ${res.data.partialLabel}` : '';
+        toast.success(`Contribuição assistencial ${revert ? 'revertida' : 'ajustada'} em ${count} folha(s)${partialMsg}`);
       } else {
         toast.error(res.data?.error ?? 'Erro ao processar contribuição assistencial');
       }
     } catch (err) {
       toast.error(err?.response?.data?.error ?? err?.message ?? 'Erro');
     } finally {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
       setProgress(null);
       setActionLoading(false);
       loadRules();
@@ -251,14 +280,20 @@ export default function Readjustment() {
                           <Play className="w-3.5 h-3.5" /> Ver Simulação
                         </Button>
                         {!rule.union_contrib_applied ? (
-                          <Button size="sm" variant="outline" className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50"
-                            title="Atualizar Contribuição Assistencial de R$35 para R$36,50 (-R$1,50 na 2ª quinzena)"
-                            onClick={() => setConfirmAction({ type: 'unionContrib', rule })}>
-                            <Users className="w-3.5 h-3.5" /> Contrib. Assist.
-                          </Button>
+                          rule.union_contrib_in_progress ? (
+                            <Button size="sm" variant="outline" disabled className="gap-1.5 text-purple-400 border-purple-200">
+                              <Users className="w-3.5 h-3.5 animate-pulse" /> Processando...
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50"
+                              title="Atualizar Contribuição Assistencial de R$35 para R$36,05 (-R$1,05 na 2ª quinzena)"
+                              onClick={() => setConfirmAction({ type: 'unionContrib', rule })}>
+                              <Users className="w-3.5 h-3.5" /> Contrib. Assist.
+                            </Button>
+                          )
                         ) : (
                           <Button size="sm" variant="outline" className="gap-1.5 text-gray-500 border-gray-300 hover:bg-gray-50"
-                            title="Reverter ajuste de contribuição assistencial"
+                            title={`Reverter ajuste de contribuição assistencial${(rule.union_contrib_updated_count ?? 0) < (rule.union_contrib_progress_total ?? 0) ? ' (parcial)' : ''}`}
                             onClick={() => setConfirmAction({ type: 'revertUnionContrib', rule })}>
                             <Users className="w-3.5 h-3.5" /> Reverter Contrib.
                           </Button>

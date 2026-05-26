@@ -95,7 +95,12 @@
     "union_contrib_applied": {
       "type": "boolean",
       "default": false,
-      "description": "Ajuste de contribui\u00e7\u00e3o assistencial aplicado"
+      "description": "Ajuste de contribui\u00e7\u00e3o assistencial aplicado (total ou parcial)"
+    },
+    "union_contrib_in_progress": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica que o ajuste de contribui\u00e7\u00e3o assistencial est\u00e1 em processamento"
     },
     "union_contrib_applied_date": {
       "type": "string"
@@ -107,13 +112,18 @@
       "type": "number",
       "default": 0
     },
+    "union_contrib_progress_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de folhas a processar no ajuste de contribui\u00e7\u00e3o (para barra de progresso)"
+    },
     "union_contrib_snapshot": {
       "type": "array",
       "items": {
         "type": "object"
       },
       "default": [],
-      "description": "Snapshot dos campos de contribui\u00e7\u00e3o assistencial (para revers\u00e3o)"
+      "description": "Snapshot incremental dos campos de contribui\u00e7\u00e3o assistencial \u2014 cresce \u00e0 medida que entradas s\u00e3o processadas (suporte a estorno parcial)"
     }
   },
   "required": [
