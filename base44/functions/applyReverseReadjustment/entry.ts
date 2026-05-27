@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const r = (v) => Math.round((v ?? 0) * 100) / 100;
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-function computeNewEntry(entry, rule, applyToSecondOnly) {
+function computeReducedEntry(entry, rule, applyToSecondOnly) {
   const cltMotoBase = entry.clt_moto_base_salary ?? 0;
   const cltMotoDays = Number(entry.clt_moto_worked_days ?? 30);
   const cltMotoEffective = entry.clt_moto_effective_salary
@@ -13,10 +13,11 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
   const contractDays  = entry.contract_working_days ?? 0;
   const motoRatio = fullMonthDays > 0 ? contractDays / fullMonthDays : 1;
 
-  const salaryFactor = 1 + (rule.effective_salary_pct ?? 0) / 100;
-  const motoFactor   = 1 + (rule.motorcycle_rental_pct ?? 0) / 100;
-  const foodFactor   = 1 + (rule.food_voucher_day_value_pct ?? 0) / 100;
-  const mealFactor   = 1 + (rule.meal_voucher_day_value_pct ?? 0) / 100;
+  // Reduce: use (1 - pct/100) instead of (1 + pct/100)
+  const salaryFactor = 1 - (rule.effective_salary_pct ?? 0) / 100;
+  const motoFactor   = 1 - (rule.motorcycle_rental_pct ?? 0) / 100;
+  const foodFactor   = 1 - (rule.food_voucher_day_value_pct ?? 0) / 100;
+  const mealFactor   = 1 - (rule.meal_voucher_day_value_pct ?? 0) / 100;
   const hazardPct    = (rule.hazard_pay_pct_on_salary ?? 30) / 100;
 
   const newEffSalary      = r(cltMotoEffective * salaryFactor);
@@ -96,13 +97,12 @@ function computeNewEntry(entry, rule, applyToSecondOnly) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-
     const { ruleId, applyToSecondOnly = false } = await req.json();
     if (!ruleId) return Response.json({ error: 'ruleId obrigatório' }, { status: 400 });
 
     const rule = await base44.asServiceRole.entities.ReadjustmentRule.get(ruleId);
     if (!rule) return Response.json({ error: 'Regra não encontrada' }, { status: 404 });
-    if (rule.status === 'applied') return Response.json({ error: 'Reajuste já aplicado' }, { status: 400 });
+    if (rule.status === 'applied') return Response.json({ error: 'Redução já aplicada' }, { status: 400 });
 
     const allEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: rule.reference_month });
 
@@ -142,7 +142,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Nenhuma folha encontrada para o escopo selecionado' }, { status: 400 });
     }
 
-    // ✅ Salva snapshot e inicia status ANTES de qualquer update (proteção contra crash/rate limit)
     const snapshot = entries.map(e => ({ ...e }));
     await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
       status: 'applying',
@@ -153,11 +152,11 @@ Deno.serve(async (req) => {
 
     let updatedCount = 0;
     const BATCH_SIZE = 5;
-    const DELAY_MS = 300; // 300ms entre batches para evitar rate limit
+    const DELAY_MS = 300;
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
-      const newFields = computeNewEntry(entry, rule, applyToSecondOnly);
+      const newFields = computeReducedEntry(entry, rule, applyToSecondOnly);
       const { _new_base_salary, ...entryFields } = newFields;
 
       await base44.asServiceRole.entities.PayrollEntry.update(entry.id, entryFields);
@@ -168,16 +167,12 @@ Deno.serve(async (req) => {
 
       updatedCount++;
 
-      // Atualiza progresso a cada BATCH_SIZE entradas
       if (updatedCount % BATCH_SIZE === 0) {
-        await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
-          affected_entries_count: updatedCount,
-        });
+        await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, { affected_entries_count: updatedCount });
         await sleep(DELAY_MS);
       }
     }
 
-    // Finaliza com status applied
     await base44.asServiceRole.entities.ReadjustmentRule.update(ruleId, {
       status: 'applied',
       applied_date: new Date().toISOString(),

@@ -415,6 +415,7 @@ export default function Payroll() {
                     <th className="p-3 pl-4 w-8"></th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Colaborador</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Local</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Sal. Efetivo</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 1ªQ</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Descontos 1ªQ</th>
@@ -458,6 +459,12 @@ export default function Payroll() {
                          </td>
                          <td className="p-3 text-sm text-muted-foreground">
                            {jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))?.name || '—'}
+                         </td>
+                         <td className="p-3 text-sm text-muted-foreground">
+                           {(() => {
+                             const list = (emp.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean);
+                             return list.length > 0 ? <span title={list.join(', ')}>{list[0]}{list.length > 1 ? ` +${list.length - 1}` : ''}</span> : '—';
+                           })()}
                          </td>
                          <td className="p-3 text-right font-mono">{effectiveSalary !== null ? formatCurrency(effectiveSalary) : '—'}</td>
                          <td className="p-3 text-right font-mono font-semibold text-blue-600">{entry ? formatCurrency(entry.first_period_net || 0) : '—'}</td>
@@ -755,6 +762,7 @@ export default function Payroll() {
           <FormComponent
             key={`${editingEmployee.id}-${editingEntry?.id ?? 'new'}`}
             employee={editingEmployee}
+            workplaces={workplaces}
             entry={editingEntry}
             referenceMonth={selectedMonth}
             readOnly={viewOnly || editingEntry?.status === 'closed' || isMonthClosed(editingEntry?.company_id || editingEmployee?.company_id)}

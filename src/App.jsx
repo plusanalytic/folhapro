@@ -21,6 +21,7 @@ import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';
 import AccessManagement from '@/pages/AccessManagement';
 import Readjustment from '@/pages/Readjustment';
+import ReverseReadjustment from '@/pages/ReverseReadjustment';
 import AppLogin from '@/pages/AppLogin';
 import { AppUserContext } from '@/lib/AppUserContext';
 import { Navigate } from 'react-router-dom';
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
         <Route path="/payments"          element={can('payments')          ? <Payments />     : <Navigate to="/" replace />} />
         <Route path="/access"            element={can('access')            ? <AccessManagement currentAppUser={appUser} /> : <Navigate to="/" replace />} />
         <Route path="/readjustment"       element={can('readjustment')       ? <Readjustment /> : <Navigate to="/" replace />} />
+        <Route path="/reverse-readjustment" element={can('reverse-readjustment') ? <ReverseReadjustment /> : <Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

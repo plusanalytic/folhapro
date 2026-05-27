@@ -6,14 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 
-export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
+export default function ReadjustmentRuleForm({ rule, onSave, onClose, isReverse = false }) {
   const [employees, setEmployees] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [workplaces, setWorkplaces] = useState([]);
   const [payrollEmployeeIds, setPayrollEmployeeIds] = useState(null); // null = not loaded yet
+  // subScope: 'all' | 'workplace' | 'employees'
+  const [subScope, setSubScope] = useState(() => {
+    if (rule?.workplace_tangerino_id) return 'workplace';
+    if ((rule?.excluded_employee_ids ?? []).length > 0) return 'employees';
+    return 'all';
+  });
   const [form, setForm] = useState({
     description: rule?.description ?? '',
     reference_month: rule?.reference_month ?? '',
+    workplace_tangerino_id: rule?.workplace_tangerino_id ?? '',
     readjustment_scope: rule?.readjustment_scope ?? 'payroll_type',
     payroll_type: rule?.payroll_type ?? 'MOTOCICLISTA_CLT',
     company_id: rule?.company_id ?? '',
@@ -31,6 +39,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     base44.entities.Employee.list().then(setEmployees);
     base44.entities.JobRole.list().then(jrs => setJobRoles(jrs.filter(j => j.payroll_type)));
     base44.entities.Company.filter({ is_active: true }).then(setCompanies);
+    base44.entities.Workplace.list().then(setWorkplaces);
   }, []);
 
   // When company + month are set, load payroll entries to know who has a launch
@@ -74,10 +83,16 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     });
   };
 
+  const handleSubScopeChange = (v) => {
+    setSubScope(v);
+    if (v !== 'workplace') setForm(f => ({ ...f, workplace_tangerino_id: '' }));
+    if (v !== 'employees') setForm(f => ({ ...f, excluded_employee_ids: [] }));
+  };
+
   const handleSave = async () => {
     if (!form.reference_month) return alert('Informe o mês de referência');
     setSaving(true);
-    const data = { ...form };
+    const data = { ...form, rule_type: isReverse ? 'decrease' : 'increase' };
     if (data.readjustment_scope !== 'payroll_type') { data.payroll_type = ''; data.company_id = ''; data.excluded_employee_ids = []; }
     if (data.readjustment_scope !== 'employee') data.employee_id = '';
     if (rule?.id) {
@@ -93,7 +108,7 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{rule?.id ? 'Editar Reajuste' : 'Novo Reajuste'}</DialogTitle>
+          <DialogTitle>{rule?.id ? (isReverse ? 'Editar Redução' : 'Editar Reajuste') : (isReverse ? 'Nova Redução Salarial' : 'Novo Reajuste')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -151,7 +166,36 @@ export default function ReadjustmentRuleForm({ rule, onSave, onClose }) {
             </div>
           )}
 
-          {form.readjustment_scope === 'payroll_type' && form.company_id && companyEmployees.length > 0 && (
+          {form.readjustment_scope === 'payroll_type' && (
+            <div>
+              <Label>Filtrar colaboradores por</Label>
+              <Select value={subScope} onValueChange={handleSubScopeChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="workplace">Local de Trabalho</SelectItem>
+                  <SelectItem value="employees">Selecionar Colaboradores</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {form.readjustment_scope === 'payroll_type' && subScope === 'workplace' && (
+            <div>
+              <Label>Local de Trabalho</Label>
+              <Select value={form.workplace_tangerino_id || '_all'} onValueChange={v => set('workplace_tangerino_id', v === '_all' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o local..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">Todos os locais</SelectItem>
+                  {workplaces.filter(w => w.tangerino_id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(w => (
+                    <SelectItem key={w.id} value={String(w.tangerino_id)}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {form.readjustment_scope === 'payroll_type' && subScope === 'employees' && form.company_id && companyEmployees.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Colaboradores desta empresa <span className="text-muted-foreground text-xs">({companyEmployees.length - (form.excluded_employee_ids?.length ?? 0)} selecionados)</span></Label>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, ChevronLeft, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, ChevronLeft, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppUser } from '@/lib/AppUserContext';
 
@@ -16,7 +16,8 @@ const ALL_NAV_ITEMS = [
 { path: '/payments', moduleKey: 'payments', icon: CreditCard, label: 'Pagamentos' },
 { path: '/reports', moduleKey: 'reports', icon: FileText, label: 'Relatórios' },
 { path: '/access', moduleKey: 'access', icon: ShieldCheck, label: 'Gestão de Acessos' },
-{ path: '/readjustment', moduleKey: 'readjustment', icon: TrendingUp, label: 'Reajuste Salarial' }];
+{ path: '/readjustment', moduleKey: 'readjustment', icon: TrendingUp, label: 'Reajuste Salarial' },
+{ path: '/reverse-readjustment', moduleKey: 'reverse-readjustment', icon: TrendingDown, label: 'Redução Salarial' }];
 
 
 export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMobileClose }) {

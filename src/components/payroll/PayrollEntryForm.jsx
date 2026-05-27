@@ -86,7 +86,7 @@ function calcAutoINSS(salaryEfetivo) {
 
 const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
 
-export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
+export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null, workplaces = [] }) {
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
   // baseLocked: campos que afetam net_total (rateado entre as duas quinzenas)
@@ -524,6 +524,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 flex-wrap">
             {readOnly ? 'Visualização — ' : 'Lançamento — '}{employee.name}
+            {(() => {
+              const list = (employee.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean);
+              return list.length > 0 ? <span className="text-xs font-normal text-blue-600 border border-blue-200 rounded px-2 py-0.5 bg-blue-50">{list.join(', ')}</span> : null;
+            })()}
             <Badge variant={employee.contract_type === 'CLT' ? 'default' : 'secondary'}>{employee.contract_type}</Badge>
             <span className="text-sm font-normal text-muted-foreground">{getMonthName(referenceMonth)}</span>
             {employee.birth_date && (

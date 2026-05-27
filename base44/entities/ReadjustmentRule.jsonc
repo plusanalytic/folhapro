@@ -10,6 +10,15 @@
       "type": "string",
       "description": "M\u00eas de refer\u00eancia (YYYY-MM)"
     },
+    "rule_type": {
+      "type": "string",
+      "enum": [
+        "increase",
+        "decrease"
+      ],
+      "default": "increase",
+      "description": "Tipo: aumento (reajuste) ou redu\u00e7\u00e3o salarial"
+    },
     "readjustment_scope": {
       "type": "string",
       "enum": [
@@ -30,6 +39,10 @@
     "employee_id": {
       "type": "string",
       "description": "ID do colaborador (quando scope=employee)"
+    },
+    "workplace_tangerino_id": {
+      "type": "string",
+      "description": "ID do local de trabalho no Tangerino (filtro opcional por local)"
     },
     "excluded_employee_ids": {
       "type": "array",
@@ -82,7 +95,7 @@
     "progress_total": {
       "type": "number",
       "default": 0,
-      "description": "Total de folhas a processar (para barra de progresso)"
+      "description": "Total de folhas a processar"
     },
     "affected_payroll_entries_snapshot": {
       "type": "array",
@@ -90,17 +103,15 @@
         "type": "object"
       },
       "default": [],
-      "description": "Snapshot das folhas originais (para revers\u00e3o do reajuste salarial)"
+      "description": "Snapshot das folhas originais (para revers\u00e3o)"
     },
     "union_contrib_applied": {
       "type": "boolean",
-      "default": false,
-      "description": "Ajuste de contribui\u00e7\u00e3o assistencial aplicado (total ou parcial)"
+      "default": false
     },
     "union_contrib_in_progress": {
       "type": "boolean",
-      "default": false,
-      "description": "Indica que o ajuste de contribui\u00e7\u00e3o assistencial est\u00e1 em processamento"
+      "default": false
     },
     "union_contrib_applied_date": {
       "type": "string"
@@ -114,16 +125,14 @@
     },
     "union_contrib_progress_total": {
       "type": "number",
-      "default": 0,
-      "description": "Total de folhas a processar no ajuste de contribui\u00e7\u00e3o (para barra de progresso)"
+      "default": 0
     },
     "union_contrib_snapshot": {
       "type": "array",
       "items": {
         "type": "object"
       },
-      "default": [],
-      "description": "Snapshot incremental dos campos de contribui\u00e7\u00e3o assistencial \u2014 cresce \u00e0 medida que entradas s\u00e3o processadas (suporte a estorno parcial)"
+      "default": []
     }
   },
   "required": [
