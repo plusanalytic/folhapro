@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2 } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2, CheckSquare } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +62,8 @@ export default function Payroll() {
   const [addEsporadico, setAddEsporadico] = useState(null); // { companyId }
   const [confirmDelete, setConfirmDelete] = useState(null); // { entry, empName }
   const [editingEntryCompanyId, setEditingEntryCompanyId] = useState(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(null); // { action: 'close'|'reopen', entryList: [] }
 
   const load = async () => {
     const [e, c, w, jr, p, m, ps] = await Promise.all([
@@ -95,7 +98,7 @@ export default function Payroll() {
     setPaymentStatuses(ps);
   };
 
-  useEffect(() => { load(); }, [selectedMonth]);
+  useEffect(() => { load(); setSelectedEntryIds(new Set()); }, [selectedMonth]);
 
   const isMonthClosed = (companyId) => {
     const mc = monthCloses.find(m => m.company_id === companyId);
@@ -219,6 +222,29 @@ export default function Payroll() {
       .filter(e => e.company_id === companyId && e.reference_month === selectedMonth)
       .map(e => ({ entry: e, emp: employees.find(emp => emp.id === e.employee_id) }))
       .filter(({ emp }) => emp && emp.contract_type === 'ESPORADICO');
+  };
+
+  const toggleSelectEntry = (entryId) => {
+    setSelectedEntryIds(prev => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (action, entryList) => {
+    for (const entry of entryList) {
+      if (action === 'close') {
+        await base44.entities.PayrollEntry.update(entry.id, { status: 'closed' });
+      } else {
+        if (!hasPaymentBaixa(entry)) {
+          await base44.entities.PayrollEntry.update(entry.id, { status: 'open' });
+        }
+      }
+    }
+    setSelectedEntryIds(new Set());
+    load();
+    toast.success(action === 'close' ? `${entryList.length} folha(s) fechada(s)!` : `${entryList.length} folha(s) reaberta(s)!`);
   };
 
   const handleDeleteEntry = async (entry) => {
@@ -386,17 +412,19 @@ export default function Payroll() {
                 <table className="w-full text-sm">
                   <thead>
                    <tr className="border-t border-b border-border bg-muted/30">
-                     <th className="text-left p-3 pl-6 font-medium text-muted-foreground">Colaborador</th>
-                     <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Sal. Efetivo</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 1ªQ</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Descontos 1ªQ</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 2ªQ</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Descontos 2ªQ</th>
-                     <th className="text-right p-3 font-medium text-muted-foreground">Bonificações</th>
-                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
-                     <th className="text-right p-3 pr-6 font-medium text-muted-foreground">Ação</th>
-                   </tr>
+                    <th className="p-3 pl-4 w-8"></th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Colaborador</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Sal. Efetivo</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 1ªQ</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Descontos 1ªQ</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Á Receber 2ªQ</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Descontos 2ªQ</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Bonificações</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Dias Contrato</th>
+                    <th className="text-right p-3 pr-6 font-medium text-muted-foreground">Ação</th>
+                    </tr>
                   </thead>
                   <tbody>
                    {[
@@ -412,7 +440,15 @@ export default function Payroll() {
 
                      return (
                        <tr key={rowKey} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                         <td className="p-3 pl-6">
+                         <td className="p-3 pl-4">
+                           {entry && (
+                             <Checkbox
+                               checked={selectedEntryIds.has(entry.id)}
+                               onCheckedChange={() => toggleSelectEntry(entry.id)}
+                             />
+                           )}
+                         </td>
+                          <td className="p-3 pl-3">
                            <div className="flex items-center gap-2">
                              <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-semibold text-primary">
                                {emp.name.slice(0, 2).toUpperCase()}
@@ -453,6 +489,14 @@ export default function Payroll() {
                                 if (entry?.status === 'closed') return <Badge variant="destructive" className="text-xs gap-1"><Lock className="w-2.5 h-2.5" />Fechado</Badge>;
                                 return <Badge variant={entry ? 'default' : 'outline'} className="text-xs">{entry ? 'Lançado' : 'Pendente'}</Badge>;
                               })()}
+                            </td>
+                            <td className="p-3 text-center">
+                              {entry && (entry.full_month_contract_working_days > 0 || entry.contract_working_days > 0) ? (
+                                <div className="text-xs text-muted-foreground space-y-0.5">
+                                  <div><span className="text-foreground font-medium">{entry.full_month_contract_working_days ?? '—'}</span> <span>total</span></div>
+                                  <div><span className="text-foreground font-medium">{entry.contract_working_days ?? '—'}</span> <span>trab.</span></div>
+                                </div>
+                              ) : '—'}
                             </td>
                             <td className="p-3 pr-6 text-right">
                               <div className="flex gap-1.5 justify-end">
@@ -565,6 +609,29 @@ export default function Payroll() {
         );
       })}
 
+      {selectedEntryIds.size > 0 && (() => {
+        const selEntries = entries.filter(e => selectedEntryIds.has(e.id));
+        const openOnes   = selEntries.filter(e => e.status !== 'closed');
+        const closedOnes = selEntries.filter(e => e.status === 'closed');
+        return (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card border border-border shadow-xl rounded-xl px-5 py-3 flex items-center gap-4">
+            <CheckSquare className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{selectedEntryIds.size} folha(s) selecionada(s)</span>
+            {openOnes.length > 0 && !readOnly && (
+              <Button size="sm" variant="default" className="gap-1.5" onClick={() => setConfirmBulk({ action: 'close', entryList: openOnes })}>
+                <Lock className="w-3.5 h-3.5" /> Fechar {openOnes.length > 1 ? `(${openOnes.length})` : ''}
+              </Button>
+            )}
+            {closedOnes.length > 0 && !readOnly && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setConfirmBulk({ action: 'reopen', entryList: closedOnes })}>
+                <Unlock className="w-3.5 h-3.5" /> Reabrir {closedOnes.length > 1 ? `(${closedOnes.length})` : ''}
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => setSelectedEntryIds(new Set())}>Cancelar</Button>
+          </div>
+        );
+      })()}
+
       <ConfirmDialog
         open={!!confirmClose}
         onOpenChange={(v) => !v && setConfirmClose(null)}
@@ -596,6 +663,18 @@ export default function Payroll() {
           if (confirmReopen?.type === 'month') handleReopenMonth(confirmReopen.companyId);
           else handleReopenEmployeeEntry(confirmReopen.entry, confirmReopen.empName);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!confirmBulk}
+        onOpenChange={(v) => !v && setConfirmBulk(null)}
+        title={confirmBulk?.action === 'close' ? `Fechar ${confirmBulk?.entryList?.length} folha(s)?` : `Reabrir ${confirmBulk?.entryList?.length} folha(s)?`}
+        description={confirmBulk?.action === 'close'
+          ? `Deseja fechar as ${confirmBulk?.entryList?.length} folhas selecionadas? Após fechar, não será possível editá-las.`
+          : `Deseja reabrir as ${confirmBulk?.entryList?.length} folhas selecionadas?`}
+        confirmLabel={confirmBulk?.action === 'close' ? 'Fechar Todas' : 'Reabrir Todas'}
+        confirmVariant={confirmBulk?.action === 'close' ? 'destructive' : 'default'}
+        onConfirm={() => handleBulkAction(confirmBulk.action, confirmBulk.entryList)}
       />
 
       <ConfirmDialog
