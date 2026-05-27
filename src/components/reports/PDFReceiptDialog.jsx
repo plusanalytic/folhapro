@@ -99,12 +99,6 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
 
         setMergedEntry({
           ...entry,
-          // Base quinzenal = exatamente o que foi salvo (mesmo valor do formulário)
-          first_period_base:  entry?.first_period_base  ?? 0,
-          second_period_base: entry?.second_period_base ?? 0,
-          // A Receber = exatamente o que foi salvo (mesmo valor do formulário)
-          first_period_net:  entry?.first_period_net  ?? 0,
-          second_period_net: entry?.second_period_net ?? 0,
           // Descontos salvos (já têm cashouts mesclados do último save)
           first_discounts:  entry?.first_discounts  ?? [],
           second_discounts: entry?.second_discounts ?? [],
