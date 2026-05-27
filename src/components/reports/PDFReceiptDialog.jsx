@@ -116,6 +116,10 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
+          // Base quinzenal: sempre os valores salvos no banco
+          first_period_base:  entry?.first_period_base  ?? 0,
+          second_period_base: entry?.second_period_base ?? 0,
+          // A Receber: valor salvo ± deltas de novos cashouts e mudanças de faltas
           first_period_net:  firstPeriodNetFinal,
           second_period_net: secondPeriodNetFinal,
           // Sobrescreve com valores efetivos para exibição correta no holerite
