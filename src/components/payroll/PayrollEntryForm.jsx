@@ -402,9 +402,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_split: firstPeriodSplit,
   };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
-  // Quando 1ª quinzena está paga: congela base da 1ª e absorve todo delta (reajuste, benefícios, contribuição) na 2ª quinzena
+  // Quando 1ª quinzena está paga OU base foi congelada por reajuste:
+  // congela base da 1ª e absorve todo delta (moto rental, ajustes) na 2ª quinzena
   const calc = (() => {
-    const frozenFirst = q1Locked && entry?.first_period_base > 0 ? entry.first_period_base : null;
+    const frozenFirst = (q1Locked || entry?.first_period_base_locked) && entry?.first_period_base != null
+      ? entry.first_period_base
+      : null;
     if (frozenFirst !== null && calcRaw.net_total !== 0) {
       // Delta = quanto a 1ª mudou em relação ao congelado — absolvido integralmente pela 2ª
       const delta = calcRaw.first_period_base - frozenFirst;
