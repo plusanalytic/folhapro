@@ -95,22 +95,35 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
         const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
         // Recalcula os totais de faltas por quinzena a partir do mapa detalhado (absence_discounts)
-        // para garantir que os valores apareçam mesmo que absence_discount_first/second não estejam salvos
         const absenceMap = entry?.absence_discounts ?? {};
         const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
+        // Contribuição assistencial: recalcula pelo valor atual (union_contribution_value)
+        // para capturar diferenças de reajuste não refletidas no second_period_net salvo
+        const effectiveSalary = entry?.clt_moto_base_salary > 0
+          ? Math.round((entry.clt_moto_base_salary / 30) * (entry?.clt_moto_worked_days ?? 30) * 100) / 100
+          : (entry?.base_salary ?? 0);
+        const currentUC = entry?.union_contribution_pct > 0
+          ? Math.round((effectiveSalary * (entry.union_contribution_pct / 100)) * 100) / 100
+          : (entry?.union_contribution_value ?? 35);
+        const savedUC   = entry?.union_contribution ?? 0;
+        const ucDiff    = Math.round((currentUC - savedUC) * 100) / 100;
+        // Ajusta second_period_net pela diferença de contribuição não refletida no save
+        const correctedSecondNet = Math.round(((entry?.second_period_net ?? 0) - ucDiff) * 100) / 100;
+
         setMergedEntry({
           ...entry,
-          // Faltas por quinzena: calculadas do mapa detalhado
           absence_discount_first:  absenceFirst,
           absence_discount_second: absenceSecond,
-          // Descontos salvos (já têm cashouts mesclados do último save)
           first_discounts:  entry?.first_discounts  ?? [],
           second_discounts: entry?.second_discounts ?? [],
-          // Valores efetivos para exibição proporcional dos itens no holerite
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
           motorcycle_rental: effMotoRental,
+          // Contribuição assistencial correta (valor atual do reajuste)
+          union_contribution: currentUC,
+          // 2ª quinzena corrigida pela diferença de contribuição assistencial
+          second_period_net: correctedSecondNet,
           _pointAdjustments: pointAdjustments,
         });
       }
