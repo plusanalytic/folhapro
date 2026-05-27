@@ -85,44 +85,30 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           _pointAdjustments: pointAdjustments,
         });
       } else {
-        // CLT moto: usa os valores salvos (first/second_period_net e bases) como verdade,
-        // aplicando apenas deltas de novos cashouts e mudanças de faltas em relação ao salvo.
-        // Isso garante que o PDF exiba exatamente os mesmos valores que o módulo de folha de pagamento.
+        // CLT Moto: usa EXCLUSIVAMENTE os valores salvos no banco.
+        // first_period_net/second_period_net já incluem todos os descontos do ultimo save.
+        // Qualquer recálculo causaria dupla dedução de cashouts/faltas.
         const isCLTMotoPayroll = payrollType === 'MOTOCICLISTA_CLT';
         const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
         const contractDays  = entry?.contract_working_days ?? 0;
         const motoRatio     = (isCLTMotoPayroll && fullMonthDays > 0) ? contractDays / fullMonthDays : 1;
+        // Valores efetivos proporcionais apenas para exibir os itens corretamente na 2ª quinzena
         const effFoodVoucher   = Math.round((entry?.food_voucher   ?? 0) * motoRatio * 100) / 100;
         const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
         const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
 
-        // Deltas em relação aos valores salvos no banco
-        const savedAbsenceFirst  = entry?.absence_discount_first  ?? 0;
-        const savedAbsenceSecond = entry?.absence_discount_second ?? 0;
-        const absenceDeltaFirst  = absenceFirst  - savedAbsenceFirst;
-        const absenceDeltaSecond = absenceSecond - savedAbsenceSecond;
-        const firstFromCashTotal  = firstFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
-        const secondFromCashTotal = secondFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
-
-        // Parte dos valores salvos e aplica somente os deltas
-        const savedFirstNet  = entry?.first_period_net  ?? 0;
-        const savedSecondNet = entry?.second_period_net ?? 0;
-        const firstPeriodNetFinal  = Math.round((savedFirstNet  - firstFromCashTotal  - absenceDeltaFirst)  * 100) / 100;
-        const secondPeriodNetFinal = Math.round((savedSecondNet - secondFromCashTotal - absenceDeltaSecond) * 100) / 100;
-
         setMergedEntry({
           ...entry,
-          first_discounts: firstDiscounts, second_discounts: secondDiscounts,
-          first_period_discount: firstTotal, second_period_discount: secondTotal,
-          absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
-          absence_discount: absenceFirst + absenceSecond,
-          // Base quinzenal: sempre os valores salvos no banco
+          // Base quinzenal = exatamente o que foi salvo (mesmo valor do formulário)
           first_period_base:  entry?.first_period_base  ?? 0,
           second_period_base: entry?.second_period_base ?? 0,
-          // A Receber: valor salvo ± deltas de novos cashouts e mudanças de faltas
-          first_period_net:  firstPeriodNetFinal,
-          second_period_net: secondPeriodNetFinal,
-          // Sobrescreve com valores efetivos para exibição correta no holerite
+          // A Receber = exatamente o que foi salvo (mesmo valor do formulário)
+          first_period_net:  entry?.first_period_net  ?? 0,
+          second_period_net: entry?.second_period_net ?? 0,
+          // Descontos salvos (já têm cashouts mesclados do último save)
+          first_discounts:  entry?.first_discounts  ?? [],
+          second_discounts: entry?.second_discounts ?? [],
+          // Valores efetivos para exibição proporcional dos itens no holerite
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
           motorcycle_rental: effMotoRental,
