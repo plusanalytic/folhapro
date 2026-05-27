@@ -47,20 +47,48 @@ Deno.serve(async (req) => {
 
     const rule = await base44.asServiceRole.entities.ReadjustmentRule.get(ruleId);
     if (!rule) return Response.json({ error: 'Regra não encontrada' }, { status: 404 });
-    if (rule.status !== 'applied') return Response.json({ error: 'Reajuste precisa estar com status "applied"' }, { status: 400 });
     if (rule.union_contrib_applied) return Response.json({ error: 'Ajuste de contribuição assistencial já aplicado' }, { status: 400 });
 
-    // Obtém IDs das folhas afetadas pelo reajuste via snapshot
-    const snapshot = rule.affected_payroll_entries_snapshot ?? [];
-    if (snapshot.length === 0) return Response.json({ error: 'Snapshot de folhas não encontrado na regra' }, { status: 400 });
-
-    const entryIds = snapshot.map(e => e.id).filter(Boolean);
-
-    // Busca as folhas atuais (valores reais em banco, pós-reajuste)
+    // Busca folhas pelos parâmetros da regra (não depende de snapshot)
     const allEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: rule.reference_month });
-    const entries = allEntries.filter(e => entryIds.includes(e.id));
+    let entries = [];
 
-    if (entries.length === 0) return Response.json({ error: 'Nenhuma folha encontrada' }, { status: 400 });
+    if (rule.readjustment_scope === 'employee' && rule.employee_id) {
+      entries = allEntries.filter(e => e.employee_id === rule.employee_id && (e.clt_moto_base_salary ?? 0) > 0);
+    } else if (rule.readjustment_scope === 'payroll_type' && rule.payroll_type) {
+      const [jobRoles, allEmployees] = await Promise.all([
+        base44.asServiceRole.entities.JobRole.list(),
+        base44.asServiceRole.entities.Employee.list(),
+      ]);
+      const matchingRoles = jobRoles.filter(jr => jr.payroll_type === rule.payroll_type);
+      const roleIds = new Set(matchingRoles.map(jr => String(jr.tangerino_id)).filter(Boolean));
+      let relevantEmps = allEmployees.filter(e =>
+        e.job_role_tangerino_id && roleIds.has(String(e.job_role_tangerino_id)) &&
+        (!rule.company_id || e.company_id === rule.company_id)
+      );
+      if (rule.workplace_tangerino_id) {
+        const wpId = String(rule.workplace_tangerino_id);
+        relevantEmps = relevantEmps.filter(e => (e.workplace_list ?? []).map(String).includes(wpId));
+      }
+      const empIds = new Set(relevantEmps.map(e => e.id));
+      entries = allEntries.filter(e => empIds.has(e.employee_id) && (e.clt_moto_base_salary ?? 0) > 0);
+    } else {
+      // Fallback: usa snapshot se existir, senão todas as folhas com CLT moto
+      const snapshot = rule.affected_payroll_entries_snapshot ?? [];
+      if (snapshot.length > 0) {
+        const snapshotIds = new Set(snapshot.map(e => e.id).filter(Boolean));
+        entries = allEntries.filter(e => snapshotIds.has(e.id));
+      } else {
+        entries = allEntries.filter(e => (e.clt_moto_base_salary ?? 0) > 0);
+      }
+    }
+
+    if (rule.excluded_employee_ids && rule.excluded_employee_ids.length > 0) {
+      const excludedSet = new Set(rule.excluded_employee_ids);
+      entries = entries.filter(e => !excludedSet.has(e.employee_id));
+    }
+
+    if (entries.length === 0) return Response.json({ error: 'Nenhuma folha encontrada para os parâmetros da regra' }, { status: 400 });
 
     // Inicializa progresso — snapshot começa vazio e cresce incrementalmente (suporte a estorno parcial)
     await updateRuleWithRetry(base44.asServiceRole.entities, ruleId, {
