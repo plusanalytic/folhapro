@@ -85,17 +85,10 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           _pointAdjustments: pointAdjustments,
         });
       } else {
-        // Para CLT moto: usa clt_moto_effective_salary salvo, ou recalcula a partir dos campos salvos
-        const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
-        const cltMotoDays = entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : 30;
-        const cltMotoDaily = cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * 100) / 100 : 0;
-        const cltMotoEffective = entry?.clt_moto_effective_salary
-          ?? (cltMotoBase > 0 ? Math.round(cltMotoDaily * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0));
-        // Para CLT moto usa o salário efetivo; para outros usa base_salary
+        // CLT moto: usa os valores salvos (first/second_period_net e bases) como verdade,
+        // aplicando apenas deltas de novos cashouts e mudanças de faltas em relação ao salvo.
+        // Isso garante que o PDF exiba exatamente os mesmos valores que o módulo de folha de pagamento.
         const isCLTMotoPayroll = payrollType === 'MOTOCICLISTA_CLT';
-        const baseSalaryForCalc = isCLTMotoPayroll ? cltMotoEffective : (entry?.base_salary ?? 0);
-
-        // Valores efetivos (proporcionais) para CLT moto — VA, Ajuda de Custo e Aluguel de Moto
         const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
         const contractDays  = entry?.contract_working_days ?? 0;
         const motoRatio     = (isCLTMotoPayroll && fullMonthDays > 0) ? contractDays / fullMonthDays : 1;
@@ -103,36 +96,19 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
         const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
 
-        const calcStd = calculatePayroll({
-          base_salary: baseSalaryForCalc,
-          absence_discount: 0,
-          absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
-          meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0, meal_voucher_days: entry?.meal_voucher_days ?? 0,
-          food_voucher: effFoodVoucher, transport_voucher: entry?.transport_voucher ?? 0,
-          km_bonus_qty: entry?.km_bonus_qty ?? 0, km_bonus_value: entry?.km_bonus_value ?? 0,
-          cost_allowance: effCostAllowance, motorcycle_rental: effMotoRental,
-          hazard_pay: entry?.hazard_pay ?? 0, bonus: entry?.bonus ?? 0, other_benefits: entry?.other_benefits ?? 0,
-          union_contribution_value: entry?.union_contribution_value ?? 35,
-          meal_voucher_discount_pct: entry?.meal_voucher_discount_pct ?? 0,
-          life_insurance: entry?.life_insurance ?? 0,
-          inss_pct: entry?.inss_pct ?? 0, inss_discount: entry?.inss_discount ?? 0,
-          pj_retention: entry?.pj_retention ?? 0,
-          first_period_advance: entry?.first_period_advance ?? 0,
-          first_period_discount: firstTotal, second_period_discount: secondTotal,
-          first_period_split: entry?.first_period_split ?? 0.5,
-        }, employee.contract_type, payrollType);
-        // Para CLT moto com 1ª quinzena travada (1ª quinzena já paga + reajuste aplicado):
-        // calcStd usa union_contribution_value=36.05 no net_total, distribuindo o aumento
-        // proporcionalmente via split — o que reduz indevidamente a 1ª quinzena em ~R$0,50.
-        // Solução: quando first_period_base_locked=true, parte do entry.first_period_net salvo
-        // (que está correto/travado), aplicando apenas o delta de novos cashouts e faltas.
-        const firstFromCashTotal = firstFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
-        const savedAbsenceFirst = entry?.absence_discount_first ?? 0;
-        const absenceDeltaFirst = absenceFirst - savedAbsenceFirst;
-        const isFirstLocked = isCLTMotoPayroll && (entry?.first_period_base_locked === true);
-        const firstPeriodNetFinal = isFirstLocked
-          ? Math.round(((entry?.first_period_net ?? 0) - firstFromCashTotal - absenceDeltaFirst) * 100) / 100
-          : calcStd.first_period_net;
+        // Deltas em relação aos valores salvos no banco
+        const savedAbsenceFirst  = entry?.absence_discount_first  ?? 0;
+        const savedAbsenceSecond = entry?.absence_discount_second ?? 0;
+        const absenceDeltaFirst  = absenceFirst  - savedAbsenceFirst;
+        const absenceDeltaSecond = absenceSecond - savedAbsenceSecond;
+        const firstFromCashTotal  = firstFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
+        const secondFromCashTotal = secondFromCash.reduce((s, x) => x.type === 'credit' ? s - (x.amount||0) : s + (x.amount||0), 0);
+
+        // Parte dos valores salvos e aplica somente os deltas
+        const savedFirstNet  = entry?.first_period_net  ?? 0;
+        const savedSecondNet = entry?.second_period_net ?? 0;
+        const firstPeriodNetFinal  = Math.round((savedFirstNet  - firstFromCashTotal  - absenceDeltaFirst)  * 100) / 100;
+        const secondPeriodNetFinal = Math.round((savedSecondNet - secondFromCashTotal - absenceDeltaSecond) * 100) / 100;
 
         setMergedEntry({
           ...entry,
@@ -140,7 +116,8 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           first_period_discount: firstTotal, second_period_discount: secondTotal,
           absence_discount_first: absenceFirst, absence_discount_second: absenceSecond,
           absence_discount: absenceFirst + absenceSecond,
-          first_period_net: firstPeriodNetFinal, second_period_net: calcStd.second_period_net + (isCLTMotoPayroll ? (entry?.route_sp_bonus ?? 0) : 0),
+          first_period_net:  firstPeriodNetFinal,
+          second_period_net: secondPeriodNetFinal,
           // Sobrescreve com valores efetivos para exibição correta no holerite
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
