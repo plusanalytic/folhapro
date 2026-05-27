@@ -272,9 +272,8 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
 
   // ─── MOTOCICLISTA CLT ────────────────────────────────────────────────────────
   if (payrollType === 'MOTOCICLISTA_CLT') {
-    const motoRental = entry.motorcycle_rental || 0;
     // Gross = Piso + Aluguel Moto + VR + Periculosidade
-    const grossTotal = salary + motoRental + mealVoucher + (entry.hazard_pay || 0);
+    const grossTotal = salary + (entry.motorcycle_rental || 0) + mealVoucher + (entry.hazard_pay || 0);
 
     // INSS sobre (piso + periculosidade) — sem desconto de faltas
     const inssBase = salary + (entry.hazard_pay || 0);
@@ -282,25 +281,26 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
     if (entry.inss_pct != null && entry.inss_pct > 0) {
       inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
     }
+    // Aplica desconto da tabela progressiva CLT
     const inssDiscount = Math.min(entry.inss_discount || 0, inss);
     const inssNet = Math.max(0, inss - inssDiscount);
     const fgts = calculateFGTS(salary);
 
-    // Net total (inclui aluguel moto — para exibição do "Total a Receber")
+    // Net = Gross - INSS líquido - Contrib. Assistencial - Desc. VR - Seg. Vida
+    // (desconto de faltas NÃO entra aqui — é descontado nas quinzenas individualmente)
     const netTotal = grossTotal - inssNet - unionContribution - mealVoucherDiscount - lifeInsurance;
 
-    // BASE DO RATEIO: exclui aluguel da moto — aluguel é pago integralmente na 2ª quinzena
-    // Assim, alterações no aluguel NÃO impactam a base da 1ª quinzena
-    const splitBase = netTotal - motoRental;
+    // Quinzenal: net_total rateado pelo split (padrão 50/50)
+    // 1ª quinzena: + food_voucher, - adiantamento, - descontos 1ª
+    // 2ª quinzena: + KM + ajuda de custo, - descontos 2ª
     const foodVoucherVal = entry.food_voucher || 0;
     const firstPeriodAdvance = entry.first_period_advance || 0;
     const absenceFirst = entry.absence_discount_first || 0;
     const absenceSecond = entry.absence_discount_second || 0;
     const splitFirst = (entry.first_period_split != null) ? entry.first_period_split : 0.5;
     const splitSecond = 1 - splitFirst;
-    const firstBase = Math.round(splitBase * splitFirst * 100) / 100;
-    // secondBase inclui aluguel moto integralmente
-    const secondBase = Math.round(splitBase * splitSecond * 100) / 100 + motoRental;
+    const firstBase = Math.round(netTotal * splitFirst * 100) / 100;
+    const secondBase = Math.round(netTotal * splitSecond * 100) / 100;
     const firstPeriodNet = firstBase - firstPeriodAdvance - (entry.first_period_discount || 0) - absenceFirst;
     const secondPeriodNet = secondBase + foodVoucherVal + kmBonus + costAllowance - (entry.second_period_discount || 0) - absenceSecond;
 
@@ -317,13 +317,12 @@ export function calculatePayroll(entry, contractType, payrollType = null) {
       meal_voucher_discount: mealVoucherDiscount,
       gross_total: Math.round(grossTotal * 100) / 100,
       net_total: Math.round(netTotal * 100) / 100,
-      split_base: Math.round(splitBase * 100) / 100,
       first_period_base: firstBase,
-      second_period_base: Math.round(secondBase * 100) / 100,
+      second_period_base: secondBase,
       first_period_net: Math.round(firstPeriodNet * 100) / 100,
       second_period_net: Math.round(secondPeriodNet * 100) / 100,
     };
-  }
+    }
 
   // ─── OUTROS MODELOS ──────────────────────────────────────────────────────────
   // Faltas são descontadas nas quinzenas — não reduzem o bruto nem a base do INSS

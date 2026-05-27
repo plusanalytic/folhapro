@@ -1120,9 +1120,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <PeriodBaseInput
                 value={calc.net_total !== 0 ? (calc.first_period_base ?? calc.net_total / 2) : (firstBaseOverride ?? 0)}
                 onChange={v => {
-                  const denom = (isCLTMoto && calc.split_base != null) ? calc.split_base : calc.net_total;
-                  if (denom !== 0) {
-                    setFirstPeriodSplit(v / denom);
+                  if (calc.net_total !== 0) {
+                    setFirstPeriodSplit(v / calc.net_total);
                     setFirstBaseOverride(null);
                   } else {
                     setFirstBaseOverride(v);
@@ -1140,10 +1139,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               <PeriodBaseInput
                 value={calc.net_total !== 0 ? (calc.second_period_base ?? calc.net_total / 2) : (firstBaseOverride !== null ? -firstBaseOverride : 0)}
                 onChange={v => {
-                  const denom = (isCLTMoto && calc.split_base != null) ? calc.split_base : calc.net_total;
-                  const secondNetBase = isCLTMoto ? v - motoRentalEffective : v;
-                  if (denom !== 0) {
-                    setFirstPeriodSplit(1 - secondNetBase / denom);
+                  if (calc.net_total !== 0) {
+                    setFirstPeriodSplit(1 - v / calc.net_total);
                     setFirstBaseOverride(null);
                   } else {
                     setFirstBaseOverride(-v);
