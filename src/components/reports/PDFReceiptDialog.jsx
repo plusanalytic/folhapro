@@ -87,18 +87,23 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
       } else {
         // CLT Moto: usa EXCLUSIVAMENTE os valores salvos no banco.
         // first_period_net/second_period_net já incluem todos os descontos do ultimo save.
-        // Qualquer recálculo causaria dupla dedução de cashouts/faltas.
         const isCLTMotoPayroll = payrollType === 'MOTOCICLISTA_CLT';
         const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
         const contractDays  = entry?.contract_working_days ?? 0;
         const motoRatio     = (isCLTMotoPayroll && fullMonthDays > 0) ? contractDays / fullMonthDays : 1;
-        // Valores efetivos proporcionais apenas para exibir os itens corretamente na 2ª quinzena
         const effFoodVoucher   = Math.round((entry?.food_voucher   ?? 0) * motoRatio * 100) / 100;
         const effCostAllowance = Math.round((entry?.cost_allowance ?? 0) * motoRatio * 100) / 100;
         const effMotoRental    = Math.round((entry?.motorcycle_rental ?? 0) * motoRatio * 100) / 100;
+        // Recalcula os totais de faltas por quinzena a partir do mapa detalhado (absence_discounts)
+        // para garantir que os valores apareçam mesmo que absence_discount_first/second não estejam salvos
+        const absenceMap = entry?.absence_discounts ?? {};
+        const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
         setMergedEntry({
           ...entry,
+          // Faltas por quinzena: calculadas do mapa detalhado
+          absence_discount_first:  absenceFirst,
+          absence_discount_second: absenceSecond,
           // Descontos salvos (já têm cashouts mesclados do último save)
           first_discounts:  entry?.first_discounts  ?? [],
           second_discounts: entry?.second_discounts ?? [],
