@@ -376,28 +376,21 @@ export function HoleriteContent({ employee, entry, month, company }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
         <thead>
           <tr>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '45%' }}>Benefício</th>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '18%' }}>Valor Total</th>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '18%' }}>Dias Úteis</th>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '19%' }}>Valor Efetivo</th>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '80%' }}>Benefício</th>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '20%' }}>Valor (R$)</th>
           </tr>
         </thead>
         <tbody>
           {beneficios.map((b, i) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#f0fbff' : '#fff' }}>
               <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0f2f7' }}>
-                {b.label}
-                {b.totalDays > 0 && <span style={{ fontSize: '9px', color: '#888', marginLeft: '4px' }}>({formatCurrency(b.dayValue)}/dia)</span>}
-              </td>
-              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#555', fontFamily: 'monospace' }}>{formatCurrency(b.value)}</td>
-              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#555' }}>
-                {b.workedDays > 0 && b.totalDays > 0 ? `${b.workedDays}/${b.totalDays}` : '—'}
+                {b.label}{b.workedDays > 0 && b.totalDays > 0 ? ` (${b.workedDays} dias úteis)` : ''}
               </td>
               <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#0e7490', fontFamily: 'monospace', fontWeight: 'bold' }}>{formatCurrency(b.value)}</td>
             </tr>
           ))}
           <tr>
-            <td colSpan={3} style={{ padding: '7px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL BENEFÍCIOS</td>
+            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL BENEFÍCIOS</td>
             <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(totalBeneficios)}</td>
           </tr>
         </tbody>
