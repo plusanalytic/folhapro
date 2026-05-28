@@ -174,7 +174,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // mas o campo base_salary armazenado permanece sendo o valor do contrato (clt_moto_base_salary).
 
   // INSS automático para CLT moto (se não foi editado manualmente)
-  const [inssManuallyEdited, setInssManuallyEdited] = useState(!!(entry?.inss_pct > 0));
+  const [inssManuallyEdited, setInssManuallyEdited] = useState(!!entry?.id);
   // Para novos lançamentos: contribuição assistencial é automática (2%). Para lançamentos salvos: usa o valor salvo.
   const [unionContribManuallyEdited, setUnionContribManuallyEdited] = useState(!!entry);
 
