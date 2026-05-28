@@ -348,9 +348,17 @@ export default function Payroll() {
         // Esporádicos são sempre exibidos via espPairs (suportam múltiplas entries na mesma empresa)
         const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
         // Esporádicos: representados como { emp, entry } para suportar múltiplas entries
-        const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp }) =>
-          emp.name.toLowerCase().includes(search.toLowerCase())
-        );
+        const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp, entry }) => {
+          if (!emp.name.toLowerCase().includes(search.toLowerCase())) return false;
+          if (selectedWorkplace !== 'all' && !(emp.workplace_list ?? []).map(String).includes(selectedWorkplace)) return false;
+          if (selectedJobRole !== 'all' && String(emp.job_role_tangerino_id) !== selectedJobRole) return false;
+          if (selectedStatus !== 'all') {
+            if (selectedStatus === 'closed' && entry?.status !== 'closed') return false;
+            if (selectedStatus === 'launched' && (!entry || entry.status === 'closed')) return false;
+            if (selectedStatus === 'pending' && entry) return false;
+          }
+          return true;
+        });
         // Remove esporádicos que já estão em fixedEmps (vinculados à empresa)
         const espPairsFiltered = espPairs.filter(({ emp }) => !fixedEmps.some(f => f.id === emp.id));
 
