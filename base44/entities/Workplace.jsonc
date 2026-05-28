@@ -33,6 +33,26 @@
     "is_active": {
       "type": "boolean",
       "default": true
+    },
+    "clt_moto_base_salary_default": {
+      "type": "number",
+      "description": "Sal\u00e1rio base padr\u00e3o para Motociclista CLT neste local",
+      "default": 0
+    },
+    "clt_moto_meal_voucher_day_value_default": {
+      "type": "number",
+      "description": "Valor di\u00e1rio do VR padr\u00e3o para Motociclista CLT neste local",
+      "default": 0
+    },
+    "clt_moto_food_voucher_default": {
+      "type": "number",
+      "description": "Valor VA padr\u00e3o para Motociclista CLT neste local",
+      "default": 0
+    },
+    "clt_moto_motorcycle_rental_default": {
+      "type": "number",
+      "description": "Aluguel de moto padr\u00e3o para Motociclista CLT neste local",
+      "default": 0
     }
   },
   "required": [

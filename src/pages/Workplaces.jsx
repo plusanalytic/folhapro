@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { MapPin, RefreshCw, Search, Building2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,20 @@ export default function Workplaces() {
   const [workplaces, setWorkplaces] = useState([]);
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [savingField, setSavingField] = useState(null); // `${id}-${field}`
+
+  const handleDefaultChange = (id, field, value) => {
+    setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+  };
+
+  const handleDefaultBlur = async (id, field, value) => {
+    const key = `${id}-${field}`;
+    setSavingField(key);
+    const num = parseFloat(String(value).replace(',', '.')) || 0;
+    await base44.entities.Workplace.update(id, { [field]: num });
+    setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, [field]: num } : w));
+    setSavingField(null);
+  };
 
   const load = async () => {
     const data = await base44.entities.Workplace.list();
@@ -110,6 +124,10 @@ export default function Workplaces() {
               <th className="text-left p-4 font-medium text-muted-foreground">Cidade / Estado</th>
               <th className="text-left p-4 font-medium text-muted-foreground">Código</th>
               <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
+              <th className="text-right p-4 font-medium text-muted-foreground text-xs">Sal. Base CLT Moto</th>
+              <th className="text-right p-4 font-medium text-muted-foreground text-xs">VR/dia CLT Moto</th>
+              <th className="text-right p-4 font-medium text-muted-foreground text-xs">VA CLT Moto</th>
+              <th className="text-right p-4 font-medium text-muted-foreground text-xs">Aluguel Moto</th>
             </tr>
           </thead>
           <tbody>
@@ -133,11 +151,26 @@ export default function Workplaces() {
                     {w.is_active !== false ? 'Ativo' : 'Inativo'}
                   </Badge>
                 </td>
+                {['clt_moto_base_salary_default', 'clt_moto_meal_voucher_day_value_default', 'clt_moto_food_voucher_default', 'clt_moto_motorcycle_rental_default'].map(field => (
+                  <td key={field} className="p-2 text-right">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={w[field] ?? 0}
+                      onChange={e => handleDefaultChange(w.id, field, e.target.value)}
+                      onBlur={e => handleDefaultBlur(w.id, field, e.target.value)}
+                      className={`w-28 text-right font-mono text-xs h-8 ml-auto transition-colors ${
+                        savingField === `${w.id}-${field}` ? 'border-primary' : ''
+                      }`}
+                    />
+                  </td>
+                ))}
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-muted-foreground">
+                <td colSpan={9} className="text-center py-12 text-muted-foreground">
                   <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>Nenhum local de trabalho encontrado</p>
                   {!search && <p className="text-sm mt-1">Use "Sincronizar Solides" para importar os locais.</p>}
