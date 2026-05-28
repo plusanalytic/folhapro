@@ -124,7 +124,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     base_salary: entry?.base_salary ?? 0,
     // Para CLT moto: dias trabalhados e salário base informado
     // Se tem lançamento salvo, usa os campos CLT moto salvos; se não, inicializa com base_salary como referência
-    clt_moto_base_salary: entry?.clt_moto_base_salary != null ? entry.clt_moto_base_salary : (entry?.base_salary > 0 ? entry.base_salary : (isCLTMoto && empWorkplace?.clt_moto_base_salary_default > 0 ? empWorkplace.clt_moto_base_salary_default : 0)),
+    clt_moto_base_salary: entry?.id
+      ? (entry.clt_moto_base_salary ?? entry.base_salary ?? 0)
+      : (isCLTMoto && empWorkplace?.clt_moto_base_salary_default > 0 ? empWorkplace.clt_moto_base_salary_default : 0),
     // Se já tem valor salvo no banco, usa ele. Se é novo lançamento (sem entry), nasce com defaultWorkedDays (30 ou proporcional).
     // O valor 30 é gravado explicitamente no banco ao salvar, garantindo que edições futuras sejam respeitadas.
     clt_moto_worked_days: entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : defaultWorkedDays,
