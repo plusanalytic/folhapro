@@ -371,44 +371,6 @@ export function HoleriteContent({ employee, entry, month, company }) {
         </tbody>
       </table>
 
-      {/* Resumo Quinzenal */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%</div>
-          <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
-            {absenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceFirst)}</span></div>}
-            {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
-            {firstDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
-            })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
-          </div>
-        </div>
-        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30) — {Math.round((1 - splitFirst) * 100)}%</div>
-          <div style={{ padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
-            {foodVoucher > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(foodVoucher)}</span></div>}
-            {(entry?.delivery_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação por Entrega</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.delivery_bonus)}</span></div>}
-            {(entry?.delivery_target_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação Meta de Entrega</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.delivery_target_bonus)}</span></div>}
-            {(entry?.attendance_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação por Presença</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.attendance_bonus)}</span></div>}
-            {(entry?.route_sp_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação Rota SP</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.route_sp_bonus)}</span></div>}
-            {(entry?.overtime ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Hora Extra{entry?.overtime_hour_value > 0 ? ` (${formatCurrency(entry.overtime_hour_value)}/h)` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.overtime)}</span></div>}
-            {absenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceSecond)}</span></div>}
-
-            {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
-            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de custo pacote de dados</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
-            {secondDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
-            })}
-            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
-          </div>
-        </div>
-      </div>
-
       {/* Bloco Benefícios */}
       <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#239BB6', textTransform: 'uppercase', marginBottom: '4px' }}>Benefícios</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
@@ -440,6 +402,43 @@ export function HoleriteContent({ employee, entry, month, company }) {
           </tr>
         </tbody>
       </table>
+
+      {/* Resumo Quinzenal */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%</div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
+            {absenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceFirst)}</span></div>}
+            {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
+            {firstDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
+            })}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+          </div>
+        </div>
+        <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>2ª Quinzena (16–30) — {Math.round((1 - splitFirst) * 100)}%</div>
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
+            {foodVoucher > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(foodVoucher)}</span></div>}
+            {(entry?.delivery_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação por Entrega</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.delivery_bonus)}</span></div>}
+            {(entry?.delivery_target_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação Meta de Entrega</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.delivery_target_bonus)}</span></div>}
+            {(entry?.attendance_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação por Presença</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.attendance_bonus)}</span></div>}
+            {(entry?.route_sp_bonus ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação Rota SP</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.route_sp_bonus)}</span></div>}
+            {(entry?.overtime ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Hora Extra{entry?.overtime_hour_value > 0 ? ` (${formatCurrency(entry.overtime_hour_value)}/h)` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.overtime)}</span></div>}
+            {absenceSecond > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (16–30)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceSecond)}</span></div>}
+            {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
+            {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de custo pacote de dados</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
+            {secondDiscounts.map((d, i) => {
+              const isCredit = d.type === 'credit';
+              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
+            })}
+            <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+          </div>
+        </div>
+      </div>
 
       {/* Total */}
       <div style={{ background: (firstNet + secondNet) < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
