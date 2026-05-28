@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Briefcase, Save } from 'lucide-react';
+import { Briefcase } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/payrollCalculations';
+
 import { toast } from 'sonner';
 
 const PAYROLL_TYPE_LABELS = {
@@ -31,7 +31,6 @@ export default function JobRoles() {
   const readOnly = useReadOnly();
   const [jobRoles, setJobRoles] = useState([]);
   const [saving, setSaving] = useState({});
-  const [salaryEdits, setSalaryEdits] = useState({});
 
   useEffect(() => {
     base44.entities.JobRole.list().then(setJobRoles);
@@ -47,23 +46,6 @@ export default function JobRoles() {
       toast.error('Erro ao salvar. Tente novamente.');
     } finally {
       setSaving(s => ({ ...s, [jobRole.id]: false }));
-    }
-  };
-
-  const handleSaveSalary = async (jobRole) => {
-    const raw = salaryEdits[jobRole.id];
-    if (raw === undefined) return;
-    const value = parseFloat(String(raw).replace(',', '.')) || 0;
-    setSaving(s => ({ ...s, [`salary_${jobRole.id}`]: true }));
-    try {
-      await base44.entities.JobRole.update(jobRole.id, { base_salary: value });
-      setJobRoles(prev => prev.map(jr => jr.id === jobRole.id ? { ...jr, base_salary: value } : jr));
-      setSalaryEdits(s => { const n = { ...s }; delete n[jobRole.id]; return n; });
-      toast.success(`Salário base de "${jobRole.name}" salvo.`);
-    } catch {
-      toast.error('Erro ao salvar salário. Tente novamente.');
-    } finally {
-      setSaving(s => ({ ...s, [`salary_${jobRole.id}`]: false }));
     }
   };
 
@@ -106,7 +88,7 @@ export default function JobRoles() {
               <th className="text-left p-4 font-medium text-muted-foreground">Cargo</th>
               <th className="text-left p-4 font-medium text-muted-foreground">ID Tangerino</th>
               <th className="text-left p-4 font-medium text-muted-foreground w-64">Modelo de Folha</th>
-              <th className="text-left p-4 font-medium text-muted-foreground w-56">Salário Base Padrão</th>
+
               <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
             </tr>
           </thead>
@@ -152,37 +134,6 @@ export default function JobRoles() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="w-32 font-mono text-sm h-8"
-                        placeholder="0,00"
-                        disabled={readOnly}
-                        value={salaryEdits[jr.id] !== undefined ? salaryEdits[jr.id] : (jr.base_salary > 0 ? jr.base_salary : '')}
-                        onChange={e => !readOnly && setSalaryEdits(s => ({ ...s, [jr.id]: e.target.value }))}
-                        onBlur={() => { if (!readOnly && salaryEdits[jr.id] !== undefined) handleSaveSalary(jr); }}
-                        onKeyDown={e => { if (!readOnly && e.key === 'Enter') handleSaveSalary(jr); }}
-                      />
-                      {salaryEdits[jr.id] !== undefined && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-primary"
-                          disabled={saving[`salary_${jr.id}`]}
-                          onClick={() => handleSaveSalary(jr)}
-                          title="Salvar salário base"
-                        >
-                          <Save className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                      {jr.base_salary > 0 && salaryEdits[jr.id] === undefined && (
-                        <span className="text-xs text-muted-foreground font-mono">{formatCurrency(jr.base_salary)}</span>
-                      )}
-                    </div>
                   </td>
                   <td className="p-4 text-center">
                     {jr.payroll_type ? (

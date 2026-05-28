@@ -179,7 +179,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const [unionContribManuallyEdited, setUnionContribManuallyEdited] = useState(!!entry);
 
   // Controla se o usuário editou manualmente a periculosidade
-  const [hazardPayManuallyEdited, setHazardPayManuallyEdited] = useState(false);
+  const [hazardPayManuallyEdited, setHazardPayManuallyEdited] = useState(!!entry?.id);
 
   // Periculosidade automática: recalcula sempre que o salário efetivo mudar, exceto se editado manualmente
   useEffect(() => {
@@ -647,7 +647,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="w-20 font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     {fullMonthContractDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
@@ -666,7 +666,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="w-20 font-mono text-center"
                       value={contractWorkingDays}
                       onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setContractWorkingDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onBlur={e => setContractWorkingDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     {contractWorkingDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
@@ -745,7 +745,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
@@ -776,7 +776,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
@@ -807,7 +807,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
