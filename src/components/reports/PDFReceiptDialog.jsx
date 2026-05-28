@@ -98,19 +98,6 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         const absenceMap = entry?.absence_discounts ?? {};
         const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceMap);
 
-        // Contribuição assistencial: recalcula pelo valor atual (union_contribution_value)
-        // para capturar diferenças de reajuste não refletidas no second_period_net salvo
-        const effectiveSalary = entry?.clt_moto_base_salary > 0
-          ? Math.round((entry.clt_moto_base_salary / 30) * (entry?.clt_moto_worked_days ?? 30) * 100) / 100
-          : (entry?.base_salary ?? 0);
-        const currentUC = entry?.union_contribution_pct > 0
-          ? Math.round((effectiveSalary * (entry.union_contribution_pct / 100)) * 100) / 100
-          : (entry?.union_contribution_value ?? 35);
-        const savedUC   = entry?.union_contribution ?? 0;
-        const ucDiff    = Math.round((currentUC - savedUC) * 100) / 100;
-        // Ajusta second_period_net pela diferença de contribuição não refletida no save
-        const correctedSecondNet = Math.round(((entry?.second_period_net ?? 0) - ucDiff) * 100) / 100;
-
         setMergedEntry({
           ...entry,
           absence_discount_first:  absenceFirst,
@@ -120,10 +107,6 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
           food_voucher: effFoodVoucher,
           cost_allowance: effCostAllowance,
           motorcycle_rental: effMotoRental,
-          // Contribuição assistencial correta (valor atual do reajuste)
-          union_contribution: currentUC,
-          // 2ª quinzena corrigida pela diferença de contribuição assistencial
-          second_period_net: correctedSecondNet,
           _pointAdjustments: pointAdjustments,
         });
       }
