@@ -262,27 +262,49 @@ export function HoleriteContent({ employee, entry, month, company }) {
   const secondDiscounts = entry?.second_discounts ?? [];
   const monthName = getMonthName(month);
 
+  // CLT Moto: campos essenciais sempre exibidos mesmo com valor zero
   const proventos = [
-    { label: cltMotoBase > 0 ? `Salário Efetivo (${cltMotoDays}/30 dias)` : 'Salário Base', value: baseSalary, show: true },
-    { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
-    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Vale Alimentação (${entry.contract_working_days} dias úteis)` : 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
-    { label: 'Vale Transporte', value: transport, show: transport > 0 },
-    { label: `Adicional KM (${kmBonusQty} km × ${formatCurrency(kmBonusVal)})`, value: kmBonus, show: kmBonus > 0 },
-    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Ajuda de custo pacote de dados (${entry.contract_working_days} dias úteis)` : 'Ajuda de custo pacote de dados', value: costAllowance, show: costAllowance > 0 },
-    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Aluguel da Motocicleta (${entry.contract_working_days} dias úteis)` : 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
-    { label: 'Periculosidade', value: hazardPay, show: hazardPay > 0 },
-    { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
-    { label: 'Outros Benefícios', value: otherBen, show: otherBen > 0 },
-  ].filter(x => x.show);
+    { label: cltMotoBase > 0 ? `Salário Efetivo (${cltMotoDays}/30 dias)` : 'Salário Base', value: baseSalary },
+    { label: `Vale Refeição (${mealVDays}d × ${formatCurrency(mealVDay)})`, value: calc.meal_voucher },
+    { label: 'Vale Transporte', value: transport, hide: transport === 0 },
+    { label: `Adicional KM (${kmBonusQty} km × ${formatCurrency(kmBonusVal)})`, value: kmBonus, hide: kmBonus === 0 },
+    { label: entry?.contract_working_days > 0 && cltMotoBase > 0 ? `Aluguel da Motocicleta (${entry.contract_working_days} dias úteis)` : 'Aluguel da Motocicleta', value: motoRental },
+    { label: 'Periculosidade', value: hazardPay },
+    { label: 'Bonificação / Prêmio', value: bonus, hide: bonus === 0 },
+    { label: 'Outros Benefícios', value: otherBen, hide: otherBen === 0 },
+  ].filter(x => !x.hide);
+
+  // Benefícios: VA e Ajuda de Custo — sempre exibidos (separados dos proventos)
+  const fullMonthDays = entry?.full_month_contract_working_days ?? 0;
+  const contractDays  = entry?.contract_working_days ?? 0;
+  const foodVoucherDayValue    = fullMonthDays > 0 ? Math.round((foodVoucher / fullMonthDays) * 10000) / 10000 : 0;
+  const costAllowanceDayValue  = fullMonthDays > 0 ? Math.round((costAllowance / fullMonthDays) * 10000) / 10000 : 0;
+  const beneficios = [
+    {
+      label: 'Vale Alimentação',
+      value: foodVoucher,
+      dayValue: foodVoucherDayValue,
+      totalDays: fullMonthDays,
+      workedDays: contractDays,
+    },
+    {
+      label: 'Ajuda de custo pacote de dados',
+      value: costAllowance,
+      dayValue: costAllowanceDayValue,
+      totalDays: fullMonthDays,
+      workedDays: contractDays,
+    },
+  ];
+  const totalBeneficios = beneficios.reduce((s, b) => s + b.value, 0);
 
   const descontos = [
-    { label: 'INSS', value: calc.inss_net, show: calc.inss_net > 0 },
-    { label: 'IRRF', value: calc.irrf, show: calc.irrf > 0 },
-    { label: 'Retenção PJ', value: pjRet, show: pjRet > 0 },
-    { label: 'Contribuição Assistencial', value: calc.union_contribution, show: calc.union_contribution > 0 },
-    { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
-    { label: 'Seguro de Vida (Acordo entre as partes)', value: lifeIns, show: lifeIns > 0 },
-  ].filter(x => x.show);
+    { label: 'INSS', value: calc.inss_net },
+    { label: 'IRRF', value: calc.irrf, hide: calc.irrf === 0 },
+    { label: 'Retenção PJ', value: pjRet, hide: pjRet === 0 },
+    { label: 'Contribuição Assistencial', value: calc.union_contribution },
+    { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount },
+    { label: 'Seguro de Vida (Acordo entre as partes)', value: lifeIns },
+  ].filter(x => !x.hide);
 
   const totalDescontos = descontos.reduce((s, d) => s + d.value, 0);
   const maxRows = Math.max(proventos.length, descontos.length);
@@ -387,12 +409,37 @@ export function HoleriteContent({ employee, entry, month, company }) {
         </div>
       </div>
 
-      {isCLT && (
-        <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>FGTS (8%) — informativo</span>
-          <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#239BB6', fontFamily: 'monospace' }}>{formatCurrency(calc.fgts)}</span>
-        </div>
-      )}
+      {/* Bloco Benefícios */}
+      <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#239BB6', textTransform: 'uppercase', marginBottom: '4px' }}>Benefícios</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
+        <thead>
+          <tr>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '45%' }}>Benefício</th>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '18%' }}>Valor Total</th>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', width: '18%' }}>Dias Úteis</th>
+            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '19%' }}>Valor Efetivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {beneficios.map((b, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? '#f0fbff' : '#fff' }}>
+              <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0f2f7' }}>
+                {b.label}
+                {b.totalDays > 0 && <span style={{ fontSize: '9px', color: '#888', marginLeft: '4px' }}>({formatCurrency(b.dayValue)}/dia)</span>}
+              </td>
+              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#555', fontFamily: 'monospace' }}>{formatCurrency(b.value)}</td>
+              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#555' }}>
+                {b.workedDays > 0 && b.totalDays > 0 ? `${b.workedDays}/${b.totalDays}` : '—'}
+              </td>
+              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#0e7490', fontFamily: 'monospace', fontWeight: 'bold' }}>{formatCurrency(b.value)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td colSpan={3} style={{ padding: '7px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL BENEFÍCIOS</td>
+            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(totalBeneficios)}</td>
+          </tr>
+        </tbody>
+      </table>
 
       {/* Total */}
       <div style={{ background: (firstNet + secondNet) < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
