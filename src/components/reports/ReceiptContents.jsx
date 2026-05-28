@@ -434,12 +434,12 @@ export function HoleriteContent({ employee, entry, month, company }) {
       </div>
 
       {/* Total */}
-      <div style={{ background: (firstNet + secondNet) < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
+      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(firstNet + secondNet) < 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.abs(firstNet + secondNet))}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
       </div>
 
       {/* Dados bancários */}
@@ -638,12 +638,12 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
       </div>
 
       {/* Total */}
-      <div style={{ background: (firstNet + secondNet) < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
+      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(firstNet + secondNet) < 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.abs(firstNet + secondNet))}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
       </div>
 
       {(employee.bank_name || employee.pix_key) && (
@@ -891,12 +891,12 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
       </div>
 
       {/* Total */}
-      <div style={{ background: (firstNet + secondNet) < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
+      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
         <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(firstNet + secondNet) < 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A PAGAR (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.abs(firstNet + secondNet))}</div>
+          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A PAGAR (1ª + 2ª Quinzena)'}</div>
+          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(firstNet + secondNet)}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
       </div>
 
       {(employee.bank_name || employee.pix_key) && (
