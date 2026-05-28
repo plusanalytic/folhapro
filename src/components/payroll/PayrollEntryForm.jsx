@@ -803,19 +803,19 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   <span className="text-muted-foreground pb-2">÷</span>
                   <div className="w-24">
                     <Input
-                      type="number" step="1" min="1" max="31" disabled={readOnly || q2Locked}
-                          className="font-mono text-center"
-                          value={fullMonthContractDays}
-                          onChange={e => { if (!readOnly && !q2Locked) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                          onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
-                          onFocus={e => setTimeout(() => e.target.select(), 0)}
-                        />
-                         <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
-                       </div>
-                       <span className="text-muted-foreground pb-2">=</span>
-                       <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
-                         <p className="text-xs text-muted-foreground">Valor dia</p>
-                         <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(motoRentalDayValue)}/dia</p>
+                      type="number" step="1" min="1" max="31" disabled={readOnly}
+                      className="font-mono text-center"
+                      value={fullMonthContractDays}
+                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                      onBlur={e => setFullMonthContractDays(Math.max(1, parseInt(e.target.value) || getFullMonthContractWorkingDays(referenceMonth)))}
+                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
+                  </div>
+                  <span className="text-muted-foreground pb-2">=</span>
+                  <div className="w-40 rounded-lg p-2 text-right border border-secondary/30 bg-secondary/5">
+                    <p className="text-xs text-muted-foreground">Valor dia</p>
+                    <p className="font-mono font-semibold text-secondary text-sm">{formatCurrency(motoRentalDayValue)}/dia</p>
                     <p className="text-xs text-muted-foreground mt-1">Valor efetivo ({contractWorkingDays}d trab.)</p>
                     <p className="font-mono font-bold text-secondary">{formatCurrency(motoRentalEffective)}</p>
                   </div>
@@ -1144,7 +1144,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             </div>
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-            {readOnly || q2Locked ? (
+            {readOnly ? (
               <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
             ) : (
               <PeriodBaseInput
