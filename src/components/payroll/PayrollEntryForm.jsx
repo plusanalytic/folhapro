@@ -797,7 +797,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <Label>Aluguel da Motocicleta</Label>
                 <div className="flex gap-2 mt-1 items-end">
                   <div className="flex-1">
-                    <Input {...numericField('motorcycle_rental', q2ExtraLocked)} className="font-mono" placeholder="Valor total" />
+                    <Input {...numericField('motorcycle_rental', baseLocked)} className="font-mono" placeholder="Valor total" />
                     <p className="text-xs text-muted-foreground mt-0.5">Valor total mensal (R$)</p>
                   </div>
                   <span className="text-muted-foreground pb-2">÷</span>
@@ -1144,7 +1144,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             </div>
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-            {readOnly ? (
+            {(readOnly || q1Locked) ? (
               <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
             ) : (
               <PeriodBaseInput
