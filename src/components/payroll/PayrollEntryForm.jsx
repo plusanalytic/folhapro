@@ -94,6 +94,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // q2ExtraLocked: campos que só impactam a 2ª quinzena (food_voucher, km, ajuda de custo, bonificações CLT moto)
   const q2ExtraLocked = readOnly || q2Locked;
 
+  // Workplace do colaborador (para pré-preencher valores padrão CLT Moto em novos lançamentos)
+  const empWorkplace = workplaces.find(w =>
+    (employee.workplace_list ?? []).map(String).includes(String(w.tangerino_id))
+  );
+
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
   const defaultContractWorkingDays = getContractWorkingDays(referenceMonth, employee?.admission_date);
@@ -119,19 +124,19 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     base_salary: entry?.base_salary ?? 0,
     // Para CLT moto: dias trabalhados e salário base informado
     // Se tem lançamento salvo, usa os campos CLT moto salvos; se não, inicializa com base_salary como referência
-    clt_moto_base_salary: entry?.clt_moto_base_salary != null ? entry.clt_moto_base_salary : (entry?.base_salary > 0 ? entry.base_salary : 0),
+    clt_moto_base_salary: entry?.clt_moto_base_salary != null ? entry.clt_moto_base_salary : (entry?.base_salary > 0 ? entry.base_salary : (isCLTMoto && empWorkplace?.clt_moto_base_salary_default > 0 ? empWorkplace.clt_moto_base_salary_default : 0)),
     // Se já tem valor salvo no banco, usa ele. Se é novo lançamento (sem entry), nasce com defaultWorkedDays (30 ou proporcional).
     // O valor 30 é gravado explicitamente no banco ao salvar, garantindo que edições futuras sejam respeitadas.
     clt_moto_worked_days: entry?.clt_moto_worked_days != null ? Number(entry.clt_moto_worked_days) : defaultWorkedDays,
     absences_days: entry?.absences_days ?? 0,
-    meal_voucher_day_value: entry?.meal_voucher_day_value ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 26.65 : 0),
+    meal_voucher_day_value: entry?.meal_voucher_day_value ?? (isCLTMoto ? (empWorkplace?.clt_moto_meal_voucher_day_value_default || 0) : 0),
     meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
-    food_voucher: entry?.food_voucher ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 117.94 : 0),
+    food_voucher: entry?.food_voucher ?? (isCLTMoto ? (empWorkplace?.clt_moto_food_voucher_default || 0) : 0),
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 0,
     cost_allowance: entry?.cost_allowance ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 50 : 0),
-    motorcycle_rental: entry?.motorcycle_rental ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 854.23 : 0),
+    motorcycle_rental: entry?.motorcycle_rental ?? (isCLTMoto ? (empWorkplace?.clt_moto_motorcycle_rental_default || 0) : 0),
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0,
     delivery_bonus: entry?.delivery_bonus ?? 0,
