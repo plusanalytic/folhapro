@@ -410,9 +410,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_split: firstPeriodSplit,
   };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
-  // Se 1ª quinzena está bloqueada (paga/agendada), congela a base da 1ª e redistribui o delta na 2ª
+  // Se 1ª quinzena está bloqueada (paga/status bloqueante) OU congelada pelo reajuste, usa o valor do banco
+  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base != null;
   const calc = (() => {
-    if (q1Locked && entry?.first_period_base != null && calcRaw.net_total !== 0) {
+    if (isFirstBaseFrozen && calcRaw.net_total !== 0) {
       const frozenFirstBase = entry.first_period_base;
       const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
       const newSecondBase = calcRaw.net_total - frozenFirstBase;
@@ -521,9 +522,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       second_period_discount: secondDiscountTotal,
       first_discounts: firstDiscounts,
       second_discounts: secondDiscounts,
-      first_period_split: firstPeriodSplit,
+      // Se base 1ª está congelada: salva o split efetivo para que próximo carregamento recalcule corretamente
+      first_period_split: isFirstBaseFrozen && calcRaw.net_total !== 0
+        ? Math.round((calc.first_period_base / calcRaw.net_total) * 10000) / 10000
+        : firstPeriodSplit,
       first_period_base: calc.first_period_base,
       second_period_base: calc.second_period_base,
+      first_period_base_locked: entry?.first_period_base_locked || false,
       // Bonificações extras CLT: somam ao second_period_net mas não ao gross/net total
       delivery_bonus: form.delivery_bonus || 0,
       delivery_target_bonus: form.delivery_target_bonus || 0,
