@@ -446,6 +446,18 @@ export default function Payroll() {
                      const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
                      const bonificacoes = entry ? calcBonificacoes(entry) : null;
                      const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
+                     const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                     const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
+                     const secondNetDisplay = (() => {
+                       if (!entry) return null;
+                       if (!isCLTMotoRow) return entry.second_period_net || 0;
+                       const denom = entry.full_month_contract_working_days || 1;
+                       const worked = entry.contract_working_days || denom;
+                       const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
+                       const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
+                       const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
+                       return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (entry.second_period_discount || 0) - absence.second + cltExtra;
+                     })();
 
                      return (
                        <tr key={rowKey} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
@@ -483,7 +495,7 @@ export default function Payroll() {
                              </span>
                            ) : '—'}
                          </td>
-                         <td className="p-3 text-right font-mono font-semibold text-green-600">{entry ? formatCurrency(entry.second_period_net || 0) : '—'}</td>
+                         <td className="p-3 text-right font-mono font-semibold text-green-600">{secondNetDisplay !== null ? formatCurrency(secondNetDisplay) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
                              <span className={disc2 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
