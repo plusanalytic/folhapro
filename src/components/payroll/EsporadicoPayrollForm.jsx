@@ -38,7 +38,12 @@ function fmtDate(d) {
   return `${day}/${m}/${y}`;
 }
 
-export default function EsporadicoPayrollForm({ employee, entry, referenceMonth, readOnly, onSave, onClose }) {
+const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
+export default function EsporadicoPayrollForm({ employee, entry, referenceMonth, readOnly, onSave, onClose, paymentStatus = null }) {
+  // Esporádico tem apenas 1 período (first) — bloqueado se a quinzena 1 estiver paga
+  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  const allLocked = readOnly || q1Locked;
   const [form, setForm] = useState({
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 10.00,
@@ -49,7 +54,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
     second_period_discount: entry?.second_period_discount ?? 0,
   });
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+  const set = (key, val) => { if (!allLocked) setForm(f => ({ ...f, [key]: val })); };
 
   const pontos = form.km_bonus_qty || 0;
   const valorPonto = form.km_bonus_value || 10;
@@ -206,6 +211,11 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                   Modo visualização — nenhuma alteração pode ser realizada.
                 </div>
               )}
+              {!readOnly && q1Locked && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
+                  🔒 Pagamento bloqueado — status: <strong>{paymentStatus?.status_q1}</strong>. Todos os campos estão desabilitados.
+                </div>
+              )}
 
               <div className="text-xs px-3 py-1.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 font-medium w-fit">
                 Modelo: Prestador Esporádico — {employee.name}
@@ -219,14 +229,14 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                     label="Pontos"
                     value={form.km_bonus_qty}
                     onChange={v => set('km_bonus_qty', v)}
-                    readOnly={readOnly}
+                    readOnly={allLocked}
                     hint="Quantidade de pontos produzidos"
                   />
                   <NumInput
                     label="Valor do Ponto (R$)"
                     value={form.km_bonus_value}
                     onChange={v => set('km_bonus_value', v)}
-                    readOnly={readOnly}
+                    readOnly={allLocked}
                     hint="Padrão: R$ 10,00"
                   />
                 </div>
@@ -234,7 +244,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                   label="Bonificação / Prêmio (R$)"
                   value={form.bonus}
                   onChange={v => set('bonus', v)}
-                  readOnly={readOnly}
+                  readOnly={allLocked}
                 />
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-3">
                   <div>
@@ -250,8 +260,8 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
               {/* Descontos */}
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <NumInput label="Seguro de Vida (R$)" value={form.life_insurance} onChange={v => set('life_insurance', v)} readOnly={readOnly} />
-                <NumInput label="Diversos (R$)" value={form.other_discounts} onChange={v => set('other_discounts', v)} readOnly={readOnly} />
+                <NumInput label="Seguro de Vida (R$)" value={form.life_insurance} onChange={v => set('life_insurance', v)} readOnly={allLocked} />
+                <NumInput label="Diversos (R$)" value={form.other_discounts} onChange={v => set('other_discounts', v)} readOnly={allLocked} />
               </div>
 
               {totalAbsDiscount > 0 && (
@@ -289,9 +299,9 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos / Acréscimos</p>
                   <PeriodDiscountsTable
                     items={monthDiscounts}
-                    onChange={readOnly ? () => {} : setMonthDiscounts}
-                    readOnly={readOnly}
-                    onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('month')}
+                    onChange={allLocked ? () => {} : setMonthDiscounts}
+                    readOnly={allLocked}
+                    onOpenInstallment={allLocked ? undefined : () => setInstallmentDialog('month')}
                   />
                 </div>
                 <div className={`${netTotal < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
@@ -412,7 +422,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
             </div>
           )}
           <div className="flex gap-3 pb-4">
-            {readOnly ? (
+            {(readOnly || q1Locked) ? (
               <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
             ) : (
               <>

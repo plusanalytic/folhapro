@@ -84,7 +84,12 @@ function calculateMeiPayroll(entry) {
   };
 }
 
-export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false }) {
+const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
+export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, paymentStatus = null }) {
+  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
+  const baseLocked = readOnly || q2Locked;
   const [form, setForm] = useState({
     company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
@@ -181,10 +186,10 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   };
 
   // Input numérico genérico (float)
-  const numericInput = (key) => ({
+  const numericInput = (key, forceDisabled) => ({
     type: 'number',
     step: 'any',
-    disabled: readOnly,
+    disabled: forceDisabled !== undefined ? forceDisabled : baseLocked,
     className: 'mt-1 font-mono',
     value: form[key] === 0 ? '' : String(form[key]),
     onChange: (e) => {
@@ -196,11 +201,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   });
 
   // Input de dias — usa daysStr para não forçar zero durante digitação
-  const dayInput = (key) => ({
+  const dayInput = (key, forceDisabled) => ({
     type: 'number',
     step: '1',
     min: '0',
-    disabled: readOnly,
+    disabled: forceDisabled !== undefined ? forceDisabled : baseLocked,
     className: 'mt-1 font-mono',
     value: daysStr[key] ?? '',
     onChange: (e) => setDayField(key, e.target.value),
@@ -210,11 +215,24 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
   const secondDiscountTotal = secondDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
 
-  const calc = calculateMeiPayroll({
+  const calcRaw = calculateMeiPayroll({
     ...form,
     first_period_discount: firstDiscountTotal,
     second_period_discount: secondDiscountTotal,
   });
+
+  // Se 1ª quinzena está bloqueada, congela a base da 1ª quinzena
+  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base != null;
+  const calc = (() => {
+    if (isFirstBaseFrozen && calcRaw.net_total !== 0) {
+      const frozenFirstBase = entry.first_period_base;
+      const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
+      const newSecondBase = calcRaw.net_total - frozenFirstBase;
+      const newSecondNet = calcRaw.second_period_net + (newSecondBase - calcRaw.second_period_base);
+      return { ...calcRaw, first_period_base: frozenFirstBase, second_period_base: newSecondBase, first_period_net: frozenFirstNet, second_period_net: newSecondNet };
+    }
+    return calcRaw;
+  })();
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
@@ -255,7 +273,10 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       second_period_net: calc.second_period_net,
       first_period_base: calc.first_period_base,
       second_period_base: calc.second_period_base,
-      first_period_split: calc.split_first,
+      first_period_split: isFirstBaseFrozen && calcRaw.net_total !== 0
+        ? Math.round((calc.first_period_base / calcRaw.net_total) * 10000) / 10000
+        : calc.split_first,
+      first_period_base_locked: entry?.first_period_base_locked || false,
       bonus: form.bonus || 0,
       overtime: form.overtime || 0,
       reference_month: referenceMonth,
@@ -313,6 +334,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               {readOnly && (
                 <div className="bg-muted/50 border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground">
                   Modo visualização — nenhuma alteração pode ser realizada.
+                </div>
+              )}
+              {!readOnly && (q1Locked || q2Locked) && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
+                  🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena já paga — você pode alterar proventos livremente. A diferença será aplicada automaticamente na base da 2ª quinzena.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
                 </div>
               )}
 
@@ -456,6 +482,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
             {/* ── ABA: Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
+              {q1Locked && !readOnly && (
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
+                  1ª quinzena já paga — Base congelada. Alterações refletem apenas na 2ª quinzena.
+                </div>
+              )}
               {/* Rateio por dias úteis */}
               <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -465,11 +496,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Dias Úteis — 1ª Quinzena (1–15)</Label>
-                    <Input {...dayInput('working_days_first')} />
+                    <Input {...dayInput('working_days_first', readOnly || q1Locked)} />
                   </div>
                   <div>
                     <Label>Dias Úteis — 2ª Quinzena (16–fim)</Label>
-                    <Input {...dayInput('working_days_second')} />
+                    <Input {...dayInput('working_days_second', readOnly || q2Locked)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -493,6 +524,17 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
+                  {q1Locked && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                      🔒 1ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q1}</strong>
+                    </div>
+                  )}
+                  {paymentStatus?.payment_date_q1 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                      <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q1.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base)}</span>
@@ -505,11 +547,11 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
-                    <Input {...numericInput('first_period_advance')} className="mt-1 font-mono h-8 text-sm" />
+                    <Input {...numericInput('first_period_advance', readOnly || q1Locked)} className="mt-1 font-mono h-8 text-sm" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                    <MeiPeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                    <MeiPeriodDiscountsTable items={firstDiscounts} onChange={(readOnly || q1Locked) ? () => {} : setFirstDiscounts} readOnly={readOnly || q1Locked} onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')} />
                   </div>
                   <div className={`${calc.first_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
@@ -522,6 +564,17 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
                 {/* 2ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
+                  {q2Locked && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                      🔒 2ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q2}</strong>
+                    </div>
+                  )}
+                  {paymentStatus?.payment_date_q2 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                      <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q2.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base)}</span>
@@ -570,7 +623,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                         </Button>
                       )}
                     </div>
-                    <MeiPeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                    <MeiPeriodDiscountsTable items={secondDiscounts} onChange={(readOnly || q2Locked) ? () => {} : setSecondDiscounts} readOnly={readOnly || q2Locked} onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')} />
                   </div>
                   <div className={`${calc.second_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
