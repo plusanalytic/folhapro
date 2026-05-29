@@ -254,12 +254,16 @@ export function HoleriteContent({ employee, entry, month, company }) {
   const absenceFirst  = entry?.absence_discount_first ?? 0;
   const absenceSecond = entry?.absence_discount_second ?? 0;
   const firstNet      = entry?.first_period_net ?? 0;
-  const secondNet     = entry?.second_period_net ?? 0;
   const firstBase     = entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5);
   const secondBase    = entry?.second_period_base ?? (entry?.net_total ?? 0) * (1 - (entry?.first_period_split ?? 0.5));
   const splitFirst    = entry?.first_period_split ?? 0.5;
   const firstDiscounts  = entry?.first_discounts  ?? [];
   const secondDiscounts = entry?.second_discounts ?? [];
+  // Recomputa secondNet a partir dos itens reais do grid (CLT Moto)
+  const cltExtraBonus = (entry?.delivery_bonus ?? 0) + (entry?.delivery_target_bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.route_sp_bonus ?? 0) + (entry?.overtime ?? 0);
+  const gDebits2 = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gCredits2 = secondDiscounts.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const secondNet = Math.round((secondBase + foodVoucher + kmBonus + costAllowance - (gDebits2 - gCredits2) - absenceSecond + cltExtraBonus) * 100) / 100;
   const monthName = getMonthName(month);
 
   // CLT Moto: campos essenciais sempre exibidos mesmo com valor zero

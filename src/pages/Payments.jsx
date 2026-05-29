@@ -20,6 +20,21 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+function getSecondNetDisplay(entry, employees, jobRoles) {
+  const emp = employees.find(e => e.id === entry.employee_id);
+  const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
+  if (jr?.payroll_type !== 'MOTOCICLISTA_CLT') return entry.second_period_net || 0;
+  const denom = entry.full_month_contract_working_days || 1;
+  const worked = entry.contract_working_days || denom;
+  const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
+  const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
+  const gDebits = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gCredits = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const absence = getAbsenceByPeriod(entry);
+  const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
+  return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (gDebits - gCredits) - absence.second + cltExtra;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const [y, m, d] = dateStr.split('-');
@@ -244,7 +259,7 @@ export default function Payments() {
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
-        '2ª Q - Á Receber': entry.second_period_net || 0,
+        '2ª Q - Á Receber': getSecondNetDisplay(entry, employees, jobRoles),
         '2ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.second_discounts, getAbsenceByPeriod(entry).second),
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
@@ -293,7 +308,7 @@ export default function Payments() {
   });
 
   const totalQ1 = sortedEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
-  const totalQ2 = sortedEntries.reduce((s, e) => s + (e.second_period_net || 0), 0);
+  const totalQ2 = sortedEntries.reduce((s, e) => s + getSecondNetDisplay(e, employees, jobRoles), 0);
   const totalBonificacoes = sortedEntries.reduce((s, e) => s + calcBonificacoes(e), 0);
 
   return (
@@ -491,7 +506,7 @@ export default function Payments() {
                     />
                   </td>
                   {/* 2ª Quinzena */}
-                  <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(entry.second_period_net)}</td>
+                  <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">{formatCurrency(getSecondNetDisplay(entry, employees, jobRoles))}</td>
                   <td className="p-2 text-right font-mono whitespace-nowrap">
                     {(() => {
                       const absence = getAbsenceByPeriod(entry);

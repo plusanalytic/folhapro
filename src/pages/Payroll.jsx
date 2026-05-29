@@ -456,7 +456,9 @@ export default function Payroll() {
                        const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
                        const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
                        const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
-                       return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (entry.second_period_discount || 0) - absence.second + cltExtra;
+                       const gDebits2 = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       const gCredits2 = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (gDebits2 - gCredits2) - absence.second + cltExtra;
                      })();
 
                      return (
