@@ -21,6 +21,13 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
   const extraTotal      = extraDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
   // Recalcula netTotal a partir dos componentes para garantir consistência com o formulário
   const netTotal        = Math.round((netLabore + profitDist + birthdayBonus + medicalPlan - firstAdvance - otherDiscounts - extraTotal) * 100) / 100;
+  // Quinzenal
+  const firstBase       = entry?.first_period_base  ?? 0;
+  const secondBase      = entry?.second_period_base ?? 0;
+  const firstNet        = entry?.first_period_net   ?? 0;
+  const secondNet       = entry?.second_period_net  ?? 0;
+  const firstDebits     = firstDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
+  const secondDebits    = secondDiscounts.reduce((s, x) => x.type === 'credit' ? s - (x.amount || 0) : s + (x.amount || 0), 0);
 
   // Participação societária — usa employee.notes ou campo genérico
   const participacao = employee?.participation ?? employee?.notes ?? '';
@@ -123,6 +130,47 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
               <td style={{ padding: '8px 14px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontSize: '11px', fontWeight: 'bold' }}>
                 {employee.bank_beneficiary || employee.name}
               </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
+      {/* Quinzenal */}
+      {(firstBase > 0 || secondBase > 0) && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px', border: '1px solid #d1d5db' }}>
+          <thead>
+            <tr>
+              <th colSpan={4} style={{ background: '#1e3a5f', color: '#fff', padding: '8px 14px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Pagamento Quinzenal
+              </th>
+            </tr>
+            <tr style={{ background: '#f3f4f6' }}>
+              <th style={{ padding: '6px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #d1d5db', width: '25%' }}>Período</th>
+              <th style={{ padding: '6px 14px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #d1d5db', width: '25%' }}>Base</th>
+              <th style={{ padding: '6px 14px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #d1d5db', width: '25%' }}>Descontos/Bônus</th>
+              <th style={{ padding: '6px 14px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #d1d5db', width: '25%' }}>A Receber</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ background: '#fff' }}>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', fontWeight: 'bold', fontSize: '11px' }}>1ª Quinzena (1–15)</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px' }}>{formatCurrency(firstBase)}</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', color: firstDebits > 0 ? '#dc2626' : '#555' }}>
+                {firstDebits !== 0 ? (firstDebits > 0 ? '-' : '+') + formatCurrency(Math.abs(firstDebits)) : '—'}
+              </td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>{formatCurrency(firstNet)}</td>
+            </tr>
+            <tr style={{ background: '#f9fafb' }}>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', fontWeight: 'bold', fontSize: '11px' }}>2ª Quinzena (16–30)</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px' }}>{formatCurrency(secondBase)}</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px' }}>
+                {[birthdayBonus > 0 && `+B. Aniv.`, medicalPlan > 0 && `+Conv.`, profitDist > 0 && `+Lucros`, secondDebits > 0 && `-Desc.`].filter(Boolean).join(' ') || '—'}
+              </td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>{formatCurrency(secondNet)}</td>
+            </tr>
+            <tr style={{ background: '#eff6ff' }}>
+              <td colSpan={3} style={{ padding: '8px 14px', fontWeight: 'bold', color: '#1e3a5f', borderTop: '2px solid #2563eb', fontSize: '11px' }}>TOTAL (1ª + 2ª Quinzena)</td>
+              <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#1e3a5f', borderTop: '2px solid #2563eb', fontSize: '12px' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</td>
             </tr>
           </tbody>
         </table>

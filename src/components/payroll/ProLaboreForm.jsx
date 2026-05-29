@@ -63,7 +63,9 @@ const DEFAULTS = {
   notes: '',
 };
 
-export default function ProLaboreForm({ employee, entry, referenceMonth, readOnly, onSave, onClose }) {
+const PAYMENT_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
+export default function ProLaboreForm({ employee, entry, referenceMonth, readOnly, onSave, onClose, paymentStatus }) {
   const totalWorkingDays = getWorkingDaysInMonth(referenceMonth);
   const [form, setForm] = useState({
     ...DEFAULTS,
@@ -120,8 +122,13 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
 
   // Quinzenal split por valor total (igual ao CLT moto) — padrão 50/50
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
-  const firstBase = Math.round(calc.net_labore * firstPeriodSplit * 100) / 100;
-  const secondBase = Math.round(calc.net_labore * (1 - firstPeriodSplit) * 100) / 100;
+
+  // Bloqueio 1ª quinzena — igual ao CLT/MEI
+  const q1Locked = !!(entry?.first_period_base_locked || PAYMENT_BLOCKED_STATUSES.includes(paymentStatus?.status_q1));
+  const firstBase = q1Locked
+    ? (entry?.first_period_base ?? Math.round(calc.net_labore * firstPeriodSplit * 100) / 100)
+    : Math.round(calc.net_labore * firstPeriodSplit * 100) / 100;
+  const secondBase = Math.round((calc.net_labore - firstBase) * 100) / 100;
   const firstPeriodNet = Math.round((firstBase - firstTotal) * 100) / 100;
   const secondPeriodNet = Math.round((secondBase + form.profit_distribution + (form.birthday_bonus || 0) + (form.medical_plan || 0) - form.other_discounts - secondTotal) * 100) / 100;
 
@@ -154,23 +161,24 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
     setSaving(true);
     const payload = {
       ...form,
-      first_discounts:        firstDiscounts,
-      second_discounts:       secondDiscounts,
-      first_period_discount:  firstTotal,
-      second_period_discount: secondTotal,
-      gross_total:            calc.gross_total,
-      net_total:              calc.net_total,
-      inss:                   calc.inss,
-      irrf:                   calc.irrf,
-      working_days_month:     form.working_days_month,
-      working_days_worked:    form.working_days_worked,
-      first_period_split:     firstPeriodSplit,
-      first_period_net:       firstPeriodNet,
-      second_period_net:      secondPeriodNet,
-      first_period_base:      firstBase,
-      second_period_base:     secondBase,
-      birthday_bonus:         form.birthday_bonus,
-      medical_plan:           form.medical_plan,
+      first_discounts:          firstDiscounts,
+      second_discounts:         secondDiscounts,
+      first_period_discount:    firstTotal,
+      second_period_discount:   secondTotal,
+      gross_total:              calc.gross_total,
+      net_total:                calc.net_total,
+      inss:                     calc.inss,
+      irrf:                     calc.irrf,
+      working_days_month:       form.working_days_month,
+      working_days_worked:      form.working_days_worked,
+      first_period_split:       firstPeriodSplit,
+      first_period_net:         firstPeriodNet,
+      second_period_net:        secondPeriodNet,
+      first_period_base:        firstBase,
+      second_period_base:       secondBase,
+      first_period_base_locked: q1Locked,
+      birthday_bonus:           form.birthday_bonus,
+      medical_plan:             form.medical_plan,
     };
     await onSave(payload);
     setSaving(false);
@@ -298,28 +306,29 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
 
             {/* ── Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
-              {/* Rateio por valor total (igual CLT moto) */}
+              {/* Aviso de bloqueio Q1 */}
+              {q1Locked && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3">
+                  <span className="text-amber-700 text-xs font-semibold mt-0.5">🔒 1ª Quinzena paga</span>
+                  <span className="text-amber-700 text-xs">— Base congelada em {formatCurrency(firstBase)}. Alterações nos campos afetarão somente a 2ª quinzena.</span>
+                </div>
+              )}
+              {/* Bases quinzenais */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 rounded-lg px-4 py-3">
-                  <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-                  {readOnly ? (
-                    <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(firstBase)}</p>
-                  ) : (
-                    <Input
-                      type="number" step="0.01" className="font-mono font-bold text-lg h-9"
-                      value={firstBase === 0 ? '' : String(firstBase)}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value) || 0;
-                        if (calc.net_labore !== 0) setFirstPeriodSplit(v / calc.net_labore);
-                      }}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
-                    />
-                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs text-muted-foreground">Base 1ª Quinzena</p>
+                    {q1Locked && <span className="text-xs font-semibold text-amber-600 bg-amber-100 rounded px-1.5 py-0.5">🔒 Congelada</span>}
+                  </div>
+                  <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(firstBase)}</p>
                   <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
+                  {paymentStatus?.payment_date_q1 && (
+                    <p className="text-xs text-green-600 mt-1">Pago em: {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</p>
+                  )}
                 </div>
                 <div className="bg-muted/30 rounded-lg px-4 py-3">
                   <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-                  {readOnly ? (
+                  {readOnly || q1Locked ? (
                     <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(secondBase)}</p>
                   ) : (
                     <Input
@@ -333,9 +342,12 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
                     />
                   )}
                   <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
+                  {paymentStatus?.payment_date_q2 && (
+                    <p className="text-xs text-green-600 mt-1">Pago em: {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</p>
+                  )}
                 </div>
               </div>
-              {firstPeriodSplit !== 0.5 && (
+              {!q1Locked && firstPeriodSplit !== 0.5 && (
                 <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
                   {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
