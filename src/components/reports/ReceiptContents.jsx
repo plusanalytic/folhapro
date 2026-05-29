@@ -523,7 +523,11 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
   const firstAdv        = entry?.first_period_advance ?? 0;
   const grossTotal      = Math.round((remuneracao + kmBonus + motoRental + bonus + otherBen) * 100) / 100;
   const firstNet        = entry?.first_period_net ?? 0;
-  const secondNet       = entry?.second_period_net ?? 0;
+  // Recalcula secondNet dinamicamente para garantir que bonus/overtime sejam somados
+  // (entradas antigas podem ter secondNet salvo sem esses valores)
+  const gDebits2  = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gCredits2 = secondDiscounts.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const secondNet = Math.round((secondBase + foodVoucher + kmBonus + costAllowance + bonus + overtime - (gDebits2 - gCredits2)) * 100) / 100;
   const firstBase       = entry?.first_period_base ?? 0;
   const secondBase      = entry?.second_period_base ?? 0;
   const firstDiscounts  = entry?.first_discounts ?? [];
