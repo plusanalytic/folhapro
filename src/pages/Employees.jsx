@@ -199,13 +199,11 @@ export default function Employees() {
           </SelectContent>
         </Select>
         <Select value={filterContract} onValueChange={setFilterContract}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Contrato" />
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="CLT">CLT</SelectItem>
-            <SelectItem value="PJ">PJ</SelectItem>
+            <SelectItem value="all">Todos os tipos</SelectItem>
             <SelectItem value="ESPORADICO">Prestador Esporádico</SelectItem>
           </SelectContent>
         </Select>
