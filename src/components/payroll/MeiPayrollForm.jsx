@@ -90,13 +90,18 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
   const baseLocked = readOnly || q2Locked;
+
+  // Dias úteis do mês por quinzena — usado apenas para pré-preencher folha NOVA (entry === null)
+  const { first: wdFirst, second: wdSecond } = getWorkingDaysByPeriod(referenceMonth);
+  const wdMonth = wdFirst + wdSecond;
+
   const [form, setForm] = useState({
     company_id: employee.company_id,
     base_salary: entry?.base_salary ?? 0,
-    working_days_month: entry?.working_days_month ?? 0,
-    working_days_worked: entry?.working_days_worked ?? 0,
-    working_days_first: entry?.working_days_first ?? 0,
-    working_days_second: entry?.working_days_second ?? 0,
+    working_days_month:  entry ? (entry.working_days_month  ?? 0) : wdMonth,
+    working_days_worked: entry ? (entry.working_days_worked ?? 0) : wdMonth,
+    working_days_first:  entry ? (entry.working_days_first  ?? 0) : wdFirst,
+    working_days_second: entry ? (entry.working_days_second ?? 0) : wdSecond,
     food_voucher: entry?.food_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 0,
@@ -112,10 +117,10 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
 
   // Estado de string separado para os 4 campos de dias — evita que parseInt('') = NaN reforce 0 durante digitação
   const [daysStr, setDaysStr] = useState({
-    working_days_month:  String(entry?.working_days_month  ?? ''),
-    working_days_worked: String(entry?.working_days_worked ?? ''),
-    working_days_first:  String(entry?.working_days_first  ?? ''),
-    working_days_second: String(entry?.working_days_second ?? ''),
+    working_days_month:  String(entry ? (entry.working_days_month  ?? '') : wdMonth),
+    working_days_worked: String(entry ? (entry.working_days_worked ?? '') : wdMonth),
+    working_days_first:  String(entry ? (entry.working_days_first  ?? '') : wdFirst),
+    working_days_second: String(entry ? (entry.working_days_second ?? '') : wdSecond),
   });
 
   const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
@@ -222,7 +227,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   });
 
   // Se 1ª quinzena está bloqueada, congela a base da 1ª quinzena
-  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base != null;
+  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
   const calc = (() => {
     if (isFirstBaseFrozen && calcRaw.net_total !== 0) {
       const frozenFirstBase = entry.first_period_base;
@@ -364,7 +369,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     <Label>Dias Úteis Trabalhados</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Dias efetivamente trabalhados</p>
                     <Input
-                      type="number" step="1" min="0" disabled={readOnly}
+                      type="number" step="1" min="0" disabled={baseLocked}
                       className="mt-1 font-mono"
                       value={daysStr.working_days_worked ?? ''}
                       onChange={e => handleWorkedDaysChange(e.target.value)}
@@ -413,7 +418,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                     type="number"
                     step="0.01"
                     min="0"
-                    disabled={readOnly}
+                    disabled={baseLocked}
                     className="mt-1 font-mono"
                     value={form.cost_allowance === 0 ? '' : String(form.cost_allowance)}
                     onChange={e => {
