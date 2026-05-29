@@ -49,6 +49,7 @@ export default function Payroll() {
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [filterEsporadico, setFilterEsporadico] = useState('all');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -337,6 +338,15 @@ export default function Payroll() {
             <SelectItem value="closed">Fechado</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterEsporadico} onValueChange={setFilterEsporadico}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Tipos</SelectItem>
+            <SelectItem value="ESPORADICO">Prestador Esporádico</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar colaborador..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -346,7 +356,7 @@ export default function Payroll() {
       {companiesInView.map(company => {
         const closed = isMonthClosed(company.id);
         // Esporádicos são sempre exibidos via espPairs (suportam múltiplas entries na mesma empresa)
-        const fixedEmps = filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
+        const fixedEmps = filterEsporadico === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
         // Esporádicos: representados como { emp, entry } para suportar múltiplas entries
         const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp, entry }) => {
           if (!emp.name.toLowerCase().includes(search.toLowerCase())) return false;
