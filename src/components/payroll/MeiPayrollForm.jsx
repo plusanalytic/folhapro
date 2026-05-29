@@ -229,7 +229,17 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   // Se 1ª quinzena está bloqueada, congela a base da 1ª quinzena
   const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
   const calc = (() => {
-    if (isFirstBaseFrozen && calcRaw.net_total !== 0) {
+    // Em modo visualização: usa sempre os valores já salvos (não recalcula bases/líquidos)
+    if (readOnly && entry) {
+      return {
+        ...calcRaw,
+        first_period_base: entry.first_period_base ?? calcRaw.first_period_base,
+        second_period_base: entry.second_period_base ?? calcRaw.second_period_base,
+        first_period_net: entry.first_period_net ?? calcRaw.first_period_net,
+        second_period_net: entry.second_period_net ?? calcRaw.second_period_net,
+      };
+    }
+    if (isFirstBaseFrozen) {
       const frozenFirstBase = entry.first_period_base;
       const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
       const newSecondBase = calcRaw.net_total - frozenFirstBase;
@@ -461,8 +471,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descontos</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Seguro de Vida (R$)</Label>
-                  <Input {...numericInput('life_insurance')} />
+                   <Label>Seguro de Vida (R$)</Label>
+                  <Input {...numericInput('life_insurance', readOnly || q1Locked)} />
                 </div>
               </div>
 
