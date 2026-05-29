@@ -15,6 +15,8 @@ import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } 
 import ProvisionCalculator from './ProvisionCalculator';
 import { base44 } from '@/api/base44Client';
 
+const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO'];
+
 // Componentes extraídos para FORA do componente pai para evitar perda de foco ao redigitar
 function NumInput({ value, onChange, disabled, className = '', step = '0.01', min, placeholder }) {
   const [local, setLocal] = useState(null);
@@ -62,7 +64,13 @@ function CalcRow({ label, value }) {
   );
 }
 
-export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null }) {
+export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
+  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
+  // baseLocked: campos que afetam net_total — bloqueado somente se q2 está bloqueada ou readOnly.
+  // Se apenas q1 está paga, todos os campos permanecem editáveis e a diferença vai para a 2ª quinzena.
+  const baseLocked = readOnly || q2Locked;
+
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis para VR: proporcional se admissão ocorreu neste mês
   const vrWorkingDays = (() => {
@@ -131,11 +139,6 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     const end = `${referenceMonth}-${String(lastDay).padStart(2, '0')}`;
     
     base44.entities.PointAdjustment.filter({ employee_tangerino_id: Number(employee.tangerino_id) }).then(all => {
-      // Filtra ajustes que se sobrepõem ao mês OU ao mês anterior/próximo
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0);
-      
-      // Expande intervalo para incluir mês anterior e próximo (para capturar faltas que impactam múltiplos períodos)
       const prevMonthStart = new Date(year, month - 2, 1);
       const nextMonthEnd = new Date(year, month + 1, 0);
       
@@ -145,26 +148,19 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
         return adjEnd >= prevMonthStart && adjStart <= nextMonthEnd;
       });
       
-      // Expande cada ajuste para cada dia do seu período
       const expanded = [];
       for (const adj of overlapping) {
         const adjStart = new Date(adj.start_date);
         const adjEnd = new Date(adj.end_date);
         let current = new Date(adjStart);
-        
         while (current <= adjEnd) {
-          expanded.push({
-            ...adj,
-            date: current.toISOString().split('T')[0],
-          });
+          expanded.push({ ...adj, date: current.toISOString().split('T')[0] });
           current.setDate(current.getDate() + 1);
         }
       }
       
-      // Filtra apenas dias do mês de referência
       const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
       forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-      
       setPointAdjustments(forMonth);
     });
   }, [employee.tangerino_id, referenceMonth]);
@@ -187,12 +183,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
 
   // Helper: conecta NumInput ao form state por field name
-  const numInputProps = (field, extra = {}) => ({
+  // Usa baseLocked como padrão — permite edição quando apenas q1 está paga
+  const numInputProps = useCallback((field, extra = {}) => ({
     value: form[field] ?? 0,
-    disabled: readOnly,
+    disabled: extra.disabled !== undefined ? extra.disabled : baseLocked,
     onChange: v => set(field, v),
     ...extra,
-  });
+  }), [form, baseLocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // crédito reduz o total de desconto, débito aumenta
   const firstDiscountTotal = firstDiscounts.reduce((s, r) => r.type === 'credit' ? s - (r.amount || 0) : s + (r.amount || 0), 0);
@@ -200,8 +197,37 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const totalDiscount = totalAbsenceDiscount(absenceDiscounts);
   const { first: absenceFirst, second: absenceSecond } = absenceDiscountByPeriod(absenceDiscounts);
 
-  const calcForm = { ...form, absence_discount: totalDiscount, absence_discount_first: absenceFirst, absence_discount_second: absenceSecond, first_period_discount: firstDiscountTotal, second_period_discount: secondDiscountTotal, first_period_split: firstPeriodSplit };
-  const calc = calculateEscritorioPayroll(calcForm);
+  const calcForm = {
+    ...form,
+    absence_discount: totalDiscount,
+    absence_discount_first: absenceFirst,
+    absence_discount_second: absenceSecond,
+    first_period_discount: firstDiscountTotal,
+    second_period_discount: secondDiscountTotal,
+    first_period_split: firstPeriodSplit,
+  };
+  const calcRaw = calculateEscritorioPayroll(calcForm);
+
+  // Se 1ª quinzena está bloqueada (paga), congela a base da 1ª quinzena.
+  // Qualquer alteração nos proventos afeta SOMENTE a base da 2ª quinzena.
+  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
+  const calc = (() => {
+    if (isFirstBaseFrozen) {
+      const frozenFirstBase = entry.first_period_base;
+      const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
+      const newSecondBase = calcRaw.net_total - frozenFirstBase;
+      // Ajusta second_period_net pelo delta na base (preserva bonificações/VA/descontos do calcRaw)
+      const newSecondNet = calcRaw.second_period_net + (newSecondBase - calcRaw.second_period_base);
+      return {
+        ...calcRaw,
+        first_period_base: frozenFirstBase,
+        second_period_base: newSecondBase,
+        first_period_net: frozenFirstNet,
+        second_period_net: newSecondNet,
+      };
+    }
+    return calcRaw;
+  })();
 
   // Total a Pagar = Líquido Convenção + Outros Benefícios + líquido quinzenal (créditos - débitos - adiantamento)
   const quinzenalLiquido = -firstDiscountTotal - secondDiscountTotal - (form.first_period_advance || 0);
@@ -261,12 +287,14 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       second_period_base: calc.second_period_base,
       first_period_net: calc.first_period_net,
       second_period_net: calc.second_period_net,
-      first_period_split: firstPeriodSplit,
+      // Se base 1ª está congelada: salva o split efetivo para que próximo carregamento recalcule corretamente
+      first_period_split: isFirstBaseFrozen && calcRaw.net_total !== 0
+        ? Math.round((calc.first_period_base / calcRaw.net_total) * 10000) / 10000
+        : firstPeriodSplit,
+      first_period_base_locked: entry?.first_period_base_locked || false,
       reference_month: referenceMonth,
     });
   };
-
-
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -316,6 +344,15 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               {readOnly && (
                 <div className="bg-muted/50 border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground">
                   Modo visualização — nenhuma alteração pode ser realizada.
+                </div>
+              )}
+              {!readOnly && (q1Locked || q2Locked) && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
+                  🔒 {q1Locked && q2Locked
+                    ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.'
+                    : q1Locked
+                    ? '1ª quinzena já paga — Base da 1ª quinzena congelada. Alterações nos proventos serão refletidas apenas na base da 2ª quinzena.'
+                    : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
                 </div>
               )}
 
@@ -458,6 +495,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.net_total)}</p>
               </div>
 
+              {isFirstBaseFrozen && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="font-bold text-sm text-blue-800">Base 1ª Quinzena (congelada)</p>
+                    <p className="text-xs text-blue-600">Base 2ª Quinzena = Líquido − Base 1ª</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono font-bold text-blue-800">{formatCurrency(calc.first_period_base)} / {formatCurrency(calc.second_period_base)}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between bg-secondary/10 rounded-lg px-4 py-3">
                 <div>
                   <p className="font-bold text-base">Total Outros Benefícios</p>
@@ -469,11 +518,21 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
             {/* ── ABA: Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
+              {entry?.first_period_base_locked && (
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
+                  🔒 Base da 1ª Quinzena congelada pelo reajuste salarial — a diferença foi lançada integralmente na 2ª Quinzena.
+                </div>
+              )}
+              {q1Locked && !readOnly && (
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
+                  1ª quinzena já paga — Base congelada. Alterações nos proventos refletem apenas na 2ª quinzena.
+                </div>
+              )}
               {/* Rateio editável */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 rounded-lg px-4 py-3">
                   <p className="text-xs text-muted-foreground mb-1">Base 1ª Quinzena</p>
-                  {readOnly ? (
+                  {(readOnly || isFirstBaseFrozen) ? (
                     <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</p>
                   ) : (
                     <Input
@@ -494,11 +553,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       }}
                     />
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">{Math.round(firstPeriodSplit * 100)}% do líquido</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {calc.net_total !== 0 ? `${Math.round((calc.first_period_base / calc.net_total) * 100)}% do líquido` : ''}
+                  </p>
                 </div>
                 <div className="bg-muted/30 rounded-lg px-4 py-3">
                   <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
-                  {readOnly ? (
+                  {(readOnly || q1Locked) ? (
                     <p className="font-mono font-bold text-foreground text-lg">{formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</p>
                   ) : (
                     <Input
@@ -519,10 +580,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                       }}
                     />
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">{Math.round((1 - firstPeriodSplit) * 100)}% do líquido</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {calc.net_total !== 0 ? `${Math.round(((calc.second_period_base ?? (calc.net_total - calc.first_period_base)) / calc.net_total) * 100)}% do líquido` : ''}
+                  </p>
                 </div>
               </div>
-              {firstPeriodSplit !== 0.5 && (
+              {firstPeriodSplit !== 0.5 && !q1Locked && (
                 <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
                   {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
@@ -530,7 +593,19 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 1ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
+                  {q1Locked && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                      🔒 1ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q1}</strong>
+                    </div>
+                  )}
+                  {paymentStatus?.payment_date_q1 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                      <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q1.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
@@ -543,11 +618,16 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   )}
                   <div>
                     <Label className="text-xs">Adiantamento</Label>
-                    <NumInput {...numInputProps('first_period_advance', { className: 'mt-1 h-8 text-sm' })} />
+                    <NumInput {...numInputProps('first_period_advance', { className: 'mt-1 h-8 text-sm', disabled: readOnly || q1Locked })} />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                    <PeriodDiscountsTable items={firstDiscounts} onChange={readOnly ? () => {} : setFirstDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('first')} />
+                    <PeriodDiscountsTable
+                      items={firstDiscounts}
+                      onChange={(readOnly || q1Locked) ? () => {} : setFirstDiscounts}
+                      readOnly={readOnly || q1Locked}
+                      onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')}
+                    />
                   </div>
                   <div className={`${calc.first_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
@@ -558,7 +638,19 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   </div>
                 </div>
 
+                {/* 2ª Quinzena */}
                 <div className="space-y-3 border border-border rounded-xl p-4">
+                  {q2Locked && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                      🔒 2ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q2}</strong>
+                    </div>
+                  )}
+                  {paymentStatus?.payment_date_q2 && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                      <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q2.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">2ª Quinzena (16–30)</p>
                     <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.second_period_base ?? calc.net_total / 2)}</span>
@@ -595,7 +687,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   )}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                    <PeriodDiscountsTable items={secondDiscounts} onChange={readOnly ? () => {} : setSecondDiscounts} readOnly={readOnly} onOpenInstallment={readOnly ? undefined : () => setInstallmentDialog('second')} />
+                    <PeriodDiscountsTable
+                      items={secondDiscounts}
+                      onChange={(readOnly || q2Locked) ? () => {} : setSecondDiscounts}
+                      readOnly={readOnly || q2Locked}
+                      onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')}
+                    />
                   </div>
                   <div className={`${calc.second_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                     <div>
@@ -625,6 +722,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   readOnly={readOnly}
                   isMotocyclist={false}
                   payrollForm={form}
+                  lockedPeriods={{ first: q1Locked, second: q2Locked }}
                 />
               )}
             </TabsContent>
@@ -763,6 +861,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
         )}
 
         <div className="px-6 pt-4 border-t border-border bg-background shrink-0">
+          {(q1Locked || q2Locked) && !readOnly && (
+            <div className="mb-2">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ⚠️ Campos da quinzena bloqueada não serão alterados ao salvar.
+              </div>
+            </div>
+          )}
           {!readOnly && (
             <div className="mb-3">
               <Label className="text-xs">Observação (aparece no PDF)</Label>
