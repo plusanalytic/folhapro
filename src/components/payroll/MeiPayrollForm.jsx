@@ -229,19 +229,13 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
   // Se 1ª quinzena está bloqueada, congela a base da 1ª quinzena
   const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
   const calc = (() => {
-    // Em modo visualização: usa sempre os valores já salvos (não recalcula bases/líquidos)
-    if (readOnly && entry) {
-      return {
-        ...calcRaw,
-        first_period_base: entry.first_period_base ?? calcRaw.first_period_base,
-        second_period_base: entry.second_period_base ?? calcRaw.second_period_base,
-        first_period_net: entry.first_period_net ?? calcRaw.first_period_net,
-        second_period_net: entry.second_period_net ?? calcRaw.second_period_net,
-      };
-    }
-    if (isFirstBaseFrozen) {
+    if (!readOnly && isFirstBaseFrozen) {
+      // Modo edição com 1ª quinzena paga: congela base da 1ª, deduz seguro de vida corretamente
       const frozenFirstBase = entry.first_period_base;
-      const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
+      const frozenFirstNet = frozenFirstBase
+        - (form.life_insurance || 0)
+        - (form.first_period_advance || 0)
+        - firstDiscountTotal;
       const newSecondBase = calcRaw.net_total - frozenFirstBase;
       const newSecondNet = calcRaw.second_period_net + (newSecondBase - calcRaw.second_period_base);
       return { ...calcRaw, first_period_base: frozenFirstBase, second_period_base: newSecondBase, first_period_net: frozenFirstNet, second_period_net: newSecondNet };
