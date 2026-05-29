@@ -146,7 +146,7 @@ export default function Payments() {
       base44.entities.Company.list(),
       base44.entities.JobRole.list(),
       base44.entities.Workplace.list(),
-      base44.entities.PayrollEntry.filter({ reference_month: selectedMonth, status: 'closed' }),
+      base44.entities.PayrollEntry.filter({ reference_month: selectedMonth }),
     ]);
     setEmployees(e);
     setCompanies(c.filter(x => x.is_active !== false));
@@ -268,8 +268,15 @@ export default function Payments() {
     const emp = getEmployee(entry.employee_id);
     if (!emp) return false;
     const ps = getPayStatus(entry.id);
+    // Mostra folhas fechadas OU folhas reabertas que já tiveram algum status/pagamento registrado
+    const hasModifiedStatus = !!(ps && (
+      (ps.status_q1 && ps.status_q1 !== 'PENDENTE') ||
+      (ps.status_q2 && ps.status_q2 !== 'PENDENTE') ||
+      ps.payment_date_q1 || ps.payment_date_q2 ||
+      ps.obs_q1 || ps.obs_q2
+    ));
+    if (entry.status !== 'closed' && !hasModifiedStatus) return false;
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
-    // Verifica empresa pela entry OU pelo company_id atual do colaborador (cobre troca de empresa)
     const effectiveCompanyId = (emp?.contract_type !== 'ESPORADICO' && emp?.company_id) ? emp.company_id : entry.company_id;
     const matchCompany = selectedCompany === 'all' || entry.company_id === selectedCompany || effectiveCompanyId === selectedCompany;
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;

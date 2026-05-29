@@ -89,8 +89,9 @@ const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO',
 export default function PayrollEntryForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null, workplaces = [] }) {
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
-  // baseLocked: campos que afetam net_total (rateado entre as duas quinzenas)
-  const baseLocked = readOnly || q1Locked || q2Locked;
+  // baseLocked: campos que afetam net_total — bloqueado somente se q2 está bloqueada ou readOnly.
+  // Se apenas q1 está paga, os campos ficam livres e a diferença vai para a 2ª quinzena.
+  const baseLocked = readOnly || q2Locked;
   // q2ExtraLocked: campos que só impactam a 2ª quinzena (food_voucher, km, ajuda de custo, bonificações CLT moto)
   const q2ExtraLocked = readOnly || q2Locked;
 
@@ -409,8 +410,21 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     first_period_split: firstPeriodSplit,
   };
   const calcRaw = calculatePayroll(calcForm, employee.contract_type, payrollType);
-  // TODO: reabilitar congelamento de base da 1ª quinzena quando q1 está paga (desabilitado temporariamente)
+  // Se 1ª quinzena está bloqueada (paga/agendada), congela a base da 1ª e redistribui o delta na 2ª
   const calc = (() => {
+    if (q1Locked && entry?.first_period_base != null && calcRaw.net_total !== 0) {
+      const frozenFirstBase = entry.first_period_base;
+      const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
+      const newSecondBase = calcRaw.net_total - frozenFirstBase;
+      const newSecondNet = newSecondBase - secondDiscountTotal - absenceSecond;
+      return {
+        ...calcRaw,
+        first_period_base: frozenFirstBase,
+        second_period_base: newSecondBase,
+        first_period_net: frozenFirstNet,
+        second_period_net: newSecondNet,
+      };
+    }
     if (calcRaw.net_total === 0 && firstBaseOverride !== null) {
       return {
         ...calcRaw,
@@ -574,7 +588,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             )}
             {!readOnly && (q1Locked || q2Locked) && (
               <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
-                🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena bloqueada — campos que afetam o rateio estão desabilitados.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
+                🔒 {q1Locked && q2Locked ? 'Ambas as quinzenas estão bloqueadas — todos os campos estão desabilitados.' : q1Locked ? '1ª quinzena já paga — você pode alterar proventos livremente. A diferença será aplicada automaticamente na base da 2ª quinzena.' : '2ª quinzena bloqueada — campos que afetam a 2ª quinzena estão desabilitados.'}
               </div>
             )}
             {/* Salário e Faltas — CLT Moto: campos de dias trabalhados */}
@@ -1140,7 +1154,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 }}
               />
             )}
-            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round(firstPeriodSplit * 100)}% do líquido` : 'valor fixo'}</p>
+            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round((calc.first_period_base / calc.net_total) * 100)}% do líquido` : 'valor fixo'}</p>
             </div>
             <div className="bg-muted/30 rounded-lg px-4 py-3">
             <p className="text-xs text-muted-foreground mb-1">Base 2ª Quinzena</p>
@@ -1159,10 +1173,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 }}
               />
             )}
-            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round((1 - firstPeriodSplit) * 100)}% do líquido` : 'valor fixo'}</p>
+            <p className="text-xs text-muted-foreground mt-1">{calc.net_total !== 0 ? `${Math.round(((calc.second_period_base ?? (calc.net_total - calc.first_period_base)) / calc.net_total) * 100)}% do líquido` : 'valor fixo'}</p>
             </div>
             </div>
-            {firstPeriodSplit !== 0.5 && (
+            {firstPeriodSplit !== 0.5 && !q1Locked && (
               <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <span className="text-xs text-amber-700">Rateio personalizado: {Math.round(firstPeriodSplit * 100)}% / {Math.round((1 - firstPeriodSplit) * 100)}%</span>
                 {!readOnly && <button className="text-xs text-amber-700 underline" onClick={() => setFirstPeriodSplit(0.5)}>Resetar para 50/50</button>}
@@ -1173,12 +1187,18 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
               {/* 1ª Quinzena */}
               <div className="space-y-3 border border-border rounded-xl p-4">
                 {q1Locked && (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                 <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
                     🔒 1ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q1}</strong>
-                  </div>
+                 </div>
+                )}
+                {paymentStatus?.payment_date_q1 && (
+                 <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                   <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                   <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q1.split('-').reverse().join('/')}</span>
+                 </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
+                 <p className="font-semibold text-sm">1ª Quinzena (1–15)</p>
                   <span className="text-xs text-muted-foreground">Base: {formatCurrency(calc.first_period_base ?? calc.net_total / 2)}</span>
                 </div>
                 {absenceFirst > 0 && (
@@ -1209,6 +1229,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 {q2Locked && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
                     🔒 2ª Quinzena bloqueada — status: <strong>{paymentStatus?.status_q2}</strong>
+                  </div>
+                )}
+                {paymentStatus?.payment_date_q2 && (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <span className="text-xs text-green-700 font-medium">📅 Data de Pagamento</span>
+                    <span className="text-xs font-mono text-green-700 font-semibold">{paymentStatus.payment_date_q2.split('-').reverse().join('/')}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
