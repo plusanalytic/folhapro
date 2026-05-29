@@ -226,8 +226,10 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     second_period_discount: secondDiscountTotal,
   });
 
-  // Se 1ª quinzena está bloqueada, congela a base da 1ª quinzena
-  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
+  // q1IsPaid: verifica status independente de readOnly (para funcionar no modo visualização também)
+  const q1IsPaid = QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  // Se 1ª quinzena está paga (readOnly ou não) OU base foi congelada pelo sistema, congela a base da 1ª quinzena
+  const isFirstBaseFrozen = (q1IsPaid || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
   const calc = (() => {
     if (isFirstBaseFrozen) {
       // Modo edição com 1ª quinzena paga: congela base da 1ª, deduz seguro de vida corretamente
@@ -285,7 +287,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
       first_period_split: isFirstBaseFrozen && calcRaw.net_total !== 0
         ? Math.round((calc.first_period_base / calcRaw.net_total) * 10000) / 10000
         : calc.split_first,
-      first_period_base_locked: q1Locked || entry?.first_period_base_locked || false,
+      first_period_base_locked: q1IsPaid || entry?.first_period_base_locked || false,
       bonus: form.bonus || 0,
       overtime: form.overtime || 0,
       reference_month: referenceMonth,
