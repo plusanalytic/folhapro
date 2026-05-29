@@ -516,6 +516,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
   const costAllowance   = entry?.cost_allowance ?? 0;
   const motoRental      = entry?.motorcycle_rental ?? 0;
   const bonus           = entry?.bonus ?? 0;
+  const overtime        = entry?.overtime ?? 0;
   const otherBen        = entry?.other_benefits ?? 0;
   const foodVoucher     = entry?.food_voucher ?? 0;
   const lifeInsurance   = entry?.life_insurance ?? 0;
@@ -630,8 +631,11 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
           </div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base proporcional</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(secondBase)}</span></div>
-            {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Adicional</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
+            {foodVoucher > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação (pago na 2ª quinzena)</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(foodVoucher)}</span></div>}
+            {kmBonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ KM Excedente ({entry?.km_bonus_qty||0} km × {formatCurrency(entry?.km_bonus_value||0)})</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(kmBonus)}</span></div>}
             {costAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Ajuda de custo pacote de dados</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(costAllowance)}</span></div>}
+            {bonus > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Bonificação / Prêmio</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(bonus)}</span></div>}
+            {overtime > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#b45309', marginBottom: '3px' }}><span>+ Hora Extra</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(overtime)}</span></div>}
             {secondDiscounts.map((d, i) => {
               const isCredit = d.type === 'credit';
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
