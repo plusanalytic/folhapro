@@ -417,7 +417,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
       const frozenFirstBase = entry.first_period_base;
       const frozenFirstNet = entry.first_period_net ?? frozenFirstBase;
       const newSecondBase = calcRaw.net_total - frozenFirstBase;
-      const newSecondNet = newSecondBase - secondDiscountTotal - absenceSecond;
+      const newSecondNet = newSecondBase + foodVoucherEffective + (calcRaw.km_bonus || 0) + costAllowanceEffective - secondDiscountTotal - absenceSecond;
       return {
         ...calcRaw,
         first_period_base: frozenFirstBase,
