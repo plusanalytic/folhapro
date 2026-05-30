@@ -461,7 +461,7 @@ export default function Payroll() {
                      const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
                      const secondNetDisplay = (() => {
                        if (!entry) return null;
-                       if (!isCLTMotoRow) return entry.second_period_net || 0;
+                       if (!isCLTMotoRow) return entry.second_period_net ?? 0;
                        const denom = entry.full_month_contract_working_days || 1;
                        const worked = entry.contract_working_days || denom;
                        const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
@@ -500,7 +500,7 @@ export default function Payroll() {
                            })()}
                          </td>
                          <td className="p-3 text-right font-mono">{effectiveSalary !== null ? formatCurrency(effectiveSalary) : '—'}</td>
-                         <td className="p-3 text-right font-mono font-semibold text-blue-600">{entry ? formatCurrency(entry.first_period_net || 0) : '—'}</td>
+                         <td className={`p-3 text-right font-mono font-semibold ${entry ? (entry.first_period_net < 0 ? 'text-destructive' : 'text-blue-600') : ''}`}>{entry ? formatCurrency(entry.first_period_net ?? 0) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
                              <span className={disc1 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
@@ -508,7 +508,7 @@ export default function Payroll() {
                              </span>
                            ) : '—'}
                          </td>
-                         <td className="p-3 text-right font-mono font-semibold text-green-600">{secondNetDisplay !== null ? formatCurrency(secondNetDisplay) : '—'}</td>
+                         <td className={`p-3 text-right font-mono font-semibold ${secondNetDisplay !== null ? (secondNetDisplay < 0 ? 'text-destructive' : 'text-green-600') : ''}`}>{secondNetDisplay !== null ? formatCurrency(secondNetDisplay) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
                              <span className={disc2 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
