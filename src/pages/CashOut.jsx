@@ -8,8 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, ArrowDownCircle, Search, Pencil } from 'lucide-react';
+import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +23,8 @@ function getPeriod(dateStr) {
 function getMonthFromDate(dateStr) {
   return dateStr.substring(0, 7);
 }
+
+const BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO', 'COBRIDOR'];
 
 const EMPTY_FORM = { company_id: '', employee_id: '', date: '', description: '', amount: '', notes: '', deduct_from_payroll: false };
 
@@ -40,6 +43,7 @@ export default function CashOut() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [blockedAlert, setBlockedAlert] = useState(null); // { period, status, empName }
 
   useEffect(() => {
     Promise.all([
@@ -69,18 +73,65 @@ export default function CashOut() {
     ? employees.filter(e => e.company_id === form.company_id && e.is_active !== false)
     : employees.filter(e => e.is_active !== false);
 
+  const updatePayrollEntry = async (employeeId, referenceMonth) => {
+    const payEntries = await base44.entities.PayrollEntry.filter({ employee_id: employeeId, reference_month: referenceMonth });
+    if (!payEntries.length) return;
+    const entry = payEntries[0];
+    const allCashOuts = await base44.entities.CashOut.filter({ employee_id: employeeId, reference_month: referenceMonth });
+    const deductCashOuts = allCashOuts.filter(c => c.deduct_from_payroll);
+    const firstNonCashout = (entry.first_discounts || []).filter(r => r.source !== 'cashout');
+    const secondNonCashout = (entry.second_discounts || []).filter(r => r.source !== 'cashout');
+    const firstCashouts = deductCashOuts.filter(c => c.period === 'first').map(c => ({ type: 'debit', label: c.description, amount: c.amount, source: 'cashout', source_id: c.id }));
+    const secondCashouts = deductCashOuts.filter(c => c.period === 'second').map(c => ({ type: 'debit', label: c.description, amount: c.amount, source: 'cashout', source_id: c.id }));
+    const newFirst = [...firstNonCashout, ...firstCashouts];
+    const newSecond = [...secondNonCashout, ...secondCashouts];
+    const calcDiscount = (arr) => arr.filter(r => r.type !== 'credit').reduce((s,r) => s + (r.amount||0), 0) - arr.filter(r => r.type === 'credit').reduce((s,r) => s + (r.amount||0), 0);
+    const newFirstDiscount = calcDiscount(newFirst);
+    const newSecondDiscount = calcDiscount(newSecond);
+    const oldFirstDiscount = entry.first_period_discount || 0;
+    const oldSecondDiscount = entry.second_period_discount || 0;
+    const newFirstNet = Math.round(((entry.first_period_net || 0) - (newFirstDiscount - oldFirstDiscount)) * 100) / 100;
+    const newSecondNet = Math.round(((entry.second_period_net || 0) - (newSecondDiscount - oldSecondDiscount)) * 100) / 100;
+    await base44.entities.PayrollEntry.update(entry.id, {
+      first_discounts: newFirst,
+      second_discounts: newSecond,
+      first_period_discount: newFirstDiscount,
+      second_period_discount: newSecondDiscount,
+      first_period_net: newFirstNet,
+      second_period_net: newSecondNet,
+    });
+  };
+
   const handleSave = async () => {
     if (!form.company_id || !form.date || !form.description || !form.amount) {
       toast.error('Preencha empresa, data, descrição e valor');
       return;
     }
-    // If deduct_from_payroll is true, employee must be selected
     if (form.deduct_from_payroll && !form.employee_id) {
       toast.error('Selecione um colaborador para descontar da folha');
       return;
     }
+    // Verifica se a quinzena já está bloqueada para pagamento
+    if (form.deduct_from_payroll && form.employee_id && form.date) {
+      const refMonth = getMonthFromDate(form.date);
+      const period = getPeriod(form.date);
+      const payEntries = await base44.entities.PayrollEntry.filter({ employee_id: form.employee_id, reference_month: refMonth });
+      if (payEntries.length > 0) {
+        const psArr = await base44.entities.PaymentStatus.filter({ payroll_entry_id: payEntries[0].id });
+        if (psArr.length > 0) {
+          const ps = psArr[0];
+          const statusToCheck = period === 'first' ? ps.status_q1 : ps.status_q2;
+          if (BLOCKED_STATUSES.includes(statusToCheck)) {
+            const periodLabel = period === 'first' ? '1ª Quinzena' : '2ª Quinzena';
+            setBlockedAlert({ period: periodLabel, status: statusToCheck, empName: employeeMap[form.employee_id]?.name });
+            return;
+          }
+        }
+      }
+    }
     setLoading(true);
     const emp = form.employee_id ? employeeMap[form.employee_id] : null;
+    const deductFromPayroll = form.deduct_from_payroll && !!form.employee_id;
     const record = {
       company_id: form.company_id || emp?.company_id || '',
       employee_id: form.employee_id || '',
@@ -90,7 +141,7 @@ export default function CashOut() {
       reference_month: getMonthFromDate(form.date),
       period: getPeriod(form.date),
       notes: form.notes || '',
-      deduct_from_payroll: form.deduct_from_payroll && !!form.employee_id,
+      deduct_from_payroll: deductFromPayroll,
     };
     if (editingId) {
       const updated = await base44.entities.CashOut.update(editingId, record);
@@ -101,6 +152,10 @@ export default function CashOut() {
       setCashOuts(prev => [saved, ...prev]);
       toast.success('Saída lançada com sucesso');
     }
+    if (deductFromPayroll) {
+      await updatePayrollEntry(form.employee_id, getMonthFromDate(form.date));
+      toast.info('Folha do colaborador atualizada automaticamente');
+    }
     setForm(EMPTY_FORM);
     setEmployeeSearch('');
     setEditingId(null);
@@ -109,9 +164,13 @@ export default function CashOut() {
   };
 
   const handleDelete = async (id) => {
+    const co = cashOuts.find(c => c.id === id);
     await base44.entities.CashOut.delete(id);
     setCashOuts(prev => prev.filter(c => c.id !== id));
     toast.success('Removido');
+    if (co?.deduct_from_payroll && co?.employee_id && co?.reference_month) {
+      await updatePayrollEntry(co.employee_id, co.reference_month);
+    }
   };
 
   const openEdit = (c) => {
@@ -273,6 +332,25 @@ export default function CashOut() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!blockedAlert} onOpenChange={v => !v && setBlockedAlert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-destructive" />
+              Quinzena bloqueada para desconto
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Não é possível lançar um desconto em folha para <strong>{blockedAlert?.empName}</strong> na <strong>{blockedAlert?.period}</strong> pois ela já está com status <strong>{blockedAlert?.status}</strong>.
+              <br /><br />
+              Para lançar este desconto, a quinzena correspondente precisa estar com status <strong>PENDENTE</strong> no módulo de Pagamentos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setBlockedAlert(null)}>Entendido</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Form Dialog */}
       <Dialog open={showForm} onOpenChange={open => { setShowForm(open); if (!open) { setEmployeeSearch(''); setShowEmployeeDropdown(false); setEditingId(null); } }}>
