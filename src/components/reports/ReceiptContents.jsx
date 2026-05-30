@@ -253,7 +253,10 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
   const grossTotal    = entry?.gross_total ?? calc.gross_total;
   const absenceFirst  = entry?.absence_discount_first ?? 0;
   const absenceSecond = entry?.absence_discount_second ?? 0;
-  const firstNet      = entry?.first_period_net ?? 0;
+  // firstNet recomputado dos itens individuais (evita depender do valor salvo que pode ser 0 incorretamente)
+  const gDebits1_pre  = (entry?.first_discounts ?? []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gCredits1_pre = (entry?.first_discounts ?? []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const firstNet      = Math.round(((entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5)) - (entry?.first_period_advance ?? 0) - (gDebits1_pre - gCredits1_pre) - (entry?.absence_discount_first ?? 0)) * 100) / 100;
   const firstBase     = entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5);
   const secondBase    = entry?.second_period_base ?? (entry?.net_total ?? 0) * (1 - (entry?.first_period_split ?? 0.5));
   const splitFirst    = entry?.first_period_split ?? 0.5;

@@ -455,6 +455,14 @@ export default function Payroll() {
                      const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
                      const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
+                     // Para CLT Moto: recomputa firstNet dos itens do grid (evita usar valor salvo incorreto)
+                     const firstNetDisplay = (() => {
+                       if (!entry) return null;
+                       if (!isCLTMotoRow) return entry.first_period_net ?? 0;
+                       const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
+                     })();
                      const bonificacoes = entry ? calcBonificacoes(entry) : null;
                      const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
                      const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
@@ -500,7 +508,7 @@ export default function Payroll() {
                            })()}
                          </td>
                          <td className="p-3 text-right font-mono">{effectiveSalary !== null ? formatCurrency(effectiveSalary) : '—'}</td>
-                         <td className={`p-3 text-right font-mono font-semibold ${entry ? (entry.first_period_net < 0 ? 'text-destructive' : 'text-blue-600') : ''}`}>{entry ? formatCurrency(entry.first_period_net ?? 0) : '—'}</td>
+                         <td className={`p-3 text-right font-mono font-semibold ${firstNetDisplay !== null ? (firstNetDisplay < 0 ? 'text-destructive' : 'text-blue-600') : ''}`}>{firstNetDisplay !== null ? formatCurrency(firstNetDisplay) : '—'}</td>
                          <td className="p-3 text-right font-mono">
                            {entry ? (
                              <span className={disc1 > 0 ? 'text-destructive' : 'text-muted-foreground'}>
