@@ -1,6 +1,6 @@
 import { formatCurrency, numberToWords, getMonthName } from '@/lib/payrollCalculations';
 
-export default function ProLaboreReceiptContent({ employee, entry, month, company }) {
+export default function ProLaboreReceiptContent({ employee, entry, month, company, paymentStatus }) {
   const monthName = getMonthName(month).toUpperCase();
 
   const proLaboreBase   = entry?.base_salary         ?? 0;
@@ -158,7 +158,10 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
               <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', color: firstDebits > 0 ? '#dc2626' : '#555' }}>
                 {firstDebits !== 0 ? (firstDebits > 0 ? '-' : '+') + formatCurrency(Math.abs(firstDebits)) : '—'}
               </td>
-              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>{formatCurrency(firstNet)}</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>
+                {formatCurrency(firstNet)}
+                {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
+              </td>
             </tr>
             <tr style={{ background: '#f9fafb' }}>
               <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', fontWeight: 'bold', fontSize: '11px' }}>2ª Quinzena (16–30)</td>
@@ -166,7 +169,10 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
               <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px' }}>
                 {[birthdayBonus > 0 && `+B. Aniv.`, medicalPlan > 0 && `+Conv.`, profitDist > 0 && `+Lucros`, secondDebits > 0 && `-Desc.`].filter(Boolean).join(' ') || '—'}
               </td>
-              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>{formatCurrency(secondNet)}</td>
+              <td style={{ padding: '7px 14px', borderBottom: '1px solid #e5e7eb', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: '#1e3a5f' }}>
+                {formatCurrency(secondNet)}
+                {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
+              </td>
             </tr>
             <tr style={{ background: '#eff6ff' }}>
               <td colSpan={3} style={{ padding: '8px 14px', fontWeight: 'bold', color: '#1e3a5f', borderTop: '2px solid #2563eb', fontSize: '11px' }}>TOTAL (1ª + 2ª Quinzena)</td>

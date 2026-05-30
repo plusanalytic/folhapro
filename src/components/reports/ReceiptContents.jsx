@@ -198,7 +198,7 @@ export function MotoReceiptContent({ employee, entry, month }) {
 }
 
 // ─── Holerite CLT (Motociclista / padrão) ─────────────────────────────────────
-export function HoleriteContent({ employee, entry, month, company }) {
+export function HoleriteContent({ employee, entry, month, company, paymentStatus }) {
   const isCLT = employee.contract_type === 'CLT';
   // Para CLT moto: usa salário efetivo salvo, ou recalcula a partir dos campos clt_moto_*
   const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
@@ -298,7 +298,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
       totalDays: fullMonthDays,
       workedDays: contractDays,
     },
-  ];
+  ].filter(b => b.value > 0);
   const totalBeneficios = beneficios.reduce((s, b) => s + b.value, 0);
 
   const descontos = [
@@ -375,30 +375,34 @@ export function HoleriteContent({ employee, entry, month, company }) {
         </tbody>
       </table>
 
-      {/* Bloco Benefícios */}
-      <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#239BB6', textTransform: 'uppercase', marginBottom: '4px' }}>Benefícios</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
-        <thead>
-          <tr>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '80%' }}>Benefício</th>
-            <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '20%' }}>Valor (R$)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {beneficios.map((b, i) => (
-            <tr key={i} style={{ background: i % 2 === 0 ? '#f0fbff' : '#fff' }}>
-              <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0f2f7' }}>
-                {b.label}{b.workedDays > 0 && b.totalDays > 0 ? ` (${b.workedDays} dias úteis)` : ''}
-              </td>
-              <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#0e7490', fontFamily: 'monospace', fontWeight: 'bold' }}>{formatCurrency(b.value)}</td>
-            </tr>
-          ))}
-          <tr>
-            <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL BENEFÍCIOS</td>
-            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(totalBeneficios)}</td>
-          </tr>
-        </tbody>
-      </table>
+      {beneficios.length > 0 && (
+        <>
+          {/* Bloco Benefícios */}
+          <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#239BB6', textTransform: 'uppercase', marginBottom: '4px' }}>Benefícios</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
+            <thead>
+              <tr>
+                <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'left', borderRadius: '6px 0 0 0', width: '80%' }}>Benefício</th>
+                <th style={{ background: '#239BB6', color: '#fff', padding: '7px 10px', textAlign: 'right', borderRadius: '0 6px 0 0', width: '20%' }}>Valor (R$)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {beneficios.map((b, i) => (
+                <tr key={i} style={{ background: i % 2 === 0 ? '#f0fbff' : '#fff' }}>
+                  <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0f2f7' }}>
+                    {b.label}{b.workedDays > 0 && b.totalDays > 0 ? ` (${b.workedDays} dias úteis)` : ''}
+                  </td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderBottom: '1px solid #e0f2f7', color: '#0e7490', fontFamily: 'monospace', fontWeight: 'bold' }}>{formatCurrency(b.value)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{ padding: '7px 10px', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6' }}>TOTAL BENEFÍCIOS</td>
+                <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', background: '#e0f2f7', borderTop: '2px solid #239BB6', color: '#0e7490', fontFamily: 'monospace' }}>{formatCurrency(totalBeneficios)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
 
       {/* Resumo Quinzenal */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
@@ -413,6 +417,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -433,6 +438,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
           </div>
         </div>
       </div>
@@ -504,7 +510,7 @@ export function HoleriteContent({ employee, entry, month, company }) {
 }
 
 // ─── Holerite MEI ─────────────────────────────────────────────────────────────
-export function MeiHoleriteContent({ employee, entry, month, company }) {
+export function MeiHoleriteContent({ employee, entry, month, company, paymentStatus }) {
   const monthName = getMonthName(month);
   const valorBase       = entry?.base_salary ?? 0;
   const diasMes         = entry?.working_days_month ?? 0;
@@ -626,6 +632,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -644,6 +651,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
           </div>
         </div>
       </div>
@@ -703,7 +711,7 @@ export function MeiHoleriteContent({ employee, entry, month, company }) {
 }
 
 // ─── Holerite Escritório ──────────────────────────────────────────────────────
-export function EscritorioHoleriteContent({ employee, entry, month, company }) {
+export function EscritorioHoleriteContent({ employee, entry, month, company, paymentStatus }) {
   // Recalcula apenas os campos de convenção (sem tocar nas quinzenas que vêm do entry)
   const calc = calculateEscritorioPayroll({
     base_salary: entry?.base_salary ?? 0,
@@ -881,6 +889,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
+            {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
           </div>
         </div>
         <div style={{ border: '2px solid #6a3eaf', borderRadius: '8px', overflow: 'hidden' }}>
@@ -897,6 +906,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company }) {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
             })}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{secondNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: secondNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(secondNet)}</span></div>
+            {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
           </div>
         </div>
       </div>

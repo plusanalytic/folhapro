@@ -12,12 +12,15 @@ import { HoleriteContent, MeiHoleriteContent, EscritorioHoleriteContent } from '
 export default function PDFReceiptDialog({ employee, entry, referenceMonth, onClose, company, payrollType, jobRoleName }) {
   const printRef = useRef();
   const [mergedEntry, setMergedEntry] = useState(entry);
+  const [paymentStatus, setPaymentStatus] = useState(null);
 
   useEffect(() => {
     Promise.all([
       base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }),
       base44.entities.PointAdjustment.filter({ employee_id: employee.id }),
-    ]).then(([cashOuts, allPA]) => {
+      base44.entities.PaymentStatus.filter({ payroll_entry_id: entry.id }),
+    ]).then(([cashOuts, allPA, payStatuses]) => {
+      setPaymentStatus(payStatuses?.[0] ?? null);
       const pointAdjustments = allPA.filter(a => (a.start_date || '').startsWith(referenceMonth));
       // Apenas descontar no PDF se estiver marcado "Descontar do colaborador"
       const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
@@ -141,14 +144,14 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         </DialogHeader>
         <div ref={printRef} className="overflow-auto bg-white">
           {payrollType === 'ESCRITORIO'
-            ? <EscritorioHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+            ? <EscritorioHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
             : payrollType === 'MOTOCICLISTA_MEI'
-              ? <MeiHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+              ? <MeiHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
               : payrollType === 'SOCIO'
-                ? <ProLaboreReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+                ? <ProLaboreReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
                 : payrollType === 'ESPORADICO'
-                  ? <EsporadicoReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
-                  : <HoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} />
+                  ? <EsporadicoReceiptContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
+                  : <HoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
           }
         </div>
       </DialogContent>

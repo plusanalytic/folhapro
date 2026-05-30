@@ -6,7 +6,7 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-export default function EsporadicoReceiptContent({ employee, entry, month, company }) {
+export default function EsporadicoReceiptContent({ employee, entry, month, company, paymentStatus }) {
   const monthName = getMonthName(month);
 
   const pontos        = entry?.km_bonus_qty    ?? 0;
@@ -144,7 +144,7 @@ export default function EsporadicoReceiptContent({ employee, entry, month, compa
       )}
 
       {/* Total líquido */}
-      <div style={{ background: netTotal < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#ea580c,#f97316)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
+      <div style={{ background: netTotal < 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#ea580c,#f97316)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (paymentStatus?.payment_date_q2 || paymentStatus?.payment_date_q1) ? '4px' : '20px', color: '#fff' }}>
         <div>
           <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>
             {netTotal < 0 ? 'SALDO NEGATIVO' : 'TOTAL LÍQUIDO A RECEBER'}
@@ -153,6 +153,11 @@ export default function EsporadicoReceiptContent({ employee, entry, month, compa
         </div>
         <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(netTotal)}</div>
       </div>
+      {(paymentStatus?.payment_date_q2 || paymentStatus?.payment_date_q1) && (
+        <div style={{ textAlign: 'right', marginBottom: '16px', fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>
+          Pago em {(paymentStatus.payment_date_q2 || paymentStatus.payment_date_q1).split('-').reverse().join('/')}
+        </div>
+      )}
 
       {/* Dados bancários */}
       {(employee.bank_name || employee.pix_key) && (
