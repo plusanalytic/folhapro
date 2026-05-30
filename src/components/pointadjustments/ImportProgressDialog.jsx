@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 
 export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
-  const [status, setStatus] = useState('running'); // running | success | error
+  const [status, setStatus] = useState('running'); // running | syncing_payroll | success | error
   const [result, setResult] = useState(null);
+  const [recalcResult, setRecalcResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('Conectando à API do Tangerino...');
@@ -18,7 +19,6 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
     called.current = true;
 
     let fakeProgress = 0;
-    // Simula progresso visual enquanto a função roda no backend
     const interval = setInterval(() => {
       fakeProgress += Math.random() * 4;
       if (fakeProgress >= 90) { clearInterval(interval); fakeProgress = 90; }
@@ -32,16 +32,16 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
     base44.functions.invoke('syncPointAdjustments', { mode })
       .then(async res => {
         clearInterval(interval);
-        setProgress(95);
-        setProgressLabel('Atualizando cálculos de folhas afetadas...');
-        try {
-          await base44.functions.invoke('recalcAbsenceDiscounts', {});
-        } catch (e) {
-          console.warn('[sync] recalcAbsenceDiscounts falhou:', e.message);
-        }
         setProgress(100);
-        setProgressLabel('Concluído!');
+        setProgressLabel('Atualizando folhas de pagamento...');
         setResult(res.data);
+        setStatus('syncing_payroll');
+        // Recalcula descontos de faltas nas folhas afetadas
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const recalcPayload = mode === 'daily' ? { reference_month: currentMonth } : {};
+        const recalcRes = await base44.functions.invoke('recalcAbsenceDiscounts', recalcPayload).catch(() => null);
+        setRecalcResult(recalcRes?.data || null);
+        setProgressLabel('Concluído!');
         setStatus('success');
         onDone?.();
       })
@@ -65,7 +65,6 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Barra de progresso */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{progressLabel}</span>
@@ -74,11 +73,10 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
             <Progress value={pct} className="h-3" />
           </div>
 
-          {/* Status */}
-          {status === 'running' && (
+          {(status === 'running' || status === 'syncing_payroll') && (
             <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/40 rounded-lg px-4 py-3">
               <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              <span>Aguarde, a importação está em andamento. Não feche esta janela.</span>
+              <span>{status === 'syncing_payroll' ? 'Atualizando folhas de pagamento afetadas...' : 'Aguarde, a importação está em andamento. Não feche esta janela.'}</span>
             </div>
           )}
 
@@ -106,6 +104,14 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
                   <p className="text-xs text-muted-foreground mt-1">Erros</p>
                 </div>
               </div>
+              {recalcResult && (
+                <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+                  Folhas atualizadas: <strong>{recalcResult.updated ?? 0}</strong>
+                  {recalcResult.blocked_periods > 0 && (
+                    <span className="ml-2 text-amber-600">· {recalcResult.blocked_periods} quinzena(s) bloqueada(s) preservadas</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -116,7 +122,7 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
             </div>
           )}
 
-          {status !== 'running' && (
+          {status !== 'running' && status !== 'syncing_payroll' && (
             <Button className="w-full" onClick={onClose}>Fechar</Button>
           )}
         </div>
