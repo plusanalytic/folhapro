@@ -455,6 +455,10 @@ export default function Payroll() {
                      const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
                      const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
+                     const bonificacoes = entry ? calcBonificacoes(entry) : null;
+                     const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
+                     const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                     const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
                      // Para CLT Moto: recomputa firstNet dos itens do grid (evita usar valor salvo incorreto)
                      const firstNetDisplay = (() => {
                        if (!entry) return null;
@@ -463,10 +467,6 @@ export default function Payroll() {
                        const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
                        return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
                      })();
-                     const bonificacoes = entry ? calcBonificacoes(entry) : null;
-                     const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
-                     const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                     const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
                      const secondNetDisplay = (() => {
                        if (!entry) return null;
                        if (!isCLTMotoRow) return entry.second_period_net ?? 0;
