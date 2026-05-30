@@ -4,6 +4,7 @@ import { Search, CreditCard, Download, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { calcBonificacoes, calcPeriodDebits, getAbsenceByPeriod } from '@/lib/entryDisplayUtils';
@@ -146,7 +147,7 @@ export default function Payments() {
   const [entries, setEntries] = useState([]);
   const [paymentStatuses, setPaymentStatuses] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedCompany, setSelectedCompany] = useState('all');
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [search, setSearch] = useState('');
@@ -293,7 +294,7 @@ export default function Payments() {
     if (entry.status !== 'closed' && !hasModifiedStatus) return false;
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const effectiveCompanyId = (emp?.contract_type !== 'ESPORADICO' && emp?.company_id) ? emp.company_id : entry.company_id;
-    const matchCompany = selectedCompany === 'all' || entry.company_id === selectedCompany || effectiveCompanyId === selectedCompany;
+    const matchCompany = selectedCompanies.length === 0 || selectedCompanies.includes(entry.company_id) || selectedCompanies.includes(effectiveCompanyId);
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
@@ -330,9 +331,9 @@ export default function Payments() {
             {months.map(m => <SelectItem key={m} value={m}>{getMonthName(m)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <SearchableSelect
-          value={selectedCompany}
-          onValueChange={setSelectedCompany}
+        <MultiSearchableSelect
+          values={selectedCompanies}
+          onValuesChange={setSelectedCompanies}
           placeholder="Empresa"
           className="w-44"
           allLabel="Todas as Empresas"

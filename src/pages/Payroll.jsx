@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { calcBonificacoes, calcPeriodDebits, getAbsenceByPeriod } from '@/lib/entryDisplayUtils';
+import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
 import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
@@ -45,7 +46,7 @@ export default function Payroll() {
     const current = new Date().toISOString().slice(0, 7);
     return current >= '2026-04' ? current : '2026-04';
   });
-  const [selectedCompany, setSelectedCompany] = useState('all');
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -120,7 +121,7 @@ export default function Payroll() {
   };
 
   const filteredEmployees = employees.filter(emp => {
-    const matchCompany = selectedCompany === 'all' || emp.company_id === selectedCompany;
+    const matchCompany = selectedCompanies.length === 0 || selectedCompanies.includes(emp.company_id);
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
@@ -214,7 +215,7 @@ export default function Payroll() {
     }
   }
 
-  const companiesInView = selectedCompany === 'all' ? companies : companies.filter(c => c.id === selectedCompany);
+  const companiesInView = selectedCompanies.length === 0 ? companies : companies.filter(c => selectedCompanies.includes(c.id));
 
   // Esporádicos: entries de colaboradores ESPORADICO para a empresa+mês.
   // Retorna { emp, entry } para suportar múltiplas entries do mesmo esporádico.
@@ -303,9 +304,9 @@ export default function Payroll() {
             ))}
           </SelectContent>
         </Select>
-        <SearchableSelect
-          value={selectedCompany}
-          onValueChange={setSelectedCompany}
+        <MultiSearchableSelect
+          values={selectedCompanies}
+          onValuesChange={setSelectedCompanies}
           placeholder="Empresa"
           className="w-48"
           allLabel="Todas as Empresas"
