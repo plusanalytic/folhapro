@@ -174,10 +174,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
                 {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
               </td>
             </tr>
-            <tr style={{ background: '#eff6ff' }}>
-              <td colSpan={3} style={{ padding: '8px 14px', fontWeight: 'bold', color: '#1e3a5f', borderTop: '2px solid #2563eb', fontSize: '11px' }}>TOTAL (1ª + 2ª Quinzena)</td>
-              <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#1e3a5f', borderTop: '2px solid #2563eb', fontSize: '12px' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</td>
-            </tr>
+
           </tbody>
         </table>
       )}

@@ -443,15 +443,6 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
         </div>
       </div>
 
-      {/* Total */}
-      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
-        <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
-        </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
-      </div>
-
       {/* Dados bancários */}
       {(employee.bank_name || employee.pix_key) && (
         <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', background: '#fafafa' }}>
@@ -656,15 +647,6 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
         </div>
       </div>
 
-      {/* Total */}
-      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
-        <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A RECEBER (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
-        </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
-      </div>
-
       {(employee.bank_name || employee.pix_key) && (
         <div style={{ border: '1px solid #e8e4f5', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', background: '#fafafa' }}>
           <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', marginBottom: '6px' }}>Dados para Pagamento</div>
@@ -703,7 +685,7 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
 
       {motoRental > 0 && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
-          <MotoReceiptContent employee={employee} entry={entry} month={month} />
+        <MotoReceiptContent employee={employee} entry={entry} month={month} />
         </div>
       )}
     </div>
@@ -909,15 +891,6 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
             {paymentStatus?.payment_date_q2 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q2.split('-').reverse().join('/')}</div>}
           </div>
         </div>
-      </div>
-
-      {/* Total */}
-      <div style={{ background: (Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg,#6a3eaf,#239BB6)', borderRadius: '10px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#fff' }}>
-        <div>
-          <div style={{ fontSize: '10px', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '1px' }}>{(Math.max(0, firstNet) + Math.max(0, secondNet)) === 0 ? 'SALDO NEGATIVO (1ª + 2ª Quinzena)' : 'TOTAL A PAGAR (1ª + 2ª Quinzena)'}</div>
-          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>{numberToWords(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
-        </div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatCurrency(Math.max(0, firstNet) + Math.max(0, secondNet))}</div>
       </div>
 
       {(employee.bank_name || employee.pix_key) && (
