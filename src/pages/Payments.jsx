@@ -21,6 +21,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+function getFirstNetDisplay(entry, employees, jobRoles) {
+  const emp = employees.find(e => e.id === entry.employee_id);
+  const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
+  if (jr?.payroll_type !== 'MOTOCICLISTA_CLT') return entry.first_period_net ?? 0;
+  const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const absence = getAbsenceByPeriod(entry);
+  return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
+}
+
 function getSecondNetDisplay(entry, employees, jobRoles) {
   const emp = employees.find(e => e.id === entry.employee_id);
   const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
@@ -255,7 +265,7 @@ export default function Payments() {
         'Admissão': formatDate(emp?.admission_date),
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
-        '1ª Q - Á Receber': entry.first_period_net || 0,
+        '1ª Q - Á Receber': getFirstNetDisplay(entry, employees, jobRoles),
         '1ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.first_discounts, getAbsenceByPeriod(entry).first),
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
@@ -308,7 +318,7 @@ export default function Payments() {
     return (empA?.name || '').localeCompare(empB?.name || '', 'pt-BR');
   });
 
-  const totalQ1 = sortedEntries.reduce((s, e) => s + (e.first_period_net || 0), 0);
+  const totalQ1 = sortedEntries.reduce((s, e) => s + getFirstNetDisplay(e, employees, jobRoles), 0);
   const totalQ2 = sortedEntries.reduce((s, e) => s + getSecondNetDisplay(e, employees, jobRoles), 0);
   const totalBonificacoes = sortedEntries.reduce((s, e) => s + calcBonificacoes(e), 0);
 
@@ -478,7 +488,7 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
                   {/* 1ª Quinzena */}
-                  <td className="p-2 text-right font-mono font-semibold text-blue-600 whitespace-nowrap">{formatCurrency(entry.first_period_net)}</td>
+                  <td className={`p-2 text-right font-mono font-semibold whitespace-nowrap ${getFirstNetDisplay(entry, employees, jobRoles) < 0 ? 'text-destructive' : 'text-blue-600'}`}>{formatCurrency(getFirstNetDisplay(entry, employees, jobRoles))}</td>
                   <td className="p-2 text-right font-mono whitespace-nowrap">
                    {(() => {
                      const absence = getAbsenceByPeriod(entry);
