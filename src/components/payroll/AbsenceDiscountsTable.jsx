@@ -222,10 +222,28 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
   const otherRows = pointAdjustments.filter(a => !ABSENCE_REASON_IDS.has(Number(a.adjustment_reason_id)));
   const allRows = [...absenceRows, ...otherRows];
 
+  // Ajustes que caem em quinzenas bloqueadas (não podem ser recalculados automaticamente)
+  const lockedAbsenceRows = absenceRows.filter(a => {
+    const day = (a.date || a.start_date) ? parseInt((a.date || a.start_date).split('-')[2], 10) : 0;
+    const isFirst = day >= 1 && day <= 15;
+    return (isFirst && lockedPeriods.first) || (!isFirst && lockedPeriods.second);
+  });
+
   const grandTotal = totalAbsenceDiscount(absenceDiscounts);
 
   return (
     <div className="space-y-3">
+      {lockedAbsenceRows.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+          <span className="text-amber-600 font-semibold shrink-0">⚠ Quinzena bloqueada</span>
+          <span className="text-amber-700">
+            {lockedAbsenceRows.length} ajuste(s) de ponto caem em quinzena(s) já pagas ({lockedAbsenceRows.map(a => {
+              const day = (a.date || a.start_date) ? parseInt((a.date || a.start_date).split('-')[2], 10) : 0;
+              return day <= 15 ? '1ªQ' : '2ªQ';
+            }).filter((v, i, arr) => arr.indexOf(v) === i).join(' e ')}) e não serão recalculados automaticamente para preservar os valores já pagos. Se necessário, edite os valores manualmente.
+          </span>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">{pointAdjustments.length} ajuste(s) encontrado(s)</span>

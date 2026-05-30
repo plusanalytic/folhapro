@@ -30,8 +30,15 @@ export default function ImportProgressDialog({ open, mode, onClose, onDone }) {
     }, 800);
 
     base44.functions.invoke('syncPointAdjustments', { mode })
-      .then(res => {
+      .then(async res => {
         clearInterval(interval);
+        setProgress(95);
+        setProgressLabel('Atualizando cálculos de folhas afetadas...');
+        try {
+          await base44.functions.invoke('recalcAbsenceDiscounts', {});
+        } catch (e) {
+          console.warn('[sync] recalcAbsenceDiscounts falhou:', e.message);
+        }
         setProgress(100);
         setProgressLabel('Concluído!');
         setResult(res.data);
