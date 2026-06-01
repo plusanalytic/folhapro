@@ -25,7 +25,7 @@ import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
 import EscritorioPayrollForm from '@/components/payroll/EscritorioPayrollForm';
 import MeiPayrollForm from '@/components/payroll/MeiPayrollForm';
 import ProLaboreForm from '@/components/payroll/ProLaboreForm';
-import PDFReceiptDialog from '@/components/reports/PDFReceiptDialog';
+import { printReceiptDirect } from '@/lib/printReceiptDirect';
 import BulkPDFDialog from '@/components/payroll/BulkPDFDialog';
 import ConfirmDialog from '@/components/payroll/ConfirmDialog';
 import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
@@ -61,7 +61,7 @@ export default function Payroll() {
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
-  const [printReceipt, setPrintReceipt] = useState(null); // { employee, entry, company }
+
   const [cloning, setCloning] = useState(false);
   const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
@@ -595,7 +595,7 @@ export default function Payroll() {
                                   onClick={() => {
                                    const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
                                    const pType = emp.contract_type === 'ESPORADICO' ? (entry.esporadico_payroll_type || 'ESPORADICO') : jr?.payroll_type;
-                                   setPrintReceipt({ employee: emp, entry, company: companies.find(c => c.id === entry.company_id || c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
+                                   printReceiptDirect({ employee: emp, entry, referenceMonth: selectedMonth, company: companies.find(c => c.id === entry.company_id || c.id === emp.company_id), payrollType: pType, jobRoleName: jr?.name });
                                  }}
                                 >
                                   <Printer className="w-3.5 h-3.5" />
@@ -787,18 +787,7 @@ export default function Payroll() {
         />
       )}
 
-      {printReceipt && (
-        <PDFReceiptDialog
-          employee={printReceipt.employee}
-          entry={printReceipt.entry}
-          company={printReceipt.company}
-          referenceMonth={selectedMonth}
-          receiptType="holerite"
-          payrollType={printReceipt.payrollType}
-          jobRoleName={printReceipt.jobRoleName}
-          onClose={() => setPrintReceipt(null)}
-        />
-      )}
+
 
       <AlertDialog open={!!paymentBlockAlert} onOpenChange={v => !v && setPaymentBlockAlert(null)}>
         <AlertDialogContent>
