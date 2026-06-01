@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
 import { getMonthName } from '@/lib/payrollCalculations';
 import { base44 } from '@/api/base44Client';
 import ProLaboreReceiptContent from './ProLaboreReceiptContent';
@@ -34,6 +34,34 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
     setTimeout(() => { w.print(); }, 300);
   };
 
+  const handleDownload = async () => {
+    setDownloading(true);
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+    const container = printRef.current;
+    const canvas = await html2canvas(container, {
+      scale: 1.5, useCORS: true, backgroundColor: '#ffffff',
+      logging: false, width: 794, windowWidth: 794,
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.88);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgH = (canvas.height / canvas.width) * pdfW;
+    if (imgH <= pageH) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, imgH);
+    } else {
+      const scale = pageH / imgH;
+      const scaledW = pdfW * scale;
+      pdf.addImage(imgData, 'JPEG', (pdfW - scaledW) / 2, 0, scaledW, pageH);
+    }
+    pdf.save(`Recibo_${employee.name.replace(/\s+/g, '_')}_${referenceMonth}.pdf`);
+    setDownloading(false);
+  };
+
+  const [downloading, setDownloading] = useState(false);
   const empWithPos = { ...employee, position: employee.position || jobRoleName };
 
   return (
@@ -42,9 +70,14 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">
             <DialogTitle>Recibo — {employee.name} — {getMonthName(referenceMonth)}</DialogTitle>
-            <Button onClick={handlePrint} className="gap-2 shrink-0">
-              <Printer className="w-4 h-4" /> Imprimir / PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleDownload} disabled={downloading} variant="outline" className="gap-2 shrink-0">
+                <Download className="w-4 h-4" /> {downloading ? 'Gerando...' : 'Baixar PDF'}
+              </Button>
+              <Button onClick={handlePrint} className="gap-2 shrink-0">
+                <Printer className="w-4 h-4" /> Imprimir / PDF
+              </Button>
+            </div>
           </div>
         </DialogHeader>
         <div ref={printRef} className="overflow-auto bg-white">
