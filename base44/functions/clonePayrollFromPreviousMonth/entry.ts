@@ -1,5 +1,222 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// ─── Feriados nacionais fixos ────────────────────────────────────────────────
+const HOLIDAYS = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
+
+// ─── Dias úteis (Seg–Sáb por padrão, ou Seg–Sex se includeSat=false) ─────────
+function calcWorkingDays(yearMonth, includeSat = true) {
+  const [yr, mo] = yearMonth.split('-').map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(yr, mo - 1, d).getDay();
+    if (dow === 0) continue;
+    if (!includeSat && dow === 6) continue;
+    const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (HOLIDAYS.has(mmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
+// ─── Dias úteis MEI (Seg–Sex) separados por quinzena ─────────────────────────
+function calcMeiWorkingDaysByPeriod(yearMonth) {
+  const [yr, mo] = yearMonth.split('-').map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  let first = 0, second = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(yr, mo - 1, d).getDay();
+    if (dow === 0 || dow === 6) continue;
+    const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (HOLIDAYS.has(mmdd)) continue;
+    if (d <= 15) first++; else second++;
+  }
+  return { first, second, total: first + second };
+}
+
+// ─── INSS automático CLT Moto (tabela simplificada da folha) ─────────────────
+function calcAutoINSS(salaryBase) {
+  if (salaryBase <= 1621.00)  return { pct: 7.5, discount: 0 };
+  if (salaryBase <= 2902.84)  return { pct: 9,   discount: 24.32 };
+  if (salaryBase <= 4354.27)  return { pct: 12,  discount: 111.40 };
+  return                             { pct: 13,  discount: 198.49 };
+}
+
+// ─── Cálculo ESCRITÓRIO ───────────────────────────────────────────────────────
+function calcEscritorio(entry) {
+  const piso     = entry.base_salary || 0;
+  const extraBonus = entry.extra_bonus || 0;
+  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+  const transportVoucher = Math.round((entry.transport_voucher_day_value || 0) * (entry.transport_voucher_days || 0) * 100) / 100;
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const inssPct = entry.inss_pct || 0;
+  const inssGross = Math.round(piso * (inssPct / 100) * 100) / 100;
+  const inssDeduction = entry.inss_deduction || 0;
+  const inssNet = Math.max(0, Math.round((inssGross - inssDeduction) * 100) / 100);
+  const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount + inssNet;
+  const liquidoConvencao = piso + mealVoucher - totalDescConvencao;
+  const foodVoucher    = entry.food_voucher || 0;
+  const bonus          = entry.bonus || 0;
+  const attendanceBonus = entry.attendance_bonus || 0;
+  const birthdayBonus  = entry.birthday_bonus || 0;
+  const fgts = Math.round(piso * 0.08 * 100) / 100;
+  const grossTotal = piso + mealVoucher + extraBonus;
+  const netTotal   = liquidoConvencao + extraBonus;
+  const split = entry.first_period_split ?? 0.5;
+  const firstBase  = Math.round(netTotal * split * 100) / 100;
+  const secondBase = Math.round(netTotal * (1 - split) * 100) / 100;
+  const firstPeriodNet  = firstBase  - (entry.first_period_advance || 0) - (entry.first_period_discount || 0) - (entry.absence_discount_first || 0);
+  const secondPeriodNet = secondBase + foodVoucher + bonus + attendanceBonus + birthdayBonus - (entry.second_period_discount || 0) - (entry.absence_discount_second || 0);
+  return {
+    meal_voucher: mealVoucher, transport_voucher: transportVoucher,
+    inss: inssGross, inss_net: inssNet, inss_deduction: inssDeduction,
+    transport_voucher_discount: transportVoucherDiscount, meal_voucher_discount: mealVoucherDiscount,
+    gross_total: Math.round(grossTotal * 100) / 100,
+    net_total: Math.round(netTotal * 100) / 100,
+    fgts, irrf: 0,
+    first_period_base: firstBase, second_period_base: secondBase,
+    first_period_net: Math.round(firstPeriodNet * 100) / 100,
+    second_period_net: Math.round(secondPeriodNet * 100) / 100,
+  };
+}
+
+// ─── Cálculo MOTOCICLISTA CLT ─────────────────────────────────────────────────
+function calcCLTMoto(entry) {
+  const baseSalary  = entry.base_salary || 0;  // salário efetivo (já proporcional se necessário)
+  const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+  const kmBonus     = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+  const unionContrib = entry.union_contribution_value != null ? (entry.union_contribution_value || 0) : 35;
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const lifeInsurance = entry.life_insurance || 0;
+  const grossTotal    = baseSalary + (entry.motorcycle_rental || 0) + mealVoucher + (entry.hazard_pay || 0);
+  const inssBase      = baseSalary + (entry.hazard_pay || 0);
+  let inss = 0;
+  if (entry.inss_pct != null && entry.inss_pct > 0) {
+    inss = Math.round(inssBase * (entry.inss_pct / 100) * 100) / 100;
+  }
+  const inssDiscount = Math.min(entry.inss_discount || 0, inss);
+  const inssNet      = Math.max(0, inss - inssDiscount);
+  const fgts         = Math.round(baseSalary * 0.08 * 100) / 100;
+  const netTotal     = grossTotal - inssNet - unionContrib - mealVoucherDiscount - lifeInsurance;
+  const split        = entry.first_period_split ?? 0.5;
+  const firstBase    = Math.round(netTotal * split * 100) / 100;
+  const secondBase   = Math.round(netTotal * (1 - split) * 100) / 100;
+
+  // Valores efetivos proporcionais (food, cost, moto rental)
+  const fullDays     = entry.full_month_contract_working_days || 1;
+  const workedDays   = entry.contract_working_days || fullDays;
+  const foodEff      = Math.round((entry.food_voucher || 0) / fullDays * workedDays * 100) / 100;
+  const costEff      = Math.round((entry.cost_allowance || 0) / fullDays * workedDays * 100) / 100;
+
+  const firstPeriodNet  = firstBase  - (entry.first_period_advance || 0) - (entry.first_period_discount || 0) - (entry.absence_discount_first || 0);
+  const secondPeriodNet = secondBase + foodEff + kmBonus + costEff - (entry.second_period_discount || 0) - (entry.absence_discount_second || 0);
+
+  return {
+    km_bonus: kmBonus, meal_voucher: mealVoucher,
+    inss, inss_net: inssNet, fgts, irrf: 0,
+    union_contribution: unionContrib, meal_voucher_discount: mealVoucherDiscount,
+    gross_total: Math.round(grossTotal * 100) / 100,
+    net_total: Math.round(netTotal * 100) / 100,
+    first_period_base: firstBase, second_period_base: secondBase,
+    first_period_net: Math.round(firstPeriodNet * 100) / 100,
+    second_period_net: Math.round(secondPeriodNet * 100) / 100,
+  };
+}
+
+// ─── Cálculo MEI ──────────────────────────────────────────────────────────────
+function calcMei(entry) {
+  const valorBase     = entry.base_salary || 0;
+  const diasMes       = entry.working_days_month || 1;
+  const diasTrabalhados = entry.working_days_worked || diasMes;
+  const remuneracao   = Math.round((valorBase / diasMes) * diasTrabalhados * 100) / 100;
+  const kmBonus       = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+  const costAllowance = entry.cost_allowance || 0;
+  const motoRental    = entry.motorcycle_rental || 0;
+  const bonus         = entry.bonus || 0;
+  const overtime      = entry.overtime || 0;
+  const otherBenefits = entry.other_benefits || 0;
+  const foodVoucher   = entry.food_voucher || 0;
+  const lifeInsurance = entry.life_insurance || 0;
+  const grossTotal    = remuneracao + kmBonus + motoRental + otherBenefits;
+  const netTotal      = grossTotal;
+  const diasQ1        = entry.working_days_first || 0;
+  const diasQ2        = entry.working_days_second || 0;
+  const totalQDias    = diasQ1 + diasQ2 || 1;
+  const splitFirst    = diasQ1 / totalQDias;
+  const firstBase     = Math.round(netTotal * splitFirst * 100) / 100;
+  const secondBase    = Math.round(netTotal * (1 - splitFirst) * 100) / 100;
+  const firstPeriodNet  = firstBase  - lifeInsurance - (entry.first_period_advance || 0) - (entry.first_period_discount || 0);
+  const secondPeriodNet = secondBase + foodVoucher + kmBonus + costAllowance + bonus + overtime - (entry.second_period_discount || 0);
+  return {
+    km_bonus: kmBonus,
+    gross_total: Math.round(grossTotal * 100) / 100,
+    net_total: Math.round(netTotal * 100) / 100,
+    first_period_base: firstBase, second_period_base: secondBase,
+    first_period_split: splitFirst,
+    first_period_net: Math.round(firstPeriodNet * 100) / 100,
+    second_period_net: Math.round(secondPeriodNet * 100) / 100,
+  };
+}
+
+// ─── Cálculo SÓCIO (Pró-Labore) ───────────────────────────────────────────────
+function calcProLabore(entry) {
+  const proLaboreBase  = entry.base_salary || 0;
+  const quotaAdjust    = entry.quota_adjustment || 0;
+  const birthdayBonus  = entry.birthday_bonus || 0;
+  const profitDist     = entry.profit_distribution || 0;
+  const medicalPlan    = entry.medical_plan || 0;
+  const otherDiscounts = entry.other_discounts || 0;
+  const inssPct        = (entry.inss_pct != null && entry.inss_pct > 0) ? entry.inss_pct / 100 : 0;
+  const inss           = inssPct > 0 ? Math.round(proLaboreBase * inssPct * 100) / 100 : 0;
+  const grossTotal     = Math.round((proLaboreBase + quotaAdjust) * 100) / 100;
+
+  // IRRF: usa valor salvo se existente (é manual no formulário)
+  const irrf = entry.irrf != null ? entry.irrf : 0;
+
+  const netLabore      = Math.round((grossTotal - inss - irrf) * 100) / 100;
+  const split          = entry.first_period_split ?? 0.5;
+  const firstBase      = Math.round(netLabore * split * 100) / 100;
+  const secondBase     = Math.round((netLabore - firstBase) * 100) / 100;
+  const firstPeriodNet  = Math.round((firstBase  - (entry.first_period_discount || 0)) * 100) / 100;
+  const secondPeriodNet = Math.round((secondBase + profitDist + birthdayBonus + medicalPlan - otherDiscounts - (entry.second_period_discount || 0)) * 100) / 100;
+
+  return {
+    gross_total: grossTotal, inss, irrf,
+    net_total: netLabore,
+    first_period_base: firstBase, second_period_base: secondBase,
+    first_period_net: firstPeriodNet,
+    second_period_net: secondPeriodNet,
+  };
+}
+
+// ─── Retry com backoff exponencial ───────────────────────────────────────────
+async function updateWithRetry(base44, entityName, id, data, maxRetries = 4) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await base44.asServiceRole.entities[entityName].update(id, data);
+      return;
+    } catch (err) {
+      if (attempt === maxRetries - 1) throw err;
+      const delay = Math.min(300 * Math.pow(2, attempt), 3000);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+async function createWithRetry(base44, entityName, data, maxRetries = 4) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await base44.asServiceRole.entities[entityName].create(data);
+    } catch (err) {
+      if (attempt === maxRetries - 1) throw err;
+      const delay = Math.min(300 * Math.pow(2, attempt), 3000);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+// ─── HANDLER PRINCIPAL ────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -7,245 +224,291 @@ Deno.serve(async (req) => {
     const { target_month, company_id, employee_id } = await req.json();
     if (!target_month) return Response.json({ error: 'target_month is required' }, { status: 400 });
 
-    // Compute previous month (YYYY-MM)
+    // Mês anterior
     const [year, month] = target_month.split('-').map(Number);
-    const prevDate = new Date(year, month - 2, 1);
+    const prevDate   = new Date(year, month - 2, 1);
     const prev_month = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Fetch previous month entries (com filtros opcionais) — limite alto para cobrir todas as folhas
+    // Busca todos os dados necessários em paralelo
     const prevFilter = { reference_month: prev_month };
-    if (company_id) prevFilter.company_id = company_id;
+    if (company_id)  prevFilter.company_id  = company_id;
     if (employee_id) prevFilter.employee_id = employee_id;
-    const prevEntries = await base44.asServiceRole.entities.PayrollEntry.filter(prevFilter, null, 5000);
+
+    const [prevEntries, allEmployees, allJobRoles, allWorkplaces, targetCashOuts, existingEntries] = await Promise.all([
+      base44.asServiceRole.entities.PayrollEntry.filter(prevFilter, null, 5000),
+      base44.asServiceRole.entities.Employee.list(null, 5000),
+      base44.asServiceRole.entities.JobRole.list(null, 5000),
+      base44.asServiceRole.entities.Workplace.list(null, 5000),
+      base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month }, null, 5000),
+      base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month }, null, 5000),
+    ]);
 
     if (!prevEntries || prevEntries.length === 0) {
       return Response.json({ cloned: 0, message: `Nenhum lançamento encontrado em ${prev_month}` });
     }
 
-    // Fetch existing entries for target month — serão sobrescritos se já existirem
-    const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month }, null, 5000);
-    const existingEntryMap = {}; // employee_id -> entry.id
-    for (const e of existingEntries) {
-      existingEntryMap[e.employee_id] = e.id;
+    // Mapas para lookup rápido
+    const empMap      = {};
+    for (const e of allEmployees)  empMap[e.id] = e;
+    const jobRoleMap  = {};
+    for (const jr of allJobRoles)  if (jr.tangerino_id) jobRoleMap[String(jr.tangerino_id)] = jr;
+    const workplaceMap = {};
+    for (const w of allWorkplaces) if (w.tangerino_id) workplaceMap[String(w.tangerino_id)] = w;
+    const existingMap = {};
+    for (const e of existingEntries) existingMap[e.employee_id] = e.id;
+
+    // Helpers
+    function isFiredBeforeMonth(emp) {
+      if (!emp || emp.is_active !== false) return false;
+      if (!emp.termination_date) return false;
+      return emp.termination_date.slice(0, 7) < target_month;
     }
 
-    // Fetch all employees, job roles and workplaces
-    const allEmployees = await base44.asServiceRole.entities.Employee.list(null, 5000);
-    const allJobRoles = await base44.asServiceRole.entities.JobRole.list(null, 5000);
-    const allWorkplaces = await base44.asServiceRole.entities.Workplace.list(null, 5000);
-
-    const jobRoleMap = {}; // tangerino_id -> payroll_type
-    for (const jr of allJobRoles) {
-      if (jr.tangerino_id) jobRoleMap[String(jr.tangerino_id)] = jr;
-    }
-    const workplaceMap = {}; // tangerino_id -> workplace
-    for (const w of allWorkplaces) {
-      if (w.tangerino_id) workplaceMap[String(w.tangerino_id)] = w;
-    }
-
-    // Calcula dias úteis de um mês: includeSat=true (Seg-Sáb), includeSat=false (Seg-Sex)
-    function calcWorkingDays(yearMonth, includeSat = true) {
-      const [yr, mo] = yearMonth.split('-').map(Number);
-      const holidays = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
-      const daysInMonth = new Date(yr, mo, 0).getDate();
-      let count = 0;
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dow = new Date(yr, mo - 1, d).getDay();
-        if (dow === 0) continue;
-        if (!includeSat && dow === 6) continue;
-        const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        if (holidays.has(mmdd)) continue;
-        count++;
-      }
-      return count;
-    }
-    const employeeMap = {};
-    for (const emp of allEmployees) {
-      employeeMap[emp.id] = emp;
-    }
-
-    // Helper: verifica se o colaborador foi demitido ANTES do mês alvo.
-    // Se foi demitido NO mês alvo → ainda deve aparecer (para pagar dias trabalhados).
-    // Se foi demitido em mês ANTERIOR ao alvo → não deve ser clonado.
-    function isFiredBeforeMonth(emp, targetMonth) {
-      if (!emp) return false;
-      if (emp.is_active !== false) return false; // ainda ativo
-      if (!emp.termination_date) return false;   // inativo mas sem data: pula
-      const termMonth = emp.termination_date.slice(0, 7); // YYYY-MM
-      // Só exclui se demitido ANTES do mês alvo (termMonth < targetMonth)
-      return termMonth < targetMonth;
-    }
-
-    // Helper: verifica se é colaborador esporádico (não deve ser clonado)
     function isEsporadico(emp) {
-      if (!emp) return false;
-      return emp.contract_type === 'ESPORADICO';
+      return emp && emp.contract_type === 'ESPORADICO';
     }
 
-    // Fields to carry over
-    const EXCLUDE_FIELDS = [
-    'id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
-    // Descontos quinzenais: reconstruídos a partir dos CashOuts do mês alvo
-    'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes',
-    // Dias trabalhados: devem resetar para o padrão do novo mês (30), não herdar do mês anterior
-    'working_days_month', 'clt_moto_worked_days',
-    // Dias úteis de contrato: serão recalculados do local de trabalho para CLT Moto
-    'full_month_contract_working_days', 'contract_working_days',
-    // Valores calculados: serão recalculados ao abrir a folha
-    'gross_total', 'net_total', 'first_period_base', 'second_period_base',
-    'first_period_net', 'second_period_net',
-    // Salário efetivo CLT Moto: recalculado pelo proporcional de dias do mês atual
-    'clt_moto_effective_salary',
-    // Flag de congelamento: não deve persistir para o próximo mês
-    'first_period_base_locked',
-    // Rateio quinzenal: sempre reinicia em 50/50
-    'first_period_split',
-    // Dias e valor do VR: recalculados pelos dias úteis do mês atual
-    'meal_voucher_days', 'meal_voucher',
-    // Descontos de falta: específicos do mês anterior, não se aplicam ao novo mês
-    'absence_discount', 'absence_discount_first', 'absence_discount_second', 'absence_discounts',
-    ];
+    // Detecta aniversário no mês alvo
+    function hasBirthdayInMonth(emp) {
+      if (!emp || !emp.birth_date) return false;
+      return emp.birth_date.slice(5, 7) === target_month.slice(5, 7);
+    }
 
-    // Fetch all CashOuts for target month at once
-    const targetCashOuts = await base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month }, null, 5000);
-
-    let cloned = 0;
-    let skipped = 0;
-    let skippedFired = 0;
+    let cloned = 0, skipped = 0, skippedFired = 0;
     const errors = [];
 
     for (const prev of prevEntries) {
-      // Se já existe, será sobrescrito (update); caso contrário, criado
+      const emp = empMap[prev.employee_id];
 
-      // Skip if employee was fired before target_month
-      const emp = employeeMap[prev.employee_id];
-      if (isFiredBeforeMonth(emp, target_month)) {
-        skippedFired++;
-        continue;
-      }
+      if (isFiredBeforeMonth(emp))  { skippedFired++; continue; }
+      if (isEsporadico(emp))        { skipped++;      continue; }
 
-      // Skip esporádicos — eles são adicionados manualmente em cada mês
-      if (isEsporadico(emp)) {
-        skipped++;
-        continue;
-      }
-
-      // Build first/second discount arrays from CashOut records
-      const empCashOuts = targetCashOuts.filter(c => c.employee_id === prev.employee_id);
-      const first_discounts = empCashOuts
+      // CashOuts do mês alvo para este colaborador (parcelas futuras)
+      const empCashOuts = targetCashOuts.filter(c =>
+        c.employee_id === prev.employee_id && c.deduct_from_payroll
+      );
+      const first_discounts  = empCashOuts
         .filter(c => c.period === 'first')
         .map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
       const second_discounts = empCashOuts
         .filter(c => c.period === 'second')
         .map(c => ({ id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true }));
 
-      const first_period_discount = first_discounts.reduce((s, d) => s + (d.amount || 0), 0);
+      const first_period_discount  = first_discounts.reduce((s, d) => s + (d.amount || 0), 0);
       const second_period_discount = second_discounts.reduce((s, d) => s + (d.amount || 0), 0);
 
-      const newEntry = {
+      // Cargo e tipo de folha
+      const empJRTangeId = emp ? String(emp.job_role_tangerino_id) : null;
+      const empJobRole   = empJRTangeId ? jobRoleMap[empJRTangeId] : null;
+      const payrollType  = empJobRole?.payroll_type;
+
+      // Workplace principal do colaborador
+      const empWorkplaceList = emp?.workplace_list || [];
+      const workplace = empWorkplaceList.length > 0
+        ? workplaceMap[String(empWorkplaceList[0])]
+        : null;
+
+      // Base de cada entrada: campos fixos compartilhados por todos os tipos
+      const baseEntry = {
+        employee_id: prev.employee_id,
+        company_id:  prev.company_id,
         reference_month: target_month,
         status: 'open',
-        // Descontos de falta: sempre zerados — específicos do mês, recalculados via ajustes de ponto
-        // Usamos null (não {}) para garantir que o update SUBSTITUA o campo no banco (merge de objeto não limpa chaves antigas)
-        absence_discount: 0,
-        absence_discount_first: 0,
-        absence_discount_second: 0,
-        absence_discounts: null,
-        absences_days: 0,
-        mei_absences_first: 0,
-        mei_absences_second: 0,
-        // Dias trabalhados: resetados para o padrão 30 (sobrescreve valor antigo no update)
-        working_days_month: 30,
-        clt_moto_worked_days: 30,
-        // Dias úteis contrato: serão definidos nas regras por tipo abaixo
-        full_month_contract_working_days: 0,
-        contract_working_days: 0,
-        // Flag de congelamento: nunca propagar para o próximo mês
+        participation: prev.participation,
+        // Reset de campos variáveis/quinzenais
+        first_period_advance:    0,
         first_period_base_locked: false,
-        // Rateio quinzenal: sempre 50/50 no novo mês
-        first_period_split: 0.5,
+        first_period_split:      0.5,
+        absence_discount:        0,
+        absence_discount_first:  0,
+        absence_discount_second: 0,
+        absence_discounts:       null,
+        absences_days:           0,
+        mei_absences_first:      0,
+        mei_absences_second:     0,
+        // Descontos carregados dos CashOuts
         first_discounts,
         second_discounts,
         first_period_discount,
         second_period_discount,
+        // Bonificações variáveis: reset
+        bonus: 0, overtime: 0, birthday_bonus: 0,
+        delivery_bonus: 0, delivery_target_bonus: 0,
+        attendance_bonus: 0, route_sp_bonus: 0,
+        km_bonus_qty: 0, km_bonus_value: 0, km_bonus: 0,
+        notes: '',
       };
 
-      for (const [key, value] of Object.entries(prev)) {
-        if (!EXCLUDE_FIELDS.includes(key)) {
-          newEntry[key] = value;
-        }
-      }
+      let newEntry;
 
-      // Overrides por tipo de folha
-      const empJobRoleTangeId = emp ? String(emp.job_role_tangerino_id) : null;
-      const empJobRole = empJobRoleTangeId ? jobRoleMap[empJobRoleTangeId] : null;
-      const payrollType = empJobRole?.payroll_type;
-
+      // ── ESCRITÓRIO ────────────────────────────────────────────────────────
       if (payrollType === 'ESCRITORIO') {
-        // Salário base do cadastro do colaborador; dias trabalhados = 30 (padrão)
-        newEntry.base_salary = (emp && emp.base_salary > 0) ? emp.base_salary : (prev.base_salary || 0);
-        newEntry.working_days_month = 30;
-
-      } else if (payrollType === 'MOTOCICLISTA_CLT') {
-        // Busca o local de trabalho principal do colaborador
-        const empWorkplaceList = emp?.workplace_list || [];
-        const workplace = empWorkplaceList.length > 0
-          ? workplaceMap[String(empWorkplaceList[0])]
-          : null;
-
-        if (workplace) {
-          const includeSat = workplace.work_schedule !== 'seg_sex';
-          const fullMonthDays = calcWorkingDays(target_month, includeSat);
-
-          if (workplace.clt_moto_base_salary_default > 0) {
-            newEntry.clt_moto_base_salary = workplace.clt_moto_base_salary_default;
-            newEntry.base_salary = workplace.clt_moto_base_salary_default;
-          }
-          if (workplace.clt_moto_meal_voucher_day_value_default > 0) {
-            newEntry.meal_voucher_day_value = workplace.clt_moto_meal_voucher_day_value_default;
-          }
-          if (workplace.clt_moto_food_voucher_default > 0) {
-            newEntry.food_voucher = workplace.clt_moto_food_voucher_default;
-          }
-          if (workplace.clt_moto_motorcycle_rental_default > 0) {
-            newEntry.motorcycle_rental = workplace.clt_moto_motorcycle_rental_default;
-          }
-          newEntry.full_month_contract_working_days = fullMonthDays;
-          newEntry.contract_working_days = fullMonthDays;
-          // VR: dias = dias úteis do mês; valor = dia_valor * dias
-          newEntry.meal_voucher_days = fullMonthDays;
-          const mvDayVal = newEntry.meal_voucher_day_value || prev.meal_voucher_day_value || 0;
-          const mvDiscount = newEntry.meal_voucher_discount_pct || prev.meal_voucher_discount_pct || 0;
-          const mvGross = Math.round(mvDayVal * fullMonthDays * 100) / 100;
-          newEntry.meal_voucher = Math.round(mvGross * (1 - mvDiscount / 100) * 100) / 100;
-          newEntry.meal_voucher_discount = Math.round(mvGross * (mvDiscount / 100) * 100) / 100;
+        const baseSalary = (emp && emp.base_salary > 0) ? emp.base_salary : (prev.base_salary || 0);
+        const entryData = {
+          ...baseEntry,
+          base_salary:                baseSalary,
+          extra_bonus:                prev.extra_bonus || 0,
+          meal_voucher_day_value:     prev.meal_voucher_day_value || 0,
+          meal_voucher_days:          prev.meal_voucher_days || 0,
+          meal_voucher_discount_pct:  prev.meal_voucher_discount_pct || 0,
+          transport_voucher_day_value: prev.transport_voucher_day_value || 0,
+          transport_voucher_days:     prev.transport_voucher_days || 0,
+          transport_voucher_discount_pct: prev.transport_voucher_discount_pct || 0,
+          food_voucher:               prev.food_voucher || 0,
+          inss_pct:                   prev.inss_pct || 0,
+          inss_deduction:             prev.inss_deduction || 0,
+          dental_plan:                prev.dental_plan || 0,
+          life_insurance:             prev.life_insurance || 0,
+          working_days_month:         30,
+        };
+        // Bonificação de aniversário automática
+        if (hasBirthdayInMonth(emp)) {
+          entryData.birthday_bonus = 200;
         }
-        // clt_moto_worked_days e working_days_month já foram definidos como 30 no newEntry acima
+        const calc = calcEscritorio(entryData);
+        newEntry = { ...entryData, ...calc };
       }
 
+      // ── MOTOCICLISTA CLT ──────────────────────────────────────────────────
+      else if (payrollType === 'MOTOCICLISTA_CLT') {
+        const includeSat = !workplace || workplace.work_schedule !== 'seg_sex';
+        const fullMonthDays = calcWorkingDays(target_month, includeSat);
+        // Salário base: usa padrão do local se disponível, senão do lançamento anterior
+        const cltMotoBaseSalary = (workplace && workplace.clt_moto_base_salary_default > 0)
+          ? workplace.clt_moto_base_salary_default
+          : (prev.clt_moto_base_salary || prev.base_salary || 0);
+        const mvDayValue = (workplace && workplace.clt_moto_meal_voucher_day_value_default > 0)
+          ? workplace.clt_moto_meal_voucher_day_value_default
+          : (prev.meal_voucher_day_value || 0);
+        const foodVoucher = (workplace && workplace.clt_moto_food_voucher_default > 0)
+          ? workplace.clt_moto_food_voucher_default
+          : (prev.food_voucher || 0);
+        const motoRental = (workplace && workplace.clt_moto_motorcycle_rental_default > 0)
+          ? workplace.clt_moto_motorcycle_rental_default
+          : (prev.motorcycle_rental || 0);
+        const mealVoucher = Math.round(mvDayValue * fullMonthDays * 100) / 100;
+        const mvDiscountPct = prev.meal_voucher_discount_pct || 0;
+        const mealVoucherGross = mealVoucher;
+        const mealVoucherDiscount = Math.round(mealVoucherGross * (mvDiscountPct / 100) * 100) / 100;
+        const mealVoucherNet = Math.round((mealVoucherGross - mealVoucherDiscount) * 100) / 100;
+
+        // Salário efetivo = base / 30 * 30 (mês cheio) = base
+        const effectiveSalary = cltMotoBaseSalary;
+        // Periculosidade: 30% do efetivo
+        const hazardPay = Math.round(effectiveSalary * 0.3 * 100) / 100;
+        // INSS automático
+        const { pct: inssPct, discount: inssDiscount } = calcAutoINSS(effectiveSalary + hazardPay);
+        // Contribuição assistencial: 2% do salário efetivo (se não tinha no prev, usa 2%)
+        const unionContribValue = prev.union_contribution_value > 0
+          ? prev.union_contribution_value
+          : Math.round(effectiveSalary * 0.02 * 100) / 100;
+
+        const entryData = {
+          ...baseEntry,
+          base_salary:                  cltMotoBaseSalary,
+          clt_moto_base_salary:         cltMotoBaseSalary,
+          clt_moto_worked_days:         30,
+          clt_moto_effective_salary:    effectiveSalary,
+          full_month_contract_working_days: fullMonthDays,
+          contract_working_days:        fullMonthDays,
+          working_days_month:           30,
+          meal_voucher_day_value:       mvDayValue,
+          meal_voucher_days:            fullMonthDays,
+          meal_voucher:                 mealVoucherNet,
+          meal_voucher_discount_pct:    mvDiscountPct,
+          meal_voucher_discount:        mealVoucherDiscount,
+          food_voucher:                 foodVoucher,
+          motorcycle_rental:            motoRental,
+          cost_allowance:               prev.cost_allowance || 50,
+          hazard_pay:                   hazardPay,
+          inss_pct:                     inssPct,
+          inss_discount:                inssDiscount,
+          union_contribution_value:     unionContribValue,
+          life_insurance:               prev.life_insurance || 17.50,
+          transport_voucher:            prev.transport_voucher || 0,
+          other_benefits:               prev.other_benefits || 0,
+        };
+
+        const calc = calcCLTMoto(entryData);
+        newEntry = { ...entryData, ...calc, inss: calc.inss_net, union_contribution: calc.union_contribution };
+      }
+
+      // ── MOTOCICLISTA MEI ──────────────────────────────────────────────────
+      else if (payrollType === 'MOTOCICLISTA_MEI') {
+        // Dias úteis Seg-Sex para o mês alvo
+        const { first: wdFirst, second: wdSecond, total: wdTotal } = calcMeiWorkingDaysByPeriod(target_month);
+
+        const entryData = {
+          ...baseEntry,
+          base_salary:         prev.base_salary || 0,
+          working_days_month:  wdTotal,
+          working_days_worked: wdTotal,
+          working_days_first:  wdFirst,
+          working_days_second: wdSecond,
+          food_voucher:        prev.food_voucher || 0,
+          cost_allowance:      prev.cost_allowance || 500,
+          motorcycle_rental:   prev.motorcycle_rental || 0,
+          life_insurance:      prev.life_insurance || 0,
+          other_benefits:      prev.other_benefits || 0,
+        };
+
+        const calc = calcMei(entryData);
+        newEntry = { ...entryData, ...calc, inss: 0, irrf: 0, fgts: 0, pj_retention: 0 };
+      }
+
+      // ── SÓCIO (Pró-Labore) ────────────────────────────────────────────────
+      else if (payrollType === 'SOCIO') {
+        // Bonificação de aniversário automática (R$ 200)
+        const bBonus = hasBirthdayInMonth(emp) ? 200 : 0;
+        const entryData = {
+          ...baseEntry,
+          base_salary:         prev.base_salary || 0,
+          quota_adjustment:    prev.quota_adjustment || 0,
+          profit_distribution: prev.profit_distribution || 0,
+          medical_plan:        prev.medical_plan || 0,
+          other_discounts:     0,
+          inss_pct:            prev.inss_pct ?? 11,
+          irrf:                prev.irrf ?? 0,
+          birthday_bonus:      bBonus,
+          working_days_month:  30,
+          working_days_worked: 30,
+        };
+        const calc = calcProLabore(entryData);
+        newEntry = { ...entryData, ...calc };
+      }
+
+      // ── Tipo desconhecido — cópia simples sem cálculo ─────────────────────
+      else {
+        const EXCLUDE = ['id','created_date','updated_date','created_by',
+          'reference_month','status','notes','first_period_advance',
+          'first_period_base_locked','gross_total','net_total',
+          'first_period_base','second_period_base','first_period_net','second_period_net',
+          'clt_moto_effective_salary','absence_discount','absence_discounts',
+          'absence_discount_first','absence_discount_second','absences_days'];
+        newEntry = { ...baseEntry };
+        for (const [k, v] of Object.entries(prev)) {
+          if (!EXCLUDE.includes(k)) newEntry[k] = v;
+        }
+      }
+
+      // Persiste
       try {
-        const existingId = existingEntryMap[prev.employee_id];
+        const existingId = existingMap[prev.employee_id];
         if (existingId) {
-          await base44.asServiceRole.entities.PayrollEntry.update(existingId, newEntry);
+          await updateWithRetry(base44, 'PayrollEntry', existingId, newEntry);
         } else {
-          await base44.asServiceRole.entities.PayrollEntry.create(newEntry);
+          await createWithRetry(base44, 'PayrollEntry', newEntry);
         }
         cloned++;
       } catch (err) {
         errors.push({ employee_id: prev.employee_id, error: err.message });
       }
-      // Delay para evitar rate limit da API
       await new Promise(r => setTimeout(r, 80));
     }
 
     return Response.json({
-      cloned,
-      skipped,
-      skippedFired,
-      errors,
-      prev_month,
-      target_month,
-      message: `${cloned} lançamento(s) clonado(s)/atualizados de ${prev_month} para ${target_month}.${skippedFired > 0 ? ` ${skippedFired} ignorado(s) por demissão.` : ''}`
+      cloned, skipped, skippedFired, errors, prev_month, target_month,
+      message: `${cloned} lançamento(s) calculado(s) e clonado(s) de ${prev_month} para ${target_month}.${skippedFired > 0 ? ` ${skippedFired} ignorado(s) por demissão.` : ''}${errors.length > 0 ? ` ${errors.length} erro(s).` : ''}`,
     });
 
   } catch (error) {
