@@ -139,6 +139,11 @@ Deno.serve(async (req) => {
       const newEntry = {
         reference_month: target_month,
         status: 'open',
+        // Descontos de falta sempre zerados — são específicos do mês e serão recalculados via ajustes de ponto
+        absence_discount: 0,
+        absence_discount_first: 0,
+        absence_discount_second: 0,
+        absence_discounts: {},
         first_discounts,
         second_discounts,
         first_period_discount,
