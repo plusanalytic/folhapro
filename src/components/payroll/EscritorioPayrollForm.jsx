@@ -80,10 +80,22 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     return workingDays;
   })();
 
+  // Dias trabalhados proporcional: demissão = dia da demissão; admissão = 31 - dia; padrão = 30
+  const autoWorkedDays = (() => {
+    if (employee?.termination_date && employee.termination_date.slice(0, 7) === referenceMonth) {
+      return parseInt(employee.termination_date.slice(8, 10), 10);
+    }
+    if (employee?.admission_date && employee.admission_date.slice(0, 7) === referenceMonth) {
+      return 31 - parseInt(employee.admission_date.slice(8, 10), 10);
+    }
+    return 30;
+  })();
+
   const [form, setForm] = useState({
     company_id: employee.company_id,
     // Convenção Coletiva
     base_salary: entry?.base_salary ?? 0,
+    working_days_month: (entry?.working_days_month > 0) ? entry.working_days_month : autoWorkedDays,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
     transport_voucher_day_value: entry?.transport_voucher_day_value ?? 0,
@@ -182,6 +194,10 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
 
+  // Valor Dia e Salário Efetivo (proporcional)
+  const valorDia = form.base_salary > 0 ? Math.round((form.base_salary / 30) * 100) / 100 : 0;
+  const effectiveSalary = Math.round(valorDia * (form.working_days_month ?? 30) * 100) / 100;
+
   // Helper: conecta NumInput ao form state por field name
   // Usa baseLocked como padrão — permite edição quando apenas q1 está paga
   const numInputProps = useCallback((field, extra = {}) => ({
@@ -199,6 +215,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
   const calcForm = {
     ...form,
+    base_salary: effectiveSalary,
     absence_discount: totalDiscount,
     absence_discount_first: absenceFirst,
     absence_discount_second: absenceSecond,
@@ -358,8 +375,17 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
               <div className="grid grid-cols-2 gap-4">
-                <FormRow label="Piso Salarial" hint="Valor bruto do salário base">
+                <FormRow label="Salário Base Informado (R$)" hint="Valor bruto do salário base">
                   <NumInput {...numInputProps('base_salary')} />
+                </FormRow>
+                <FormRow label="Valor Dia (R$)" hint="Salário Base / 30">
+                  <div className="mt-1 bg-muted/40 rounded-md px-3 py-2 font-mono text-sm">{formatCurrency(valorDia)}</div>
+                </FormRow>
+                <FormRow label="Dias Trabalhados" hint="Padrão 30 — proporcional em admissão/demissão">
+                  <NumInput {...numInputProps('working_days_month', { step: '1', min: '0' })} />
+                </FormRow>
+                <FormRow label="Salário Efetivo (R$)" hint="Valor Dia × Dias Trabalhados">
+                  <div className="mt-1 bg-primary/10 rounded-md px-3 py-2 font-mono text-sm font-semibold text-primary">{formatCurrency(effectiveSalary)}</div>
                 </FormRow>
                 <FormRow label="Bonificação Extra" hint="Somado ao salário — rateado nas quinzenas">
                   <NumInput {...numInputProps('extra_bonus')} />
@@ -482,7 +508,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
                 <div>
                   <p className="font-bold text-base">Total Bruto Convenção</p>
-                  <p className="text-xs text-muted-foreground">Piso salarial + VR{form.extra_bonus > 0 ? ' + Bonificação Extra' : ''}</p>
+                  <p className="text-xs text-muted-foreground">Salário Efetivo + VR{form.extra_bonus > 0 ? ' + Bonificação Extra' : ''}</p>
                 </div>
                 <p className="font-mono font-bold text-foreground text-xl">{formatCurrency(calc.gross_total)}</p>
               </div>
@@ -732,8 +758,8 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Convenção Coletiva</p>
                 <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Piso Salarial</span>
-                  <span className="font-mono">{formatCurrency(form.base_salary)}</span>
+                  <span className="text-muted-foreground">Salário Efetivo{form.working_days_month !== 30 ? ` (${form.working_days_month}d × ${formatCurrency(valorDia)}/dia)` : ''}</span>
+                  <span className="font-mono">{formatCurrency(effectiveSalary)}</span>
                 </div>
                 {form.extra_bonus > 0 && (
                   <div className="flex justify-between py-2 border-b border-border">
@@ -839,7 +865,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
             <TabsContent value="provisao" className="mt-4">
               <ProvisionCalculator
                 items={[
-                  { label: 'Piso Salarial', value: form.base_salary },
+                  { label: 'Salário Efetivo', value: effectiveSalary },
                   { label: 'Vale Refeição', value: calc.meal_voucher },
                   { label: 'Vale Transporte', value: calc.transport_voucher },
                   { label: 'Seguro Odontológico', value: form.dental_plan },
