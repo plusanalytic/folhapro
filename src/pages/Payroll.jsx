@@ -491,7 +491,9 @@ export default function Payroll() {
                       const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
                       const effectiveSalary = entry ? (() => {
                         if (empJR?.payroll_type === 'ESCRITORIO') {
-                          return Math.round(((entry.base_salary || 0) / 30) * (entry.working_days_month ?? 30) * 100) / 100;
+                          const wdm = (entry.working_days_month > 0) ? entry.working_days_month : 30;
+                          const valorDia = (entry.base_salary || 0) / 30;
+                          return Math.round(valorDia * wdm * 100) / 100;
                         }
                         return entry.clt_moto_effective_salary || entry.base_salary || 0;
                       })() : null;
