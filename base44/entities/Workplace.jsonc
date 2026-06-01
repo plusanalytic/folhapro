@@ -34,6 +34,15 @@
       "type": "boolean",
       "default": true
     },
+    "work_schedule": {
+      "type": "string",
+      "enum": [
+        "seg_sex",
+        "seg_sab"
+      ],
+      "default": "seg_sab",
+      "description": "Escala de trabalho: Segunda a Sexta ou Segunda a S\u00e1bado"
+    },
     "clt_moto_base_salary_default": {
       "type": "number",
       "description": "Sal\u00e1rio base padr\u00e3o para Motociclista CLT neste local",

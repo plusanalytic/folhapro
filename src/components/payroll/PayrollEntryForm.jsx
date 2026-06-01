@@ -99,10 +99,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   const empWorkplace = workplaces.find(w =>
     (employee.workplace_list ?? []).map(String).includes(String(w.tangerino_id))
   );
+  // Escala do local: seg_sex (Seg-Sex) ou seg_sab (Seg-Sáb, padrão)
+  const scheduleIsSexta = empWorkplace?.work_schedule === 'seg_sex';
+  // Dias úteis mês cheio (denominador para valor/dia): respeitam a escala do local
+  const defaultFullMonthDays = scheduleIsSexta
+    ? getWorkingDaysInMonth(referenceMonth)
+    : getFullMonthContractWorkingDays(referenceMonth);
 
   const workingDays = getWorkingDaysInMonth(referenceMonth);
-  // Dias úteis contrato (Seg-Sáb, exceto feriados) — considera admissão no mês
-  const defaultContractWorkingDays = getContractWorkingDays(referenceMonth, employee?.admission_date);
+  // Dias úteis contrato — considera escala do local e admissão no mês
+  const defaultContractWorkingDays = scheduleIsSexta
+    ? (employee?.admission_date?.slice(0, 7) === referenceMonth
+        ? getWorkingDaysFromDate(employee.admission_date, referenceMonth)
+        : getWorkingDaysInMonth(referenceMonth))
+    : getContractWorkingDays(referenceMonth, employee?.admission_date);
   const [contractWorkingDays, setContractWorkingDays] = useState(
     entry?.contract_working_days ?? defaultContractWorkingDays
   );
@@ -160,7 +170,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // Campo editável: Total Dias Úteis Contrato (mês cheio, Seg-Sáb, sem considerar admissão)
   const [fullMonthContractDays, setFullMonthContractDays] = useState(
-    entry?.full_month_contract_working_days ?? getFullMonthContractWorkingDays(referenceMonth)
+    entry?.full_month_contract_working_days ?? defaultFullMonthDays
   );
 
   // Para CLT moto: base_salary efetivo = (clt_moto_base_salary / 30) * clt_moto_worked_days
@@ -662,36 +672,36 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       <p className="text-xs text-muted-foreground">Mês cheio, sem considerar admissão — usado como denominador para valor/dia</p>
                     </div>
                     <Input
-                      type="number" step="1" min="1" max="31" disabled={readOnly}
-                      className="w-20 font-mono text-center"
-                      value={fullMonthContractDays}
-                      onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                     type="number" step="1" min="1" max="31" disabled={readOnly}
+                     className="w-20 font-mono text-center"
+                     value={fullMonthContractDays}
+                     onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
+                     onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
+                     onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
-                    {fullMonthContractDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
-                      <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setFullMonthContractDays(getFullMonthContractWorkingDays(referenceMonth))}>
-                        Resetar ({getFullMonthContractWorkingDays(referenceMonth)})
-                      </button>
+                    {fullMonthContractDays !== defaultFullMonthDays && !readOnly && (
+                     <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setFullMonthContractDays(defaultFullMonthDays)}>
+                       Resetar ({defaultFullMonthDays})
+                     </button>
                     )}
-                  </div>
-                  <div className="flex items-center justify-between border border-border rounded-lg px-4 py-2 bg-muted/10">
+                    </div>
+                    <div className="flex items-center justify-between border border-border rounded-lg px-4 py-2 bg-muted/10">
                     <div className="flex-1">
-                      <p className="text-xs font-medium text-muted-foreground">Dias Úteis Trabalhados Contrato</p>
-                      <p className="text-xs text-muted-foreground">Dias efetivos trabalhados — usado para calcular valor efetivo (valor dia × este campo)</p>
+                     <p className="text-xs font-medium text-muted-foreground">Dias Úteis Trabalhados Contrato</p>
+                     <p className="text-xs text-muted-foreground">Dias efetivos trabalhados — usado para calcular valor efetivo (valor dia × este campo)</p>
                     </div>
                     <Input
-                      type="number" step="1" min="1" max="31" disabled={readOnly}
-                      className="w-20 font-mono text-center"
-                      value={contractWorkingDays}
-                      onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setContractWorkingDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
-                      onFocus={e => setTimeout(() => e.target.select(), 0)}
+                     type="number" step="1" min="1" max="31" disabled={readOnly}
+                     className="w-20 font-mono text-center"
+                     value={contractWorkingDays}
+                     onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                     onBlur={e => setContractWorkingDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
+                     onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
-                    {contractWorkingDays !== getFullMonthContractWorkingDays(referenceMonth) && !readOnly && (
-                      <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setContractWorkingDays(getFullMonthContractWorkingDays(referenceMonth))}>
-                        Resetar ({getFullMonthContractWorkingDays(referenceMonth)})
-                      </button>
+                    {contractWorkingDays !== defaultFullMonthDays && !readOnly && (
+                     <button className="text-xs text-primary underline whitespace-nowrap" onClick={() => setContractWorkingDays(defaultFullMonthDays)}>
+                       Resetar ({defaultFullMonthDays})
+                     </button>
                     )}
                   </div>
                 </div>
@@ -764,7 +774,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
@@ -795,7 +805,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>
@@ -826,7 +836,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                       className="font-mono text-center"
                       value={fullMonthContractDays}
                       onChange={e => { if (!readOnly) setFullMonthContractDays(parseInt(e.target.value) || 1); }}
-                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? getFullMonthContractWorkingDays(referenceMonth) : Math.max(0, parseInt(e.target.value)))}
+                      onBlur={e => setFullMonthContractDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
                       onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
                     <p className="text-xs text-muted-foreground mt-0.5 text-center">Total dias úteis</p>

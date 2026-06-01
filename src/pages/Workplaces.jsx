@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { MapPin, RefreshCw, Search, Building2, CheckCircle, XCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,11 @@ export default function Workplaces() {
 
   const handleDefaultChange = (id, field, value) => {
     setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+  };
+
+  const handleScheduleChange = async (id, value) => {
+    setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, work_schedule: value } : w));
+    await base44.entities.Workplace.update(id, { work_schedule: value });
   };
 
   const handleDefaultBlur = async (id, field, value) => {
@@ -128,6 +134,7 @@ export default function Workplaces() {
               <th className="text-right p-4 font-medium text-muted-foreground text-xs">VR/dia CLT Moto</th>
               <th className="text-right p-4 font-medium text-muted-foreground text-xs">VA CLT Moto</th>
               <th className="text-right p-4 font-medium text-muted-foreground text-xs">Aluguel Moto</th>
+              <th className="text-center p-4 font-medium text-muted-foreground text-xs">Escala</th>
             </tr>
           </thead>
           <tbody>
@@ -166,11 +173,25 @@ export default function Workplaces() {
                     />
                   </td>
                 ))}
+                <td className="p-2 text-center">
+                  <Select
+                    value={w.work_schedule || 'seg_sab'}
+                    onValueChange={v => handleScheduleChange(w.id, v)}
+                  >
+                    <SelectTrigger className="w-36 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="seg_sab">Seg – Sáb</SelectItem>
+                      <SelectItem value="seg_sex">Seg – Sex</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                <td colSpan={10} className="text-center py-12 text-muted-foreground">
                   <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>Nenhum local de trabalho encontrado</p>
                   {!search && <p className="text-sm mt-1">Use "Sincronizar Solides" para importar os locais.</p>}
