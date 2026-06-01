@@ -29,6 +29,7 @@ export default function PointAdjustments() {
   const readOnly = useReadOnly();
   // Filtros de busca — só busca ao clicar em "Buscar"
   const [filterEmployee, setFilterEmployee] = useState('');
+  const [includeFired, setIncludeFired] = useState(false);
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [filterReason, setFilterReason] = useState('');
@@ -182,7 +183,7 @@ export default function PointAdjustments() {
                 allLabel="Todos os colaboradores"
                 allValue="_all"
                 className="w-full h-9"
-                options={employees.filter(e => e.is_active !== false).sort((a, b) => a.name.localeCompare(b.name)).map(e => ({ value: e.id, label: e.name }))}
+                options={employees.filter(e => includeFired ? true : e.is_active !== false).sort((a, b) => a.name.localeCompare(b.name)).map(e => ({ value: e.id, label: e.name + (e.is_active === false ? ' (demitido)' : '') }))}
               />
             </div>
 
@@ -224,6 +225,20 @@ export default function PointAdjustments() {
                 options={uniqueReasons.map(r => ({ value: r, label: r }))}
               />
             </div>
+          </div>
+
+          {/* Incluir demitidos */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="includeFired"
+              checked={includeFired}
+              onChange={e => setIncludeFired(e.target.checked)}
+              className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+            />
+            <label htmlFor="includeFired" className="text-sm text-muted-foreground cursor-pointer select-none">
+              Incluir colaboradores demitidos no filtro
+            </label>
           </div>
 
           {/* Busca por texto */}

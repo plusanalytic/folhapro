@@ -29,6 +29,7 @@ import { printReceiptDirect } from '@/lib/printReceiptDirect';
 import BulkPDFDialog from '@/components/payroll/BulkPDFDialog';
 import ConfirmDialog from '@/components/payroll/ConfirmDialog';
 import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
+import ClonePayrollDialog from '@/components/payroll/ClonePayrollDialog';
 import AddEsporadicoDialog from '@/components/payroll/AddEsporadicoDialog';
 import { toast } from 'sonner';
 
@@ -63,6 +64,7 @@ export default function Payroll() {
   const [viewOnly, setViewOnly] = useState(false);
 
   const [cloning, setCloning] = useState(false);
+  const [cloneDialog, setCloneDialog] = useState(false);
   const [confirmClose, setConfirmClose] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [confirmReopen, setConfirmReopen] = useState(null); // { type: 'month'|'entry', companyId?, entry? }
   const [bulkPDF, setBulkPDF] = useState(null); // { company, employees }
@@ -261,11 +263,15 @@ export default function Payroll() {
     toast.success('Folha excluída!');
   };
 
-  const handleCloneFromPrevious = async () => {
+  const handleCloneFromPrevious = async ({ scope, company_id, employee_id }) => {
     setCloning(true);
     try {
-      const res = await base44.functions.invoke('clonePayrollFromPreviousMonth', { target_month: selectedMonth });
+      const payload = { target_month: selectedMonth };
+      if (scope === 'company' && company_id) payload.company_id = company_id;
+      if (scope === 'employee' && employee_id) payload.employee_id = employee_id;
+      const res = await base44.functions.invoke('clonePayrollFromPreviousMonth', payload);
       const data = res.data;
+      setCloneDialog(false);
       if (data.cloned === 0 && data.skipped === 0) {
         toast.info(data.message || 'Nenhum lançamento encontrado no mês anterior.');
       } else {
@@ -293,7 +299,7 @@ export default function Payroll() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={handleCloneFromPrevious}
+            onClick={() => setCloneDialog(true)}
             disabled={cloning}
           >
             {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
@@ -777,6 +783,18 @@ export default function Payroll() {
           existingEntries={entries}
           onAdded={load}
           onClose={() => setAddEsporadico(null)}
+        />
+      )}
+
+      {cloneDialog && (
+        <ClonePayrollDialog
+          open={cloneDialog}
+          onClose={() => setCloneDialog(false)}
+          onConfirm={handleCloneFromPrevious}
+          companies={companies}
+          employees={employees}
+          targetMonth={selectedMonth}
+          cloning={cloning}
         />
       )}
 

@@ -4,7 +4,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { target_month } = await req.json();
+    const { target_month, company_id, employee_id } = await req.json();
     if (!target_month) return Response.json({ error: 'target_month is required' }, { status: 400 });
 
     // Compute previous month (YYYY-MM)
@@ -12,8 +12,11 @@ Deno.serve(async (req) => {
     const prevDate = new Date(year, month - 2, 1);
     const prev_month = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Fetch previous month entries
-    const prevEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: prev_month });
+    // Fetch previous month entries (com filtros opcionais)
+    const prevFilter = { reference_month: prev_month };
+    if (company_id) prevFilter.company_id = company_id;
+    if (employee_id) prevFilter.employee_id = employee_id;
+    const prevEntries = await base44.asServiceRole.entities.PayrollEntry.filter(prevFilter);
 
     if (!prevEntries || prevEntries.length === 0) {
       return Response.json({ cloned: 0, message: `Nenhum lançamento encontrado em ${prev_month}` });
