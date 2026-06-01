@@ -502,27 +502,30 @@ export default function Payroll() {
                       const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
                       const bonificacoes = entry ? calcBonificacoes(entry) : null;
                       const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
-                     // Para CLT Moto: recomputa firstNet dos itens do grid (evita usar valor salvo incorreto)
+                     // Grid sempre recalcula dinamicamente dos campos salvos (nunca usa net salvo que pode estar desatualizado)
                      const firstNetDisplay = (() => {
-                      if (!entry) return null;
-                      if (!isCLTMotoRow) return entry.first_period_net ?? 0;
-                      // Quando a 1ª quinzena está travada (já paga), usa o valor salvo que é a verdade do pagamento
-                      if (entry.first_period_base_locked && entry.first_period_net != null) return entry.first_period_net;
-                      const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                      const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                      return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
+                       if (!entry) return null;
+                       const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       return Math.round(((entry.first_period_base || 0) - absence.first - (entry.first_period_advance || 0) - (d1 - c1)) * 100) / 100;
                      })();
                      const secondNetDisplay = (() => {
                        if (!entry) return null;
-                       if (!isCLTMotoRow) return entry.second_period_net ?? 0;
-                       const denom = entry.full_month_contract_working_days || 1;
-                       const worked = entry.contract_working_days || denom;
-                       const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
-                       const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
-                       const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
-                       const gDebits2 = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       const gCredits2 = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (gDebits2 - gCredits2) - absence.second + cltExtra;
+                       if (isCLTMotoRow) {
+                         const denom = entry.full_month_contract_working_days || 1;
+                         const worked = entry.contract_working_days || denom;
+                         const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
+                         const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
+                         const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
+                         const gDebits2 = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                         const gCredits2 = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                         return Math.round(((entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (gDebits2 - gCredits2) - absence.second + cltExtra) * 100) / 100;
+                       }
+                       // Escritório / MEI / Sócio / outros: base + benefícios Q2 - faltas - descontos
+                       const extraQ2 = (entry.food_voucher || 0) + (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.profit_distribution || 0) + (entry.other_benefits || 0);
+                       const d2 = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       const c2 = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                       return Math.round(((entry.second_period_base || 0) + extraQ2 - absence.second - (d2 - c2)) * 100) / 100;
                      })();
 
                      return (
