@@ -38,11 +38,11 @@ export async function renderComponentToPDFBlob(ReactComponent, props) {
   return new Promise(async (resolve, reject) => {
     const { container, root } = getSharedContainer();
     root.render(<ReactComponent {...props} />);
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 200));
     try {
       const { html2canvas, jsPDF } = await getLibs();
       const canvas = await html2canvas(container, {
-        scale: 2, useCORS: true, backgroundColor: '#ffffff',
+        scale: 1.5, useCORS: true, backgroundColor: '#ffffff',
         logging: false, width: 794, windowWidth: 794,
       });
       const imgData = canvas.toDataURL('image/jpeg', 0.92);

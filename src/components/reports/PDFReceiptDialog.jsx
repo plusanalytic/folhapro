@@ -80,7 +80,7 @@ export default function PDFReceiptDialog({ employee, entry, referenceMonth, onCl
             </div>
           </div>
         </DialogHeader>
-        <div ref={printRef} className="overflow-auto bg-white">
+        <div ref={printRef} className="overflow-auto bg-white -mx-6">
           {payrollType === 'ESCRITORIO'
             ? <EscritorioHoleriteContent employee={empWithPos} entry={mergedEntry} month={referenceMonth} company={company} paymentStatus={paymentStatus} />
             : payrollType === 'MOTOCICLISTA_MEI'
