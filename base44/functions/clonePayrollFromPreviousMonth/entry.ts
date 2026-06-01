@@ -49,8 +49,20 @@ Deno.serve(async (req) => {
     }
 
     // Fields to carry over
-    const EXCLUDE_FIELDS = ['id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
-      'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes'];
+    const EXCLUDE_FIELDS = [
+      'id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
+      // Descontos quinzenais: reconstruídos a partir dos CashOuts do mês alvo
+      'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes',
+      // Dias trabalhados: devem resetar para o padrão do novo mês (30), não herdar do mês anterior
+      'working_days_month', 'clt_moto_worked_days',
+      // Valores calculados: serão recalculados ao abrir a folha
+      'gross_total', 'net_total', 'first_period_base', 'second_period_base',
+      'first_period_net', 'second_period_net',
+      // Flag de congelamento: não deve persistir para o próximo mês
+      'first_period_base_locked',
+      // Descontos de falta: específicos do mês anterior, não se aplicam ao novo mês
+      'absence_discount', 'absence_discount_first', 'absence_discount_second', 'absence_discounts',
+    ];
 
     // Fetch all CashOuts for target month at once
     const targetCashOuts = await base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month });
