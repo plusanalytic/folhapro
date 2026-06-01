@@ -308,6 +308,10 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
                 {readonlyInput('Tipo de Contrato', employee?.contract_type)}
                 {readonlyInput('Empresa', getCompanyName(employee?.company_id))}
                 {readonlyInput('E-mail', employee?.email)}
+                <div>
+                  <Label className="mb-1 block">Salário Base (R$)</Label>
+                  <Input type="number" min="0" step="0.01" placeholder="0,00" value={form.base_salary} onChange={e => set('base_salary', e.target.value)} />
+                </div>
 
                 {/* Locais de Trabalho */}
                 <div className="col-span-2">
@@ -418,6 +422,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
               bank_name: rest.bank_name, bank_agency: rest.bank_agency, bank_account: rest.bank_account,
               bank_beneficiary: rest.bank_beneficiary, pix_key: rest.pix_key, pix_key_type: rest.pix_key_type,
               contract_type, workplace_list: localWorkplaceList,
+              base_salary: base_salary !== '' ? parseFloat(base_salary) : (employee?.base_salary ?? 0),
             };
             onSave({ ...employee, ...updates });
           }}>
