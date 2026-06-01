@@ -22,9 +22,12 @@ Deno.serve(async (req) => {
       return Response.json({ cloned: 0, message: `Nenhum lançamento encontrado em ${prev_month}` });
     }
 
-    // Fetch existing entries for target month to avoid duplicates
+    // Fetch existing entries for target month — serão sobrescritos se já existirem
     const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month });
-    const existingEmployeeIds = new Set(existingEntries.map(e => e.employee_id));
+    const existingEntryMap = {}; // employee_id -> entry.id
+    for (const e of existingEntries) {
+      existingEntryMap[e.employee_id] = e.id;
+    }
 
     // Fetch all employees, job roles and workplaces
     const allEmployees = await base44.asServiceRole.entities.Employee.list();
@@ -106,11 +109,7 @@ Deno.serve(async (req) => {
     const errors = [];
 
     for (const prev of prevEntries) {
-      // Skip if already exists for target month
-      if (existingEmployeeIds.has(prev.employee_id)) {
-        skipped++;
-        continue;
-      }
+      // Se já existe, será sobrescrito (update); caso contrário, criado
 
       // Skip if employee was fired before target_month
       const emp = employeeMap[prev.employee_id];
@@ -193,7 +192,12 @@ Deno.serve(async (req) => {
       }
 
       try {
-        await base44.asServiceRole.entities.PayrollEntry.create(newEntry);
+        const existingId = existingEntryMap[prev.employee_id];
+        if (existingId) {
+          await base44.asServiceRole.entities.PayrollEntry.update(existingId, newEntry);
+        } else {
+          await base44.asServiceRole.entities.PayrollEntry.create(newEntry);
+        }
         cloned++;
       } catch (err) {
         errors.push({ employee_id: prev.employee_id, error: err.message });
@@ -207,7 +211,7 @@ Deno.serve(async (req) => {
       errors,
       prev_month,
       target_month,
-      message: `${cloned} lançamento(s) clonado(s) de ${prev_month} para ${target_month}. ${skipped} já existiam. ${skippedFired > 0 ? `${skippedFired} ignorado(s) por demissão.` : ''}`
+      message: `${cloned} lançamento(s) clonado(s)/atualizados de ${prev_month} para ${target_month}.${skippedFired > 0 ? ` ${skippedFired} ignorado(s) por demissão.` : ''}`
     });
 
   } catch (error) {
