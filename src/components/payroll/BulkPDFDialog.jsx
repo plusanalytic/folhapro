@@ -45,14 +45,20 @@ async function renderComponentToPDFBlob(ReactComponent, props) {
       });
       const imgData = canvas.toDataURL('image/jpeg', 0.88);
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
+      const pdfW = pdf.internal.pageSize.getWidth();   // 210mm
+      const pageH = pdf.internal.pageSize.getHeight(); // 297mm
       const imgH = (canvas.height / canvas.width) * pdfW;
-      let yPos = 0;
-      while (yPos < imgH) {
-        if (yPos > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfW, imgH);
-        yPos += pageH;
+
+      // Cada recibo = exatamente 1 página (igual ao window.print do recibo individual).
+      // Se o conteúdo couber em A4, posiciona normalmente.
+      // Se for mais alto, escala proporcionalmente para caber sem cortar nenhuma linha.
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, imgH);
+      } else {
+        const scale = pageH / imgH;
+        const scaledW = pdfW * scale;
+        const xOffset = (pdfW - scaledW) / 2;
+        pdf.addImage(imgData, 'JPEG', xOffset, 0, scaledW, pageH);
       }
       resolve(pdf.output('blob'));
     } catch (err) {
