@@ -491,11 +491,13 @@ export default function Payroll() {
                      const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
                      // Para CLT Moto: recomputa firstNet dos itens do grid (evita usar valor salvo incorreto)
                      const firstNetDisplay = (() => {
-                       if (!entry) return null;
-                       if (!isCLTMotoRow) return entry.first_period_net ?? 0;
-                       const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
+                      if (!entry) return null;
+                      if (!isCLTMotoRow) return entry.first_period_net ?? 0;
+                      // Quando a 1ª quinzena está travada (já paga), usa o valor salvo que é a verdade do pagamento
+                      if (entry.first_period_base_locked && entry.first_period_net != null) return entry.first_period_net;
+                      const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                      const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+                      return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
                      })();
                      const secondNetDisplay = (() => {
                        if (!entry) return null;
