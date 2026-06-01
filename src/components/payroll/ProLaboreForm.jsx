@@ -438,6 +438,7 @@ export default function ProLaboreForm({ employee, entry, referenceMonth, readOnl
             <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>
           ) : (
             <>
+              {entry?.id && <p className="text-xs text-muted-foreground font-mono pb-2 w-full">ID da Folha: {entry.id}</p>}
               <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
               <Button className="flex-1" onClick={handleSave} disabled={saving} >
                 <Save className="w-4 h-4 mr-2" /> {saving ? 'Salvando...' : 'Salvar Lançamento'}

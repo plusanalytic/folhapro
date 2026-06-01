@@ -196,6 +196,7 @@ export default function EsporadicoReceiptContent({ employee, entry, month, compa
           <div style={{ marginTop: '8px', color: '#888', fontSize: '10px' }}>Data: _____ / _____ / _________</div>
         </div>
       </div>
+      <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '8px', color: '#ccc' }}>ID Folha: {entry?.id || '—'}</div>
     </div>
   );
 }

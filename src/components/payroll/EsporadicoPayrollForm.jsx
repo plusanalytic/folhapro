@@ -42,7 +42,8 @@ const QUINZENA_BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO',
 
 export default function EsporadicoPayrollForm({ employee, entry, referenceMonth, readOnly, onSave, onClose, paymentStatus = null }) {
   // Esporádico tem apenas 1 período (first) — bloqueado se a quinzena 1 estiver paga
-  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
+  // Bloqueia somente quando AMBAS as quinzenas estão pagas (consistente com hasPaymentBaixa do Payroll)
+  const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1) && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
   const allLocked = readOnly || q1Locked;
   const [form, setForm] = useState({
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
@@ -213,7 +214,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
               )}
               {!readOnly && q1Locked && (
                 <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-sm text-amber-700">
-                  🔒 Pagamento bloqueado — status: <strong>{paymentStatus?.status_q1}</strong>. Todos os campos estão desabilitados.
+                  🔒 Pagamento bloqueado — ambas as quinzenas foram pagas. Todos os campos estão desabilitados.
                 </div>
               )}
 
@@ -421,6 +422,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
               />
             </div>
           )}
+          {entry?.id && <p className="text-xs text-muted-foreground font-mono pb-2">ID da Folha: {entry.id}</p>}
           <div className="flex gap-3 pb-4">
             {(readOnly || q1Locked) ? (
               <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>

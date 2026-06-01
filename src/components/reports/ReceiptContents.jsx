@@ -501,6 +501,7 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
           <FaltasDetailPage entry={entry} employee={employee} company={company} month={month} />
         </div>
       )}
+      <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '8px', color: '#ccc' }}>ID Folha: {entry?.id || '—'}</div>
     </div>
   );
 }
@@ -693,6 +694,7 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
         <MotoReceiptContent employee={employee} entry={entry} month={month} />
         </div>
       )}
+      <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '8px', color: '#ccc' }}>ID Folha: {entry?.id || '—'}</div>
     </div>
   );
 }
@@ -972,6 +974,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
           <FaltasDetailPage entry={entry} employee={employee} company={company} month={month} />
         </div>
       )}
+      <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '8px', color: '#ccc' }}>ID Folha: {entry?.id || '—'}</div>
     </div>
   );
 }

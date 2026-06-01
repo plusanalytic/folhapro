@@ -751,6 +751,7 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
               />
             </div>
           )}
+          {entry?.id && <p className="text-xs text-muted-foreground font-mono pb-2">ID da Folha: {entry.id}</p>}
           <div className="flex gap-3 pb-4">
             {readOnly ? (
               <Button variant="outline" className="flex-1" onClick={onClose}>Fechar</Button>

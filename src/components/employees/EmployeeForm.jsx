@@ -169,6 +169,7 @@ export default function EmployeeForm({ employee, companies, workplaces = [], job
               </Badge>
             )}
           </div>
+          {employee?.id && <p className="text-xs text-muted-foreground font-mono mt-0.5">ID: {employee.id}</p>}
         </DialogHeader>
 
         <Tabs defaultValue="dados">

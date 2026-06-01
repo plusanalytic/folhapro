@@ -258,6 +258,7 @@ export default function ProLaboreReceiptContent({ employee, entry, month, compan
           <div style={{ fontSize: '11px', color: '#555' }}>{employee.position || 'Sócio Administrador'}</div>
         </div>
       </div>
+      <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '8px', color: '#ccc' }}>ID Folha: {entry?.id || '—'}</div>
     </div>
   );
 }
