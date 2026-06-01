@@ -487,14 +487,19 @@ export default function Payroll() {
                      ...[...fixedEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => ({ emp, entry: getEntry(emp.id, company.id), isEspPair: false })),
                      ...[...espPairsFiltered].sort((a, b) => a.emp.name.localeCompare(b.emp.name, 'pt-BR')).map(({ emp, entry }) => ({ emp, entry, isEspPair: true })),
                    ].map(({ emp, entry, isEspPair }) => {
-                     const effectiveSalary = entry ? (entry.clt_moto_effective_salary || entry.base_salary || 0) : null;
-                     const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
-                     const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
-                     const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
-                     const bonificacoes = entry ? calcBonificacoes(entry) : null;
-                     const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
                      const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                     const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
+                      const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
+                      const effectiveSalary = entry ? (() => {
+                        if (empJR?.payroll_type === 'ESCRITORIO') {
+                          return Math.round(((entry.base_salary || 0) / 30) * (entry.working_days_month ?? 30) * 100) / 100;
+                        }
+                        return entry.clt_moto_effective_salary || entry.base_salary || 0;
+                      })() : null;
+                      const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
+                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
+                      const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
+                      const bonificacoes = entry ? calcBonificacoes(entry) : null;
+                      const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
                      // Para CLT Moto: recomputa firstNet dos itens do grid (evita usar valor salvo incorreto)
                      const firstNetDisplay = (() => {
                       if (!entry) return null;

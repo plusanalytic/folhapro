@@ -26,8 +26,36 @@ Deno.serve(async (req) => {
     const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month });
     const existingEmployeeIds = new Set(existingEntries.map(e => e.employee_id));
 
-    // Fetch all employees to check termination status
+    // Fetch all employees, job roles and workplaces
     const allEmployees = await base44.asServiceRole.entities.Employee.list();
+    const allJobRoles = await base44.asServiceRole.entities.JobRole.list();
+    const allWorkplaces = await base44.asServiceRole.entities.Workplace.list();
+
+    const jobRoleMap = {}; // tangerino_id -> payroll_type
+    for (const jr of allJobRoles) {
+      if (jr.tangerino_id) jobRoleMap[String(jr.tangerino_id)] = jr;
+    }
+    const workplaceMap = {}; // tangerino_id -> workplace
+    for (const w of allWorkplaces) {
+      if (w.tangerino_id) workplaceMap[String(w.tangerino_id)] = w;
+    }
+
+    // Calcula dias úteis de um mês: includeSat=true (Seg-Sáb), includeSat=false (Seg-Sex)
+    function calcWorkingDays(yearMonth, includeSat = true) {
+      const [yr, mo] = yearMonth.split('-').map(Number);
+      const holidays = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
+      const daysInMonth = new Date(yr, mo, 0).getDate();
+      let count = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(yr, mo - 1, d).getDay();
+        if (dow === 0) continue;
+        if (!includeSat && dow === 6) continue;
+        const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        if (holidays.has(mmdd)) continue;
+        count++;
+      }
+      return count;
+    }
     const employeeMap = {};
     for (const emp of allEmployees) {
       employeeMap[emp.id] = emp;
@@ -58,6 +86,8 @@ Deno.serve(async (req) => {
       'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes',
       // Dias trabalhados: devem resetar para o padrão do novo mês (30), não herdar do mês anterior
       'working_days_month', 'clt_moto_worked_days',
+      // Dias úteis de contrato: serão recalculados do local de trabalho para CLT Moto
+      'full_month_contract_working_days', 'contract_working_days',
       // Valores calculados: serão recalculados ao abrir a folha
       'gross_total', 'net_total', 'first_period_base', 'second_period_base',
       'first_period_net', 'second_period_net',
@@ -120,6 +150,46 @@ Deno.serve(async (req) => {
         if (!EXCLUDE_FIELDS.includes(key)) {
           newEntry[key] = value;
         }
+      }
+
+      // Overrides por tipo de folha
+      const empJobRoleTangeId = emp ? String(emp.job_role_tangerino_id) : null;
+      const empJobRole = empJobRoleTangeId ? jobRoleMap[empJobRoleTangeId] : null;
+      const payrollType = empJobRole?.payroll_type;
+
+      if (payrollType === 'ESCRITORIO') {
+        // Salário base do cadastro do colaborador; dias trabalhados = 30 (padrão)
+        newEntry.base_salary = (emp && emp.base_salary > 0) ? emp.base_salary : (prev.base_salary || 0);
+        newEntry.working_days_month = 30;
+
+      } else if (payrollType === 'MOTOCICLISTA_CLT') {
+        // Busca o local de trabalho principal do colaborador
+        const empWorkplaceList = emp?.workplace_list || [];
+        const workplace = empWorkplaceList.length > 0
+          ? workplaceMap[String(empWorkplaceList[0])]
+          : null;
+
+        if (workplace) {
+          const includeSat = workplace.work_schedule !== 'seg_sex';
+          const fullMonthDays = calcWorkingDays(target_month, includeSat);
+
+          if (workplace.clt_moto_base_salary_default > 0) {
+            newEntry.clt_moto_base_salary = workplace.clt_moto_base_salary_default;
+            newEntry.base_salary = workplace.clt_moto_base_salary_default;
+          }
+          if (workplace.clt_moto_meal_voucher_day_value_default > 0) {
+            newEntry.meal_voucher_day_value = workplace.clt_moto_meal_voucher_day_value_default;
+          }
+          if (workplace.clt_moto_food_voucher_default > 0) {
+            newEntry.food_voucher = workplace.clt_moto_food_voucher_default;
+          }
+          if (workplace.clt_moto_motorcycle_rental_default > 0) {
+            newEntry.motorcycle_rental = workplace.clt_moto_motorcycle_rental_default;
+          }
+          newEntry.full_month_contract_working_days = fullMonthDays;
+          newEntry.contract_working_days = fullMonthDays;
+        }
+        // clt_moto_worked_days já está em EXCLUDE_FIELDS (= 30 por padrão no form)
       }
 
       try {
