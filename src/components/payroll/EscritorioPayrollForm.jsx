@@ -94,7 +94,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const [form, setForm] = useState({
     company_id: employee.company_id,
     // Convenção Coletiva
-    base_salary: entry?.base_salary ?? 0,
+    base_salary: (employee?.base_salary > 0 ? employee.base_salary : (entry?.base_salary ?? 0)),
     working_days_month: (entry?.working_days_month > 0) ? entry.working_days_month : autoWorkedDays,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? vrWorkingDays,
