@@ -508,46 +508,9 @@ export default function Payroll() {
                       const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
                       const bonificacoes = entry ? calcBonificacoes(entry) : null;
                       const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
-                     // Grid: recalcula dinamicamente quando first_period_base > 0 (folha já aberta/salva).
-                     // Fallback para valor salvo quando base ainda não foi calculada (folha só clonada).
-                     const firstNetDisplay = (() => {
-                       if (!entry) return null;
-                       const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       const base1 = entry.first_period_base || 0;
-                       if (base1 > 0) {
-                         return Math.round((base1 - absence.first - (entry.first_period_advance || 0) - (d1 - c1)) * 100) / 100;
-                       }
-                       // Fallback: valor salvo (entradas ainda não reabertas após clonagem)
-                       const saved1 = entry.first_period_net ?? 0;
-                       return Math.round((saved1 - absence.first - (d1 - c1)) * 100) / 100;
-                     })();
-                     const secondNetDisplay = (() => {
-                       if (!entry) return null;
-                       const d2 = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       const c2 = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-                       if (isCLTMotoRow) {
-                         const denom = entry.full_month_contract_working_days || 1;
-                         const worked = entry.contract_working_days || denom;
-                         const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
-                         const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
-                         const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
-                         const base2clt = entry.second_period_base || 0;
-                         if (base2clt > 0) {
-                           return Math.round((base2clt + foodEff + (entry.km_bonus || 0) + costEff - (d2 - c2) - absence.second + cltExtra) * 100) / 100;
-                         }
-                         const saved2 = entry.second_period_net ?? 0;
-                         return Math.round((saved2 - absence.second - (d2 - c2)) * 100) / 100;
-                       }
-                       // Escritório / MEI / Sócio / outros
-                       const base2 = entry.second_period_base || 0;
-                       const extraQ2 = (entry.food_voucher || 0) + (entry.bonus || 0) + (entry.attendance_bonus || 0) + (entry.birthday_bonus || 0) + (entry.profit_distribution || 0) + (entry.other_benefits || 0);
-                       if (base2 > 0) {
-                         return Math.round((base2 + extraQ2 - absence.second - (d2 - c2)) * 100) / 100;
-                       }
-                       const saved2 = entry.second_period_net ?? 0;
-                       return Math.round((saved2 + extraQ2 - absence.second - (d2 - c2)) * 100) / 100;
-                     })();
+                     // Usa os valores salvos pelo formulário — garante paridade exata com o que o formulário exibe
+                     const firstNetDisplay = entry ? (entry.first_period_net ?? null) : null;
+                     const secondNetDisplay = entry ? (entry.second_period_net ?? null) : null;
 
                      return (
                        <tr key={rowKey} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
