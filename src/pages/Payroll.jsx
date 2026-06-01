@@ -492,8 +492,13 @@ export default function Payroll() {
                       const effectiveSalary = entry ? (() => {
                         if (empJR?.payroll_type === 'ESCRITORIO') {
                           const wdm = (entry.working_days_month > 0) ? entry.working_days_month : 30;
-                          const valorDia = (entry.base_salary || 0) / 30;
-                          return Math.round(valorDia * wdm * 100) / 100;
+                          return Math.round(((entry.base_salary || 0) / 30) * wdm * 100) / 100;
+                        }
+                        if (empJR?.payroll_type === 'MOTOCICLISTA_CLT') {
+                          // Recalcula dinamicamente pelo proporcional de dias trabalhados
+                          const fullDays = entry.full_month_contract_working_days || 1;
+                          const workedDays = entry.clt_moto_worked_days || fullDays;
+                          return Math.round(((entry.clt_moto_base_salary || entry.base_salary || 0) * workedDays / fullDays) * 100) / 100;
                         }
                         return entry.clt_moto_effective_salary || entry.base_salary || 0;
                       })() : null;

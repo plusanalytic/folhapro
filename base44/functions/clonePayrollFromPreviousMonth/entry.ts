@@ -12,27 +12,27 @@ Deno.serve(async (req) => {
     const prevDate = new Date(year, month - 2, 1);
     const prev_month = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Fetch previous month entries (com filtros opcionais)
+    // Fetch previous month entries (com filtros opcionais) — limite alto para cobrir todas as folhas
     const prevFilter = { reference_month: prev_month };
     if (company_id) prevFilter.company_id = company_id;
     if (employee_id) prevFilter.employee_id = employee_id;
-    const prevEntries = await base44.asServiceRole.entities.PayrollEntry.filter(prevFilter);
+    const prevEntries = await base44.asServiceRole.entities.PayrollEntry.filter(prevFilter, null, 5000);
 
     if (!prevEntries || prevEntries.length === 0) {
       return Response.json({ cloned: 0, message: `Nenhum lançamento encontrado em ${prev_month}` });
     }
 
     // Fetch existing entries for target month — serão sobrescritos se já existirem
-    const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month });
+    const existingEntries = await base44.asServiceRole.entities.PayrollEntry.filter({ reference_month: target_month }, null, 5000);
     const existingEntryMap = {}; // employee_id -> entry.id
     for (const e of existingEntries) {
       existingEntryMap[e.employee_id] = e.id;
     }
 
     // Fetch all employees, job roles and workplaces
-    const allEmployees = await base44.asServiceRole.entities.Employee.list();
-    const allJobRoles = await base44.asServiceRole.entities.JobRole.list();
-    const allWorkplaces = await base44.asServiceRole.entities.Workplace.list();
+    const allEmployees = await base44.asServiceRole.entities.Employee.list(null, 5000);
+    const allJobRoles = await base44.asServiceRole.entities.JobRole.list(null, 5000);
+    const allWorkplaces = await base44.asServiceRole.entities.Workplace.list(null, 5000);
 
     const jobRoleMap = {}; // tangerino_id -> payroll_type
     for (const jr of allJobRoles) {
@@ -84,24 +84,26 @@ Deno.serve(async (req) => {
 
     // Fields to carry over
     const EXCLUDE_FIELDS = [
-      'id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
-      // Descontos quinzenais: reconstruídos a partir dos CashOuts do mês alvo
-      'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes',
-      // Dias trabalhados: devem resetar para o padrão do novo mês (30), não herdar do mês anterior
-      'working_days_month', 'clt_moto_worked_days',
-      // Dias úteis de contrato: serão recalculados do local de trabalho para CLT Moto
-      'full_month_contract_working_days', 'contract_working_days',
-      // Valores calculados: serão recalculados ao abrir a folha
-      'gross_total', 'net_total', 'first_period_base', 'second_period_base',
-      'first_period_net', 'second_period_net',
-      // Flag de congelamento: não deve persistir para o próximo mês
-      'first_period_base_locked',
-      // Descontos de falta: específicos do mês anterior, não se aplicam ao novo mês
-      'absence_discount', 'absence_discount_first', 'absence_discount_second', 'absence_discounts',
+    'id', 'created_date', 'updated_date', 'created_by', 'reference_month', 'status',
+    // Descontos quinzenais: reconstruídos a partir dos CashOuts do mês alvo
+    'first_discounts', 'second_discounts', 'first_period_discount', 'second_period_discount', 'notes',
+    // Dias trabalhados: devem resetar para o padrão do novo mês (30), não herdar do mês anterior
+    'working_days_month', 'clt_moto_worked_days',
+    // Dias úteis de contrato: serão recalculados do local de trabalho para CLT Moto
+    'full_month_contract_working_days', 'contract_working_days',
+    // Valores calculados: serão recalculados ao abrir a folha
+    'gross_total', 'net_total', 'first_period_base', 'second_period_base',
+    'first_period_net', 'second_period_net',
+    // Salário efetivo CLT Moto: recalculado pelo proporcional de dias do mês atual
+    'clt_moto_effective_salary',
+    // Flag de congelamento: não deve persistir para o próximo mês
+    'first_period_base_locked',
+    // Descontos de falta: específicos do mês anterior, não se aplicam ao novo mês
+    'absence_discount', 'absence_discount_first', 'absence_discount_second', 'absence_discounts',
     ];
 
     // Fetch all CashOuts for target month at once
-    const targetCashOuts = await base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month });
+    const targetCashOuts = await base44.asServiceRole.entities.CashOut.filter({ reference_month: target_month }, null, 5000);
 
     let cloned = 0;
     let skipped = 0;
@@ -219,6 +221,8 @@ Deno.serve(async (req) => {
       } catch (err) {
         errors.push({ employee_id: prev.employee_id, error: err.message });
       }
+      // Delay para evitar rate limit da API
+      await new Promise(r => setTimeout(r, 80));
     }
 
     return Response.json({
