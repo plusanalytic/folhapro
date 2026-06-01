@@ -98,6 +98,10 @@ Deno.serve(async (req) => {
     'clt_moto_effective_salary',
     // Flag de congelamento: não deve persistir para o próximo mês
     'first_period_base_locked',
+    // Rateio quinzenal: sempre reinicia em 50/50
+    'first_period_split',
+    // Dias e valor do VR: recalculados pelos dias úteis do mês atual
+    'meal_voucher_days', 'meal_voucher',
     // Descontos de falta: específicos do mês anterior, não se aplicam ao novo mês
     'absence_discount', 'absence_discount_first', 'absence_discount_second', 'absence_discounts',
     ];
@@ -158,6 +162,8 @@ Deno.serve(async (req) => {
         contract_working_days: 0,
         // Flag de congelamento: nunca propagar para o próximo mês
         first_period_base_locked: false,
+        // Rateio quinzenal: sempre 50/50 no novo mês
+        first_period_split: 0.5,
         first_discounts,
         second_discounts,
         first_period_discount,
@@ -206,6 +212,13 @@ Deno.serve(async (req) => {
           }
           newEntry.full_month_contract_working_days = fullMonthDays;
           newEntry.contract_working_days = fullMonthDays;
+          // VR: dias = dias úteis do mês; valor = dia_valor * dias
+          newEntry.meal_voucher_days = fullMonthDays;
+          const mvDayVal = newEntry.meal_voucher_day_value || prev.meal_voucher_day_value || 0;
+          const mvDiscount = newEntry.meal_voucher_discount_pct || prev.meal_voucher_discount_pct || 0;
+          const mvGross = Math.round(mvDayVal * fullMonthDays * 100) / 100;
+          newEntry.meal_voucher = Math.round(mvGross * (1 - mvDiscount / 100) * 100) / 100;
+          newEntry.meal_voucher_discount = Math.round(mvGross * (mvDiscount / 100) * 100) / 100;
         }
         // clt_moto_worked_days e working_days_month já foram definidos como 30 no newEntry acima
       }
