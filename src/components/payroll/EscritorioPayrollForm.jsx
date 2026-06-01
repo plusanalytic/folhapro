@@ -227,7 +227,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
   // Se 1ª quinzena está bloqueada (paga), congela a base da 1ª quinzena.
   // Qualquer alteração nos proventos afeta SOMENTE a base da 2ª quinzena.
-  const isFirstBaseFrozen = (q1Locked || !!entry?.first_period_base_locked) && entry?.first_period_base > 0;
+  // Congela a base da 1ª quinzena SOMENTE se o pagamento da 1ª quinzena já foi realizado (q1Locked).
+  // O campo first_period_base_locked (legado do reajuste de maio) não deve mais bloquear folhas novas.
+  const isFirstBaseFrozen = q1Locked && entry?.first_period_base > 0;
   const calc = (() => {
     if (isFirstBaseFrozen) {
       const frozenFirstBase = entry.first_period_base;
@@ -568,9 +570,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
 
             {/* ── ABA: Quinzenal ── */}
             <TabsContent value="quinzenal" className="space-y-5 mt-4">
-              {entry?.first_period_base_locked && (
+              {q1Locked && !readOnly && (
                 <div className="flex items-center gap-2 bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
-                  🔒 Base da 1ª Quinzena congelada pelo reajuste salarial — a diferença foi lançada integralmente na 2ª Quinzena.
+                  🔒 1ª quinzena já paga — base congelada. Alterações refletem apenas na 2ª quinzena.
                 </div>
               )}
               {q1Locked && !readOnly && (

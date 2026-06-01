@@ -140,10 +140,14 @@ Deno.serve(async (req) => {
         reference_month: target_month,
         status: 'open',
         // Descontos de falta: sempre zerados — específicos do mês, recalculados via ajustes de ponto
+        // Usamos null (não {}) para garantir que o update SUBSTITUA o campo no banco (merge de objeto não limpa chaves antigas)
         absence_discount: 0,
         absence_discount_first: 0,
         absence_discount_second: 0,
-        absence_discounts: {},
+        absence_discounts: null,
+        absences_days: 0,
+        mei_absences_first: 0,
+        mei_absences_second: 0,
         // Dias trabalhados: resetados para o padrão 30 (sobrescreve valor antigo no update)
         working_days_month: 30,
         clt_moto_worked_days: 30,
