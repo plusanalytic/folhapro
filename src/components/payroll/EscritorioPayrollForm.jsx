@@ -195,7 +195,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
 
   // Valor Dia e Salário Efetivo (proporcional)
-  const valorDia = form.base_salary > 0 ? Math.round((form.base_salary / 30) * 100) / 100 : 0;
+  const valorDia = form.base_salary > 0 ? form.base_salary / 30 : 0;
   const effectiveSalary = Math.round(valorDia * (form.working_days_month ?? 30) * 100) / 100;
 
   // Helper: conecta NumInput ao form state por field name
