@@ -61,23 +61,36 @@ export function absenceDiscountByPeriod(absenceDiscounts) {
 }
 
 // Calcula valores base por dia com base no formulário
+// Regras:
+//   Diário      = salário base / dias úteis do mês
+//   VT          = valor dia vale transporte (campo direto)
+//   VR          = valor dia VR (campo direto)
+//   DSR         = (salário base / dias úteis) + (periculosidade / 30)
+//   Loc. Moto   = aluguel moto / dias úteis do mês
+//   Periculosidade = periculosidade / 30
 function calcBaseValues(payrollForm) {
-  const baseSalary = parseFloat(payrollForm?.base_salary) || 0;
+  // Salário base: usa clt_moto_base_salary se disponível, senão base_salary
+  const baseSalary = parseFloat(payrollForm?.clt_moto_base_salary) || parseFloat(payrollForm?.base_salary) || 0;
+  // Dias úteis do mês: preferir full_month_contract_working_days, depois working_days_month, senão 30
+  const workingDays = parseFloat(payrollForm?.full_month_contract_working_days) || parseFloat(payrollForm?.working_days_month) || 30;
+
   const vrPerDay = parseFloat(payrollForm?.meal_voucher_day_value) || 0;
-  const vrDays = parseFloat(payrollForm?.meal_voucher_days) || 1;
   const vtPerDay = parseFloat(payrollForm?.transport_voucher_day_value) || 0;
-  const vtTotal = parseFloat(payrollForm?.transport_voucher) || 0;
   const motoRental = parseFloat(payrollForm?.motorcycle_rental) || 0;
   const hazardPay = parseFloat(payrollForm?.hazard_pay) || 0;
 
-  const daily = baseSalary > 0 ? Math.round((baseSalary / 30) * 10000) / 10000 : 0;
-  const dsr = daily;
+  // Valor dia salário base
+  const daily = baseSalary > 0 ? Math.round((baseSalary / workingDays) * 10000) / 10000 : 0;
+  // Periculosidade / 30 (fixo em 30 conforme regra)
+  const hazard = hazardPay > 0 ? Math.round((hazardPay / 30) * 10000) / 10000 : 0;
+  // DSR = valor dia salário base + periculosidade/30
+  const dsr = Math.round((daily + hazard) * 10000) / 10000;
+  // VR = valor dia direto do campo
   const vr = vrPerDay;
-  const vt = vtPerDay > 0
-    ? vtPerDay
-    : (vtTotal > 0 && vrDays > 0 ? Math.round((vtTotal / vrDays) * 100) / 100 : 0);
-  const moto = motoRental > 0 && vrDays > 0 ? Math.round((motoRental / vrDays) * 100) / 100 : 0;
-  const hazard = hazardPay > 0 && vrDays > 0 ? Math.round((hazardPay / vrDays) * 100) / 100 : 0;
+  // VT = valor dia direto do campo
+  const vt = vtPerDay;
+  // Loc. Moto = aluguel / dias úteis
+  const moto = motoRental > 0 ? Math.round((motoRental / workingDays) * 10000) / 10000 : 0;
 
   return { daily, vt, vr, dsr, moto, hazard };
 }
