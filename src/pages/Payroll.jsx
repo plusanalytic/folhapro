@@ -32,6 +32,9 @@ import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
 import AddEsporadicoDialog from '@/components/payroll/AddEsporadicoDialog';
 import { toast } from 'sonner';
 
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
+
 export default function Payroll() {
   const readOnly = useReadOnly();
   const [employees, setEmployees] = useState([]);
@@ -43,6 +46,8 @@ export default function Payroll() {
   const [paymentStatuses, setPaymentStatuses] = useState([]);
   const [paymentBlockAlert, setPaymentBlockAlert] = useState(null); // { empName }
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    const saved = sessionStorage.getItem('filter_month_payroll');
+    if (saved && saved >= '2026-04') return saved;
     const current = new Date().toISOString().slice(0, 7);
     return current >= '2026-04' ? current : '2026-04';
   });
@@ -101,6 +106,7 @@ export default function Payroll() {
   };
 
   useEffect(() => { load(); setSelectedEntryIds(new Set()); }, [selectedMonth]);
+  useEffect(() => { sessionStorage.setItem('filter_month_payroll', selectedMonth); }, [selectedMonth]);
 
   const isMonthClosed = (companyId) => {
     const mc = monthCloses.find(m => m.company_id === companyId);
@@ -277,7 +283,10 @@ export default function Payroll() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Folha de Pagamento</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-foreground">Folha de Pagamento</h1>
+            <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{fmtMonth(selectedMonth)}</span>
+          </div>
           <p className="text-muted-foreground text-sm mt-1">Lançamentos mensais</p>
         </div>
         {!readOnly && (

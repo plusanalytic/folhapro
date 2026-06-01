@@ -21,6 +21,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
+
 function getFirstNetDisplay(entry, employees, jobRoles) {
   const emp = employees.find(e => e.id === entry.employee_id);
   const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
@@ -156,7 +159,7 @@ export default function Payments() {
   const [workplaces, setWorkplaces] = useState([]);
   const [entries, setEntries] = useState([]);
   const [paymentStatuses, setPaymentStatuses] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => sessionStorage.getItem('filter_month_payments') || new Date().toISOString().slice(0, 7));
   const [selectedCompanies, setSelectedCompanies] = useState([]);
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
@@ -184,6 +187,7 @@ export default function Payments() {
   };
 
   useEffect(() => { load(); }, [selectedMonth]);
+  useEffect(() => { sessionStorage.setItem('filter_month_payments', selectedMonth); }, [selectedMonth]);
 
   const getEmployee = (id) => employees.find(e => e.id === id);
   const getJobRoleName = (emp) => jobRoles.find(jr => String(jr.tangerino_id) === String(emp?.job_role_tangerino_id))?.name || '—';
@@ -328,6 +332,7 @@ export default function Payments() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-primary" /> Pagamentos
+            <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{fmtMonth(selectedMonth)}</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gestão de pagamentos por quinzena — apenas folhas fechadas</p>
         </div>

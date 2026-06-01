@@ -28,6 +28,9 @@ const BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS
 
 const EMPTY_FORM = { company_id: '', employee_id: '', date: '', description: '', amount: '', notes: '', deduct_from_payroll: false };
 
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
+
 export default function CashOut() {
   const readOnly = useReadOnly();
   const [cashOuts, setCashOuts] = useState([]);
@@ -35,7 +38,7 @@ export default function CashOut() {
   const [companies, setCompanies] = useState([]);
   const [filterCompany, setFilterCompany] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [filterMonth, setFilterMonth] = useState(() => sessionStorage.getItem('filter_month_cashout') || new Date().toISOString().substring(0, 7));
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState('');
@@ -44,6 +47,8 @@ export default function CashOut() {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [blockedAlert, setBlockedAlert] = useState(null); // { period, status, empName }
+
+  useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonth); }, [filterMonth]);
 
   useEffect(() => {
     Promise.all([
@@ -208,7 +213,10 @@ export default function CashOut() {
             <ArrowDownCircle className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Saída de Caixa</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold">Saída de Caixa</h1>
+              <span className="text-sm font-semibold bg-destructive/10 text-destructive px-3 py-1 rounded-full border border-destructive/20">{fmtMonth(filterMonth)}</span>
+            </div>
             <p className="text-sm text-muted-foreground">Lançamentos de saída vinculados a empresas ou colaboradores</p>
           </div>
         </div>
