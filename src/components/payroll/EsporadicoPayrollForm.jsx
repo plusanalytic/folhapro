@@ -59,7 +59,8 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
 
   const pontos = form.km_bonus_qty || 0;
   const valorPonto = form.km_bonus_value || 10;
-  const totalVencimentos = Math.round(pontos * valorPonto * 100) / 100;
+  const kmBonusTotal = Math.round(pontos * valorPonto * 100) / 100;
+  const totalVencimentos = Math.round((kmBonusTotal + (form.bonus || 0)) * 100) / 100;
 
   // Ajustes de ponto
   const [pointAdjustments, setPointAdjustments] = useState([]);
@@ -150,7 +151,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
       base_salary: totalVencimentos,
       km_bonus_qty: pontos,
       km_bonus_value: valorPonto,
-      km_bonus: totalVencimentos,
+      km_bonus: kmBonusTotal,
       gross_total: totalVencimentos,
       net_total: netTotal,
       first_period_net: netTotal,
@@ -252,7 +253,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Total dos Vencimentos</p>
                     <p className="text-xs text-muted-foreground">{pontos} pontos × {formatCurrency(valorPonto)}{form.bonus > 0 ? ` + ${formatCurrency(form.bonus)} bônus` : ''}</p>
                   </div>
-                  <p className="font-mono font-bold text-primary text-xl">{formatCurrency(totalVencimentos + (form.bonus || 0))}</p>
+                  <p className="font-mono font-bold text-primary text-xl">{formatCurrency(totalVencimentos)}</p>
                 </div>
               </div>
 
@@ -288,7 +289,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
               <div className="space-y-3 border border-border rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-sm">Lançamentos do Mês</p>
-                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(totalVencimentos - (form.life_insurance || 0) - (form.other_discounts || 0) - totalAbsDiscount)}</span>
+                  <span className="text-xs text-muted-foreground">Base: {formatCurrency(totalVencimentos)}</span>
                 </div>
                 {totalAbsDiscount > 0 && (
                   <div className="flex items-center justify-between bg-destructive/10 rounded-lg px-3 py-2">
@@ -347,7 +348,7 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
                 )}
                 <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-muted-foreground">Pontos ({pontos} × {formatCurrency(valorPonto)})</span>
-                  <span className="font-mono">{formatCurrency(Math.round(pontos * valorPonto * 100) / 100)}</span>
+                  <span className="font-mono">{formatCurrency(kmBonusTotal)}</span>
                 </div>
                 {form.bonus > 0 && (
                   <div className="flex justify-between py-2 border-b border-border">
