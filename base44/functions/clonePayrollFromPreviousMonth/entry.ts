@@ -139,11 +139,19 @@ Deno.serve(async (req) => {
       const newEntry = {
         reference_month: target_month,
         status: 'open',
-        // Descontos de falta sempre zerados — são específicos do mês e serão recalculados via ajustes de ponto
+        // Descontos de falta: sempre zerados — específicos do mês, recalculados via ajustes de ponto
         absence_discount: 0,
         absence_discount_first: 0,
         absence_discount_second: 0,
         absence_discounts: {},
+        // Dias trabalhados: resetados para o padrão 30 (sobrescreve valor antigo no update)
+        working_days_month: 30,
+        clt_moto_worked_days: 30,
+        // Dias úteis contrato: serão definidos nas regras por tipo abaixo
+        full_month_contract_working_days: 0,
+        contract_working_days: 0,
+        // Flag de congelamento: nunca propagar para o próximo mês
+        first_period_base_locked: false,
         first_discounts,
         second_discounts,
         first_period_discount,
@@ -193,7 +201,7 @@ Deno.serve(async (req) => {
           newEntry.full_month_contract_working_days = fullMonthDays;
           newEntry.contract_working_days = fullMonthDays;
         }
-        // clt_moto_worked_days já está em EXCLUDE_FIELDS (= 30 por padrão no form)
+        // clt_moto_worked_days e working_days_month já foram definidos como 30 no newEntry acima
       }
 
       try {
