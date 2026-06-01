@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2, CheckSquare } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2, CheckSquare, Download } from 'lucide-react';
+import { downloadReceiptPDF } from '@/lib/pdfUtils.jsx';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
@@ -71,6 +72,18 @@ export default function Payroll() {
   const [editingEntryCompanyId, setEditingEntryCompanyId] = useState(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState(new Set());
   const [confirmBulk, setConfirmBulk] = useState(null); // { action: 'close'|'reopen', entryList: [] }
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadPDF = async (emp, entry, payrollType, jobRoleName) => {
+    setDownloadingId(entry.id);
+    const company = companies.find(c => c.id === (entry.company_id || emp.company_id));
+    const empWithPos = { ...emp, position: emp.position || jobRoleName };
+    try {
+      await downloadReceiptPDF({ emp: empWithPos, entry, payrollType, referenceMonth: selectedMonth, company });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const load = async () => {
     const [e, c, w, jr, p, m, ps] = await Promise.all([
@@ -599,6 +612,21 @@ export default function Payroll() {
                                  }}
                                 >
                                   <Printer className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Baixar PDF do Recibo"
+                                  disabled={downloadingId === entry.id}
+                                  onClick={() => {
+                                    const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+                                    const pType = emp.contract_type === 'ESPORADICO' ? (entry.esporadico_payroll_type || 'ESPORADICO') : jr?.payroll_type;
+                                    handleDownloadPDF(emp, entry, pType, jr?.name);
+                                  }}
+                                >
+                                  {downloadingId === entry.id
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <Download className="w-3.5 h-3.5" />}
                                 </Button>
                                 {!readOnly && (entry.status === 'closed' ? (
                                   <Button
