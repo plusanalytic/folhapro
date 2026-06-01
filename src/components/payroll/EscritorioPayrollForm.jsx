@@ -387,7 +387,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <Label>Valor Dia (R$)</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">Salário base ÷ 30</p>
                     <div className="mt-1 px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm font-semibold text-primary">
-                      {formatCurrency(valorDia)}
+                      R$ {valorDia.toFixed(4).replace('.', ',')}
                     </div>
                   </div>
                   <div>
@@ -404,7 +404,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 </div>
                 <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
                   <p className="text-xs text-muted-foreground">
-                    Salário Efetivo = {formatCurrency(valorDia)} × {form.working_days_month ?? 30} dias
+                    Salário Efetivo = R$ {valorDia.toFixed(4).replace('.', ',')} × {form.working_days_month ?? 30} dias
                   </p>
                   <p className="font-mono font-bold text-primary text-lg">{formatCurrency(effectiveSalary)}</p>
                 </div>
