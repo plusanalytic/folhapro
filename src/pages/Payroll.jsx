@@ -414,15 +414,36 @@ export default function Payroll() {
                       <UserPlus className="w-3.5 h-3.5" /> Prestador
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 text-violet-700 border-violet-200 hover:bg-violet-50"
-                    title="Funcionalidade temporariamente desativada"
-                    disabled
-                  >
-                    <FileArchive className="w-3.5 h-3.5" /> PDF em Lote
-                  </Button>
+                  {(() => {
+                    const companyEntryIdSet = new Set(allCompanyEntries.map(e => e.id));
+                    const companySelIds = [...selectedEntryIds].filter(id => companyEntryIdSet.has(id));
+                    const selCount = companySelIds.length;
+                    const overLimit = selCount > 20;
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`gap-1.5 ${selCount > 0 && !overLimit ? 'text-violet-700 border-violet-200 hover:bg-violet-50' : 'text-muted-foreground'}`}
+                        title={selCount === 0 ? 'Marque colaboradores com ☑ para gerar PDF em lote (máx. 20)' : overLimit ? 'Máximo 20 colaboradores por vez — reduza a seleção' : `Gerar PDF em lote para ${selCount} colaborador(es)`}
+                        disabled={selCount === 0 || overLimit}
+                        onClick={() => {
+                          const allPairs = [
+                            ...fixedEmps.map(emp => ({ emp, entry: getEntry(emp.id, company.id) })),
+                            ...espPairsFiltered,
+                          ].filter(({ entry }) => entry && companySelIds.includes(entry.id));
+                          const selItems = allPairs.map(({ emp, entry }) => {
+                            const jr = jobRoles.find(r => r.tangerino_id && String(r.tangerino_id) === String(emp.job_role_tangerino_id));
+                            const pt = emp.contract_type === 'ESPORADICO' ? (entry.esporadico_payroll_type || 'ESPORADICO') : (jr?.payroll_type || 'CLT');
+                            return { emp: { ...emp, position: emp.position || jr?.name }, entry, payrollType: pt };
+                          });
+                          setBulkPDF({ company, items: selItems });
+                        }}
+                      >
+                        <FileArchive className="w-3.5 h-3.5" />
+                        PDF em Lote{selCount > 0 ? ` (${selCount}${overLimit ? ' ⚠' : ''})` : ''}
+                      </Button>
+                    );
+                  })()}
                   {!readOnly && (closed ? (
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmReopen({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Unlock className="w-3.5 h-3.5" /> Reabrir Mês
@@ -674,6 +695,9 @@ export default function Payroll() {
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card border border-border shadow-xl rounded-xl px-5 py-3 flex items-center gap-4">
             <CheckSquare className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium">{selectedEntryIds.size} folha(s) selecionada(s)</span>
+            {selectedEntryIds.size > 20 && (
+              <span className="text-xs text-yellow-600 font-medium">⚠ Máx. 20 por PDF em lote</span>
+            )}
             {openOnes.length > 0 && !readOnly && (
               <Button size="sm" variant="default" className="gap-1.5" onClick={() => setConfirmBulk({ action: 'close', entryList: openOnes })}>
                 <Lock className="w-3.5 h-3.5" /> Fechar {openOnes.length > 1 ? `(${openOnes.length})` : ''}
@@ -757,9 +781,7 @@ export default function Payroll() {
       {bulkPDF && (
         <BulkPDFDialog
           company={bulkPDF.company}
-          employees={bulkPDF.employees}
-          entries={entries}
-          jobRoles={jobRoles}
+          items={bulkPDF.items}
           referenceMonth={selectedMonth}
           onClose={() => setBulkPDF(null)}
         />
