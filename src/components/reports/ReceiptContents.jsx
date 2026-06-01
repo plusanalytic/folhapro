@@ -413,12 +413,14 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
           <div style={{ background: '#6a3eaf', color: '#fff', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>1ª Quinzena (1–15) — {Math.round(splitFirst * 100)}%</div>
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
+            {firstDiscounts.filter(d => d.type === 'credit').map((d, i) => (
+              <div key={`c1-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#16a34a', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(d.amount)}</span></div>
+            ))}
             {absenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(absenceFirst)}</span></div>}
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
-            {firstDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
-            })}
+            {firstDiscounts.filter(d => d.type !== 'credit').map((d, i) => (
+              <div key={`d1-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span></div>
+            ))}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
             {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
           </div>
@@ -867,12 +869,14 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
           <div style={{ padding: '8px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#555', marginBottom: '4px' }}><span>Base quinzenal</span><span style={{ fontFamily: 'monospace' }}>{formatCurrency(firstBase)}</span></div>
             {(entry?.food_voucher ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#0e7490', marginBottom: '3px' }}><span>+ Vale Alimentação</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(entry.food_voucher)}</span></div>}
+            {firstDiscounts.filter(d => d.type === 'credit').map((d, i) => (
+              <div key={`ec1-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#16a34a', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>+ {formatCurrency(d.amount)}</span></div>
+            ))}
             {escAbsenceFirst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Desc. Faltas (1–15)</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(escAbsenceFirst)}</span></div>}
             {firstAdv > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>Adiantamento</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(firstAdv)}</span></div>}
-            {firstDiscounts.map((d, i) => {
-              const isCredit = d.type === 'credit';
-              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: isCredit ? '#16a34a' : '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>{isCredit ? '+ ' : '- '}{formatCurrency(d.amount)}</span></div>;
-            })}
+            {firstDiscounts.filter(d => d.type !== 'credit').map((d, i) => (
+              <div key={`ed1-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#dc2626', marginBottom: '3px' }}><span>{d.description}{d.date ? ` (${d.date.split('-').reverse().join('/')})` : ''}</span><span style={{ fontFamily: 'monospace' }}>- {formatCurrency(d.amount)}</span></div>
+            ))}
             <div style={{ borderTop: '1px solid #e8e4f5', marginTop: '6px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}><span style={{ color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{firstNet < 0 ? 'Saldo Negativo' : 'A Receber'}</span><span style={{ fontFamily: 'monospace', color: firstNet < 0 ? '#dc2626' : '#6a3eaf' }}>{formatCurrency(firstNet)}</span></div>
             {paymentStatus?.payment_date_q1 && <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold', marginTop: '3px', textAlign: 'right' }}>Pago em {paymentStatus.payment_date_q1.split('-').reverse().join('/')}</div>}
           </div>
