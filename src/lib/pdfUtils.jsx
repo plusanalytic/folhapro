@@ -75,6 +75,40 @@ export function getReceiptComponent(payrollType) {
 }
 
 /**
+ * Renderiza múltiplas páginas em um único PDF (uma página por componente).
+ * pages = [{ Component, props }]
+ */
+export async function renderMultiPagePDF(pages) {
+  const { html2canvas, jsPDF } = await getLibs();
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const { container, root } = getSharedContainer();
+
+  for (let i = 0; i < pages.length; i++) {
+    const { Component, props } = pages[i];
+    root.render(<Component {...props} />);
+    await new Promise(r => setTimeout(r, 200));
+    const canvas = await html2canvas(container, {
+      scale: 1.5, useCORS: true, backgroundColor: '#ffffff',
+      logging: false, width: 794, windowWidth: 794,
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const imgH = (canvas.height / canvas.width) * pdfW;
+    if (i > 0) pdf.addPage();
+    if (imgH <= pageH) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, imgH);
+    } else {
+      const scale = pageH / imgH;
+      const scaledW = pdfW * scale;
+      pdf.addImage(imgData, 'JPEG', (pdfW - scaledW) / 2, 0, scaledW, pageH);
+    }
+  }
+
+  return pdf.output('blob');
+}
+
+/**
  * Gera e baixa o PDF de recibo de um colaborador diretamente no computador.
  */
 export async function downloadReceiptPDF({ emp, entry, payrollType, referenceMonth, company }) {

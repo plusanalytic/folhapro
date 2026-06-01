@@ -62,7 +62,7 @@ function AbsenceDetailLines({ entry, period, aggregateTotal, label }) {
   return null;
 }
 
-function FaltasDetailPage({ entry, employee, company, month }) {
+export function FaltasDetailPage({ entry, employee, company, month }) {
   const absenceDiscounts = entry?.absence_discounts ?? {};
   const pointAdjustments = entry?._pointAdjustments ?? [];
   const rows = [];
@@ -122,6 +122,10 @@ function FaltasDetailPage({ entry, employee, company, month }) {
       </p>
     </div>
   );
+}
+
+export function hasFaltasData(entry) {
+  return Object.values(entry?.absence_discounts ?? {}).some(d => rowTotal(d) > 0);
 }
 
 // ─── Recibo Vale Refeição ─────────────────────────────────────────────────────
@@ -198,7 +202,7 @@ export function MotoReceiptContent({ employee, entry, month }) {
 }
 
 // ─── Holerite CLT (Motociclista / padrão) ─────────────────────────────────────
-export function HoleriteContent({ employee, entry, month, company, paymentStatus }) {
+export function HoleriteContent({ employee, entry, month, company, paymentStatus, hideSections = false }) {
   const isCLT = employee.contract_type === 'CLT';
   // Para CLT moto: usa salário efetivo salvo, ou recalcula a partir dos campos clt_moto_*
   const cltMotoBase = entry?.clt_moto_base_salary ?? 0;
@@ -484,17 +488,17 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
         </div>
       </div>
 
-      {calc.meal_voucher > 0 && (
+      {!hideSections && calc.meal_voucher > 0 && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <MealVoucherReceiptContent employee={employee} mealVoucherValue={calc.meal_voucher} month={month} />
         </div>
       )}
-      {(entry?.motorcycle_rental ?? 0) > 0 && (
+      {!hideSections && (entry?.motorcycle_rental ?? 0) > 0 && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <MotoReceiptContent employee={employee} entry={entry} month={month} />
         </div>
       )}
-      {Object.values(entry?.absence_discounts ?? {}).some(d => rowTotal(d) > 0) && (
+      {!hideSections && Object.values(entry?.absence_discounts ?? {}).some(d => rowTotal(d) > 0) && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <FaltasDetailPage entry={entry} employee={employee} company={company} month={month} />
         </div>
@@ -504,7 +508,7 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
 }
 
 // ─── Holerite MEI ─────────────────────────────────────────────────────────────
-export function MeiHoleriteContent({ employee, entry, month, company, paymentStatus }) {
+export function MeiHoleriteContent({ employee, entry, month, company, paymentStatus, hideSections = false }) {
   const monthName = getMonthName(month);
   const valorBase       = entry?.base_salary ?? 0;
   const diasMes         = entry?.working_days_month ?? 0;
@@ -686,7 +690,7 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
         </div>
       </div>
 
-      {motoRental > 0 && (
+      {!hideSections && motoRental > 0 && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
         <MotoReceiptContent employee={employee} entry={entry} month={month} />
         </div>
@@ -696,7 +700,7 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
 }
 
 // ─── Holerite Escritório ──────────────────────────────────────────────────────
-export function EscritorioHoleriteContent({ employee, entry, month, company, paymentStatus }) {
+export function EscritorioHoleriteContent({ employee, entry, month, company, paymentStatus, hideSections = false }) {
   // Recalcula apenas os campos de convenção (sem tocar nas quinzenas que vêm do entry)
   const calc = calculateEscritorioPayroll({
     base_salary: entry?.base_salary ?? 0,
@@ -963,7 +967,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
           </div>
         </>
       )}
-      {Object.values(entry?.absence_discounts ?? {}).some(d => rowTotal(d) > 0) && (
+      {!hideSections && Object.values(entry?.absence_discounts ?? {}).some(d => rowTotal(d) > 0) && (
         <div style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '12mm' }}>
           <FaltasDetailPage entry={entry} employee={employee} company={company} month={month} />
         </div>
