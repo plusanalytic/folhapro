@@ -374,19 +374,43 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
               )}
 
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proventos</p>
+              {/* ── Remuneração: layout CLT style ── */}
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Remuneração</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Salário Base Informado (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor do contrato</p>
+                    <NumInput {...numInputProps('base_salary', { className: 'mt-1' })} />
+                  </div>
+                  <div>
+                    <Label>Valor Dia (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Salário base ÷ 30</p>
+                    <div className="mt-1 px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm font-semibold text-primary">
+                      {formatCurrency(valorDia)}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Dias Trabalhados (0–30)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {employee?.termination_date?.slice(0,7) === referenceMonth
+                        ? `Demissão: dia ${parseInt(employee.termination_date.slice(8,10))}`
+                        : employee?.admission_date?.slice(0,7) === referenceMonth
+                        ? `Admissão: 31 − ${parseInt(employee.admission_date.slice(8,10))} = ${autoWorkedDays}d`
+                        : 'Padrão: 30'}
+                    </p>
+                    <NumInput {...numInputProps('working_days_month', { step: '1', min: '0', className: 'mt-1' })} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Salário Efetivo = {formatCurrency(valorDia)} × {form.working_days_month ?? 30} dias
+                  </p>
+                  <p className="font-mono font-bold text-primary text-lg">{formatCurrency(effectiveSalary)}</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <FormRow label="Salário Base Informado (R$)" hint="Valor bruto do salário base">
-                  <NumInput {...numInputProps('base_salary')} />
-                </FormRow>
-                <FormRow label="Valor Dia (R$)" hint="Salário Base / 30">
-                  <div className="mt-1 bg-muted/40 rounded-md px-3 py-2 font-mono text-sm">{formatCurrency(valorDia)}</div>
-                </FormRow>
-                <FormRow label="Dias Trabalhados" hint="Padrão 30 — proporcional em admissão/demissão">
-                  <NumInput {...numInputProps('working_days_month', { step: '1', min: '0' })} />
-                </FormRow>
-                <FormRow label="Salário Efetivo (R$)" hint="Valor Dia × Dias Trabalhados">
-                  <div className="mt-1 bg-primary/10 rounded-md px-3 py-2 font-mono text-sm font-semibold text-primary">{formatCurrency(effectiveSalary)}</div>
-                </FormRow>
                 <FormRow label="Bonificação Extra" hint="Somado ao salário — rateado nas quinzenas">
                   <NumInput {...numInputProps('extra_bonus')} />
                 </FormRow>
