@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, CreditCard, Download, AlertTriangle } from 'lucide-react';
+import { Search, CreditCard, Download, AlertTriangle, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import { calcBonificacoes, calcPeriodDebits, getAbsenceByPeriod } from '@/lib/entryDisplayUtils';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
@@ -99,15 +101,63 @@ function RevertPaymentDialog({ open, onConfirm, onCancel, empName, quinzena }) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-orange-500 hover:bg-orange-600 text-white"
-            onClick={onConfirm}
-          >
+          <AlertDialogAction className="bg-orange-500 hover:bg-orange-600 text-white" onClick={onConfirm}>
             Confirmar Estorno
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+// Dialog para confirmar status PAGO com data obrigatória
+function PagoDateDialog({ open, empName, quinzenaLabel, onConfirm, onCancel }) {
+  const [date, setDate] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Reset date when dialog opens
+  useEffect(() => {
+    if (open) setDate(today);
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onCancel()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-green-600" />
+            Confirmar Pagamento
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Informe a data de pagamento da <strong>{quinzenaLabel}</strong> de <strong>{empName}</strong>.
+          </p>
+          <div>
+            <Label className="text-sm font-medium">Data de Pagamento <span className="text-destructive">*</span></Label>
+            <input
+              type="date"
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+            />
+          </div>
+          {!date && (
+            <p className="text-xs text-destructive">A data de pagamento é obrigatória para confirmar o status PAGO.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button
+            className="bg-green-600 hover:bg-green-700 text-white"
+            disabled={!date}
+            onClick={() => onConfirm(date)}
+          >
+            Confirmar PAGO
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -158,41 +208,21 @@ export default function Payments() {
   const [workplaces, setWorkplaces] = useState([]);
   const [entries, setEntries] = useState([]);
   const [paymentStatuses, setPaymentStatuses] = useState([]);
+
   const [selectedMonth, setSelectedMonth] = useState(() => sessionStorage.getItem('filter_month_payments') || new Date().toISOString().slice(0, 7));
-
-  // ── Draft filters (o que o usuário está editando) ─────────────────────────
-  const [draftSearch, setDraftSearch] = useState('');
-  const [draftCompanies, setDraftCompanies] = useState([]);
-  const [draftJobRole, setDraftJobRole] = useState('all');
-  const [draftWorkplace, setDraftWorkplace] = useState('all');
-  const [draftStatusQ1, setDraftStatusQ1] = useState('all');
-  const [draftStatusQ2, setDraftStatusQ2] = useState('all');
-  const [draftBanks, setDraftBanks] = useState([]);
-
-  // ── Active filters (aplicados ao grid após "Buscar") ──────────────────────
-  const [activeSearch, setActiveSearch] = useState('');
-  const [activeCompanies, setActiveCompanies] = useState([]);
-  const [activeJobRole, setActiveJobRole] = useState('all');
-  const [activeWorkplace, setActiveWorkplace] = useState('all');
-  const [activeStatusQ1, setActiveStatusQ1] = useState('all');
-  const [activeStatusQ2, setActiveStatusQ2] = useState('all');
-  const [activeBanks, setActiveBanks] = useState([]);
-
-  // ── Filtro de quinzena (visibilidade de colunas) ──────────────────────────
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
+  const [selectedJobRole, setSelectedJobRole] = useState('all');
+  const [selectedWorkplace, setSelectedWorkplace] = useState('all');
+  const [search, setSearch] = useState('');
+  const [filterStatusQ1, setFilterStatusQ1] = useState('all');
+  const [filterStatusQ2, setFilterStatusQ2] = useState('all');
+  const [selectedBanks, setSelectedBanks] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all' | 'q1' | 'q2'
 
   const [saving, setSaving] = useState({});
   const [revertConfirm, setRevertConfirm] = useState(null);
-
-  const handleBuscar = () => {
-    setActiveSearch(draftSearch);
-    setActiveCompanies(draftCompanies);
-    setActiveJobRole(draftJobRole);
-    setActiveWorkplace(draftWorkplace);
-    setActiveStatusQ1(draftStatusQ1);
-    setActiveStatusQ2(draftStatusQ2);
-    setActiveBanks(draftBanks);
-  };
+  // { entry, quinzena, empName, quinzenaLabel, statusField, dateField }
+  const [pagoConfirm, setPagoConfirm] = useState(null);
 
   const load = async () => {
     const [e, c, jr, w, p] = await Promise.all([
@@ -225,7 +255,6 @@ export default function Payments() {
   };
   const getPayStatus = (entryId) => paymentStatuses.find(p => p.payroll_entry_id === entryId);
 
-  // Opções de banco: bancos únicos dos colaboradores presentes nas folhas carregadas
   const bankOptions = useMemo(() => {
     const banks = new Set();
     entries.forEach(entry => {
@@ -263,11 +292,13 @@ export default function Payments() {
 
   const handleStatusChange = useCallback((entry, quinzena, newStatus) => {
     const statusField = quinzena === 'q1' ? 'status_q1' : 'status_q2';
-    const dateField = quinzena === 'q1' ? 'payment_date_q1' : 'payment_date_q2';
-    const ps = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
+    const dateField   = quinzena === 'q1' ? 'payment_date_q1' : 'payment_date_q2';
+    const ps          = paymentStatuses.find(p => p.payroll_entry_id === entry.id);
     const currentStatus = ps?.[statusField] || 'PENDENTE';
+    const emp = getEmployee(entry.employee_id);
+
+    // Saindo de PAGO → confirmar estorno
     if (currentStatus === 'PAGO' && newStatus !== 'PAGO') {
-      const emp = getEmployee(entry.employee_id);
       setRevertConfirm({
         entry, quinzena,
         empName: emp?.name || '',
@@ -279,8 +310,25 @@ export default function Payments() {
       });
       return;
     }
+
+    // Mudando para PAGO → exigir data antes de salvar
+    if (newStatus === 'PAGO') {
+      setPagoConfirm({
+        entry, quinzena, statusField, dateField,
+        empName: emp?.name || '',
+        quinzenaLabel: quinzena === 'q1' ? '1ª Quinzena' : '2ª Quinzena',
+      });
+      return;
+    }
+
     updatePayStatus(entry, { [statusField]: newStatus });
   }, [paymentStatuses, employees, updatePayStatus]);
+
+  const handlePagoConfirm = (date) => {
+    const { entry, statusField, dateField } = pagoConfirm;
+    updatePayStatus(entry, { [statusField]: 'PAGO', [dateField]: date });
+    setPagoConfirm(null);
+  };
 
   const months = [];
   const now = new Date();
@@ -300,14 +348,14 @@ export default function Payments() {
       ps.obs_q1 || ps.obs_q2
     ));
     if (entry.status !== 'closed' && !hasModifiedStatus) return false;
-    const matchSearch = !activeSearch || emp.name.toLowerCase().includes(activeSearch.toLowerCase());
+    const matchSearch = !search || emp.name.toLowerCase().includes(search.toLowerCase());
     const effectiveCompanyId = (emp?.contract_type !== 'ESPORADICO' && emp?.company_id) ? emp.company_id : entry.company_id;
-    const matchCompany = activeCompanies.length === 0 || activeCompanies.includes(entry.company_id) || activeCompanies.includes(effectiveCompanyId);
-    const matchJobRole = activeJobRole === 'all' || String(emp.job_role_tangerino_id) === activeJobRole;
-    const matchWorkplace = activeWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(activeWorkplace);
-    const matchStatusQ1 = activeStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === activeStatusQ1;
-    const matchStatusQ2 = activeStatusQ2 === 'all' || (ps?.status_q2 || 'PENDENTE') === activeStatusQ2;
-    const matchBank = activeBanks.length === 0 || activeBanks.includes(emp.bank_name || '');
+    const matchCompany = selectedCompanies.length === 0 || selectedCompanies.includes(entry.company_id) || selectedCompanies.includes(effectiveCompanyId);
+    const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
+    const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
+    const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
+    const matchStatusQ2 = filterStatusQ2 === 'all' || (ps?.status_q2 || 'PENDENTE') === filterStatusQ2;
+    const matchBank = selectedBanks.length === 0 || selectedBanks.includes(emp.bank_name || '');
     return matchSearch && matchCompany && matchJobRole && matchWorkplace && matchStatusQ1 && matchStatusQ2 && matchBank;
   });
 
@@ -373,7 +421,7 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* ── Filtros (linha 1) ── */}
+      {/* ── Filtros ── */}
       <div className="space-y-2">
         <div className="flex flex-wrap gap-3">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -383,37 +431,37 @@ export default function Payments() {
             </SelectContent>
           </Select>
           <MultiSearchableSelect
-            values={draftCompanies}
-            onValuesChange={setDraftCompanies}
+            values={selectedCompanies}
+            onValuesChange={setSelectedCompanies}
             placeholder="Empresa"
             className="w-44"
             allLabel="Todas as Empresas"
             options={[...companies].sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(c => ({ value: c.id, label: c.name }))}
           />
           <SearchableSelect
-            value={draftJobRole}
-            onValueChange={setDraftJobRole}
+            value={selectedJobRole}
+            onValueChange={setSelectedJobRole}
             placeholder="Cargo"
             className="w-44"
             allLabel="Todos os Cargos"
             options={jobRoles.filter(jr => jr.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(jr => ({ value: String(jr.tangerino_id), label: jr.name }))}
           />
           <SearchableSelect
-            value={draftWorkplace}
-            onValueChange={setDraftWorkplace}
+            value={selectedWorkplace}
+            onValueChange={setSelectedWorkplace}
             placeholder="Local"
             className="w-44"
             allLabel="Todos os Locais"
             options={workplaces.filter(w => w.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(w => ({ value: String(w.tangerino_id), label: w.name }))}
           />
-          <Select value={draftStatusQ1} onValueChange={setDraftStatusQ1}>
+          <Select value={filterStatusQ1} onValueChange={setFilterStatusQ1}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Status 1ª Q" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Status 1ª Quinzena</SelectItem>
               {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={draftStatusQ2} onValueChange={setDraftStatusQ2}>
+          <Select value={filterStatusQ2} onValueChange={setFilterStatusQ2}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Status 2ª Q" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Status 2ª Quinzena</SelectItem>
@@ -421,8 +469,8 @@ export default function Payments() {
             </SelectContent>
           </Select>
           <MultiSearchableSelect
-            values={draftBanks}
-            onValuesChange={setDraftBanks}
+            values={selectedBanks}
+            onValuesChange={setSelectedBanks}
             placeholder="Banco"
             className="w-44"
             allLabel="Todos os Bancos"
@@ -430,22 +478,17 @@ export default function Payments() {
           />
           <div className="relative flex-1 min-w-40">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar colaborador..." className="pl-9" value={draftSearch} onChange={e => setDraftSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleBuscar()}
-            />
+            <Input placeholder="Buscar colaborador..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Button onClick={handleBuscar} className="gap-2">
-            <Search className="w-4 h-4" /> Buscar
-          </Button>
         </div>
 
-        {/* ── Filtro de Quinzena (linha 2 - formato bloco) ── */}
+        {/* ── Filtro de Quinzena (blocos) ── */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground font-medium">Quinzena:</span>
           {[
             { value: 'all', label: 'TODAS' },
-            { value: 'q1', label: '1ª QUINZENA' },
-            { value: 'q2', label: '2ª QUINZENA' },
+            { value: 'q1',  label: '1ª QUINZENA' },
+            { value: 'q2',  label: '2ª QUINZENA' },
           ].map(opt => (
             <button
               key={opt.value}
@@ -578,7 +621,6 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
 
-                  {/* 1ª Quinzena */}
                   {showQ1 && <>
                     <td className={`p-2 text-right font-mono font-semibold whitespace-nowrap ${getFirstNetDisplay(entry, employees, jobRoles) < 0 ? 'text-destructive' : 'text-blue-600'}`}>
                       {formatCurrency(getFirstNetDisplay(entry, employees, jobRoles))}
@@ -595,7 +637,6 @@ export default function Payments() {
                     </td>
                   </>}
 
-                  {/* 2ª Quinzena */}
                   {showQ2 && <>
                     <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">
                       {formatCurrency(getSecondNetDisplay(entry, employees, jobRoles))}
@@ -612,12 +653,9 @@ export default function Payments() {
                     </td>
                   </>}
 
-                  {/* Bonificações */}
                   <td className="p-2 text-right font-mono whitespace-nowrap text-amber-700">
                     {(() => { const b = calcBonificacoes(entry); return b > 0 ? formatCurrency(b) : '—'; })()}
                   </td>
-
-                  {/* Dados Bancários */}
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_name}>{emp.bank_name || '—'}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_agency}>{emp.bank_agency || '—'}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={emp.bank_account}>{emp.bank_account || '—'}</td>
@@ -643,6 +681,14 @@ export default function Payments() {
         quinzena={revertConfirm?.quinzenaLabel || ''}
         onConfirm={revertConfirm?.onConfirm}
         onCancel={() => setRevertConfirm(null)}
+      />
+
+      <PagoDateDialog
+        open={!!pagoConfirm}
+        empName={pagoConfirm?.empName || ''}
+        quinzenaLabel={pagoConfirm?.quinzenaLabel || ''}
+        onConfirm={handlePagoConfirm}
+        onCancel={() => setPagoConfirm(null)}
       />
     </div>
   );
