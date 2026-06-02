@@ -489,6 +489,7 @@ export default function Payroll() {
                    ].map(({ emp, entry, isEspPair }) => {
                      const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
                       const isCLTMotoRow = empJR?.payroll_type === 'MOTOCICLISTA_CLT';
+                      const isMEIRow = empJR?.payroll_type === 'MOTOCICLISTA_MEI';
                       const effectiveSalary = entry ? (() => {
                         if (empJR?.payroll_type === 'ESCRITORIO') {
                           const wdm = (entry.working_days_month > 0) ? entry.working_days_month : 30;
@@ -504,7 +505,7 @@ export default function Payroll() {
                         return entry.clt_moto_effective_salary || entry.base_salary || 0;
                       })() : null;
                       const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
-                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) : 0;
+                      const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) + (isMEIRow ? (entry.life_insurance || 0) : 0) : 0;
                       const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
                       const bonificacoes = entry ? calcBonificacoes(entry) : null;
                       const rowKey = isEspPair && entry ? `esp-${entry.id}` : emp.id;
