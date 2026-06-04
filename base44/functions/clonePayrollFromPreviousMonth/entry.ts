@@ -34,28 +34,30 @@ function calcMeiWorkingDaysByPeriod(yearMonth) {
   return { first, second, total: first + second };
 }
 
-// ─── INSS automático CLT Moto (tabela simplificada da folha) ─────────────────
+// ─── INSS automático CLT Moto (tabela progressiva 2026) ──────────────────────
 function calcAutoINSS(salaryBase) {
-  if (salaryBase <= 1621.00)  return { pct: 7.5, discount: 0 };
-  if (salaryBase <= 2902.84)  return { pct: 9,   discount: 24.32 };
-  if (salaryBase <= 4354.27)  return { pct: 12,  discount: 111.40 };
-  return                             { pct: 13,  discount: 198.49 };
+  // Tabela progressiva 2026 (simplificada em pct + deducao fixa)
+  if (salaryBase <= 1518.00) return { pct: 7.5,  discount: 0 };
+  if (salaryBase <= 2793.88) return { pct: 9,    discount: 22.77 };
+  if (salaryBase <= 4190.83) return { pct: 12,   discount: 106.59 };
+  if (salaryBase <= 8157.41) return { pct: 14,   discount: 190.37 };
+  return                            { pct: 14,   discount: 190.37 }; // teto
 }
 
 // ─── Cálculo ESCRITÓRIO ───────────────────────────────────────────────────────
 function calcEscritorio(entry) {
-  const piso     = entry.base_salary || 0;
+  const piso       = entry.base_salary || 0;
   const extraBonus = entry.extra_bonus || 0;
   const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
   const transportVoucher = Math.round((entry.transport_voucher_day_value || 0) * (entry.transport_voucher_days || 0) * 100) / 100;
   const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
   const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
-  const inssPct = entry.inss_pct || 0;
-  const inssGross = Math.round(piso * (inssPct / 100) * 100) / 100;
+  const inssPct     = entry.inss_pct || 0;
+  const inssGross   = Math.round(piso * (inssPct / 100) * 100) / 100;
   const inssDeduction = entry.inss_deduction || 0;
-  const inssNet = Math.max(0, Math.round((inssGross - inssDeduction) * 100) / 100);
+  const inssNet     = Math.max(0, Math.round((inssGross - inssDeduction) * 100) / 100);
   const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount + inssNet;
-  const liquidoConvencao = piso + mealVoucher - totalDescConvencao;
+  const liquidoConvencao   = piso + mealVoucher - totalDescConvencao;
   const foodVoucher    = entry.food_voucher || 0;
   const bonus          = entry.bonus || 0;
   const attendanceBonus = entry.attendance_bonus || 0;
@@ -83,8 +85,9 @@ function calcEscritorio(entry) {
 
 // ─── Cálculo MOTOCICLISTA CLT ─────────────────────────────────────────────────
 function calcCLTMoto(entry) {
-  const baseSalary  = entry.base_salary || 0;  // salário efetivo (já proporcional se necessário)
+  const baseSalary  = entry.base_salary || 0;
   const mealVoucher = Math.round((entry.meal_voucher_day_value || 0) * (entry.meal_voucher_days || 0) * 100) / 100;
+  // km_bonus_qty e km_bonus_value zerados → km_bonus = 0
   const kmBonus     = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
   const unionContrib = entry.union_contribution_value != null ? (entry.union_contribution_value || 0) : 35;
   const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
@@ -103,14 +106,15 @@ function calcCLTMoto(entry) {
   const firstBase    = Math.round(netTotal * split * 100) / 100;
   const secondBase   = Math.round(netTotal * (1 - split) * 100) / 100;
 
-  // Valores efetivos proporcionais (food, cost, moto rental)
-  const fullDays     = entry.full_month_contract_working_days || 1;
-  const workedDays   = entry.contract_working_days || fullDays;
-  const foodEff      = Math.round((entry.food_voucher || 0) / fullDays * workedDays * 100) / 100;
-  const costEff      = Math.round((entry.cost_allowance || 0) / fullDays * workedDays * 100) / 100;
+  const fullDays   = entry.full_month_contract_working_days || 1;
+  const workedDays = entry.contract_working_days || fullDays;
+  const foodEff    = Math.round((entry.food_voucher || 0) / fullDays * workedDays * 100) / 100;
+  const costEff    = Math.round((entry.cost_allowance || 0) / fullDays * workedDays * 100) / 100;
+  // extras variáveis são todos zerados no clone
+  const cltExtra   = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
 
   const firstPeriodNet  = firstBase  - (entry.first_period_advance || 0) - (entry.first_period_discount || 0) - (entry.absence_discount_first || 0);
-  const secondPeriodNet = secondBase + foodEff + kmBonus + costEff - (entry.second_period_discount || 0) - (entry.absence_discount_second || 0);
+  const secondPeriodNet = secondBase + foodEff + kmBonus + costEff - (entry.second_period_discount || 0) - (entry.absence_discount_second || 0) + cltExtra;
 
   return {
     km_bonus: kmBonus, meal_voucher: mealVoucher,
@@ -126,26 +130,27 @@ function calcCLTMoto(entry) {
 
 // ─── Cálculo MEI ──────────────────────────────────────────────────────────────
 function calcMei(entry) {
-  const valorBase     = entry.base_salary || 0;
-  const diasMes       = entry.working_days_month || 1;
+  const valorBase       = entry.base_salary || 0;
+  const diasMes         = entry.working_days_month || 1;
   const diasTrabalhados = entry.working_days_worked || diasMes;
-  const remuneracao   = Math.round((valorBase / diasMes) * diasTrabalhados * 100) / 100;
-  const kmBonus       = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
-  const costAllowance = entry.cost_allowance || 0;
-  const motoRental    = entry.motorcycle_rental || 0;
-  const bonus         = entry.bonus || 0;
-  const overtime      = entry.overtime || 0;
-  const otherBenefits = entry.other_benefits || 0;
-  const foodVoucher   = entry.food_voucher || 0;
-  const lifeInsurance = entry.life_insurance || 0;
-  const grossTotal    = remuneracao + kmBonus + motoRental + otherBenefits;
-  const netTotal      = grossTotal;
-  const diasQ1        = entry.working_days_first || 0;
-  const diasQ2        = entry.working_days_second || 0;
-  const totalQDias    = diasQ1 + diasQ2 || 1;
-  const splitFirst    = diasQ1 / totalQDias;
-  const firstBase     = Math.round(netTotal * splitFirst * 100) / 100;
-  const secondBase    = Math.round(netTotal * (1 - splitFirst) * 100) / 100;
+  const remuneracao     = Math.round((valorBase / diasMes) * diasTrabalhados * 100) / 100;
+  // km_bonus_qty e km_bonus_value zerados → km_bonus = 0
+  const kmBonus         = Math.round((entry.km_bonus_qty || 0) * (entry.km_bonus_value || 0) * 100) / 100;
+  const costAllowance   = entry.cost_allowance || 0;
+  const motoRental      = entry.motorcycle_rental || 0;
+  const bonus           = entry.bonus || 0;
+  const overtime        = entry.overtime || 0;
+  const otherBenefits   = entry.other_benefits || 0;
+  const foodVoucher     = entry.food_voucher || 0;
+  const lifeInsurance   = entry.life_insurance || 0;
+  const grossTotal      = remuneracao + kmBonus + motoRental + otherBenefits;
+  const netTotal        = grossTotal;
+  const diasQ1          = entry.working_days_first || 0;
+  const diasQ2          = entry.working_days_second || 0;
+  const totalQDias      = diasQ1 + diasQ2 || 1;
+  const splitFirst      = diasQ1 / totalQDias;
+  const firstBase       = Math.round(netTotal * splitFirst * 100) / 100;
+  const secondBase      = Math.round(netTotal * (1 - splitFirst) * 100) / 100;
   const firstPeriodNet  = firstBase  - lifeInsurance - (entry.first_period_advance || 0) - (entry.first_period_discount || 0);
   const secondPeriodNet = secondBase + foodVoucher + kmBonus + costAllowance + bonus + overtime - (entry.second_period_discount || 0);
   return {
@@ -170,17 +175,13 @@ function calcProLabore(entry) {
   const inssPct        = (entry.inss_pct != null && entry.inss_pct > 0) ? entry.inss_pct / 100 : 0;
   const inss           = inssPct > 0 ? Math.round(proLaboreBase * inssPct * 100) / 100 : 0;
   const grossTotal     = Math.round((proLaboreBase + quotaAdjust) * 100) / 100;
-
-  // IRRF: usa valor salvo se existente (é manual no formulário)
-  const irrf = entry.irrf != null ? entry.irrf : 0;
-
+  const irrf           = entry.irrf != null ? entry.irrf : 0;
   const netLabore      = Math.round((grossTotal - inss - irrf) * 100) / 100;
   const split          = entry.first_period_split ?? 0.5;
   const firstBase      = Math.round(netLabore * split * 100) / 100;
   const secondBase     = Math.round((netLabore - firstBase) * 100) / 100;
   const firstPeriodNet  = Math.round((firstBase  - (entry.first_period_discount || 0)) * 100) / 100;
   const secondPeriodNet = Math.round((secondBase + profitDist + birthdayBonus + medicalPlan - otherDiscounts - (entry.second_period_discount || 0)) * 100) / 100;
-
   return {
     gross_total: grossTotal, inss, irrf,
     net_total: netLabore,
@@ -229,7 +230,6 @@ Deno.serve(async (req) => {
     const prevDate   = new Date(year, month - 2, 1);
     const prev_month = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Busca todos os dados necessários em paralelo
     const prevFilter = { reference_month: prev_month };
     if (company_id)  prevFilter.company_id  = company_id;
     if (employee_id) prevFilter.employee_id = employee_id;
@@ -247,7 +247,6 @@ Deno.serve(async (req) => {
       return Response.json({ cloned: 0, message: `Nenhum lançamento encontrado em ${prev_month}` });
     }
 
-    // Mapas para lookup rápido
     const empMap      = {};
     for (const e of allEmployees)  empMap[e.id] = e;
     const jobRoleMap  = {};
@@ -257,7 +256,6 @@ Deno.serve(async (req) => {
     const existingMap = {};
     for (const e of existingEntries) existingMap[e.employee_id] = e.id;
 
-    // Helpers
     function isFiredBeforeMonth(emp) {
       if (!emp || emp.is_active !== false) return false;
       if (!emp.termination_date) return false;
@@ -268,7 +266,6 @@ Deno.serve(async (req) => {
       return emp && emp.contract_type === 'ESPORADICO';
     }
 
-    // Detecta aniversário no mês alvo
     function hasBirthdayInMonth(emp) {
       if (!emp || !emp.birth_date) return false;
       return emp.birth_date.slice(5, 7) === target_month.slice(5, 7);
@@ -283,7 +280,7 @@ Deno.serve(async (req) => {
       if (isFiredBeforeMonth(emp))  { skippedFired++; continue; }
       if (isEsporadico(emp))        { skipped++;      continue; }
 
-      // CashOuts do mês alvo para este colaborador (parcelas futuras)
+      // CashOuts do mês alvo para este colaborador
       const empCashOuts = targetCashOuts.filter(c =>
         c.employee_id === prev.employee_id && c.deduct_from_payroll
       );
@@ -297,45 +294,47 @@ Deno.serve(async (req) => {
       const first_period_discount  = first_discounts.reduce((s, d) => s + (d.amount || 0), 0);
       const second_period_discount = second_discounts.reduce((s, d) => s + (d.amount || 0), 0);
 
-      // Cargo e tipo de folha
       const empJRTangeId = emp ? String(emp.job_role_tangerino_id) : null;
       const empJobRole   = empJRTangeId ? jobRoleMap[empJRTangeId] : null;
       const payrollType  = empJobRole?.payroll_type;
 
-      // Workplace principal do colaborador
       const empWorkplaceList = emp?.workplace_list || [];
       const workplace = empWorkplaceList.length > 0
         ? workplaceMap[String(empWorkplaceList[0])]
         : null;
 
-      // Base de cada entrada: campos fixos compartilhados por todos os tipos
+      // Campos base — variáveis zeradas (KM, bônus, extras, aniversário, hora extra)
       const baseEntry = {
         employee_id: prev.employee_id,
         company_id:  prev.company_id,
         reference_month: target_month,
         status: 'open',
         participation: prev.participation,
-        // Reset de campos variáveis/quinzenais
-        first_period_advance:    0,
+        first_period_advance:     0,
         first_period_base_locked: false,
-        first_period_split:      0.5,
-        absence_discount:        0,
-        absence_discount_first:  0,
-        absence_discount_second: 0,
-        absence_discounts:       null,
-        absences_days:           0,
-        mei_absences_first:      0,
-        mei_absences_second:     0,
-        // Descontos carregados dos CashOuts
+        first_period_split:       0.5,
+        absence_discount:         0,
+        absence_discount_first:   0,
+        absence_discount_second:  0,
+        absence_discounts:        null,
+        absences_days:            0,
+        mei_absences_first:       0,
+        mei_absences_second:      0,
         first_discounts,
         second_discounts,
         first_period_discount,
         second_period_discount,
-        // Bonificações variáveis: reset
-        bonus: 0, overtime: 0, birthday_bonus: 0,
-        delivery_bonus: 0, delivery_target_bonus: 0,
-        attendance_bonus: 0, route_sp_bonus: 0,
-        km_bonus_qty: 0, km_bonus_value: 0, km_bonus: 0,
+        // ── Campos variáveis zerados ──────────────────────────────────────────
+        bonus:                0,
+        overtime:             0,
+        birthday_bonus:       0,
+        delivery_bonus:       0,
+        delivery_target_bonus:0,
+        attendance_bonus:     0,
+        route_sp_bonus:       0,
+        km_bonus_qty:         0,
+        km_bonus_value:       0,
+        km_bonus:             0,
         notes: '',
       };
 
@@ -344,24 +343,40 @@ Deno.serve(async (req) => {
       // ── ESCRITÓRIO ────────────────────────────────────────────────────────
       if (payrollType === 'ESCRITORIO') {
         const baseSalary = (emp && emp.base_salary > 0) ? emp.base_salary : (prev.base_salary || 0);
+        // INSS: recalculado — pct copiado, dedução recalculada pela tabela progressiva 2026
+        const inssPct = prev.inss_pct || 0;
+        const inssGross = Math.round(baseSalary * (inssPct / 100) * 100) / 100;
+        // Dedução progressiva: valor da tabela para a faixa
+        let inssDeduction = 0;
+        if (baseSalary <= 1518.00)      inssDeduction = 0;
+        else if (baseSalary <= 2793.88) inssDeduction = Math.round((baseSalary * 0.09 - baseSalary * 0.075) * 100) / 100;
+        else if (baseSalary <= 4190.83) inssDeduction = 0; // simplificado: usa valor salvo anterior se disponível
+        // Na prática para Escritório o inss_deduction não é progressivo — mantém o anterior
+        inssDeduction = prev.inss_deduction || 0;
+
+        // Desconto VR (%): mantido do mês anterior (percentual de convenção coletiva, não muda mês a mês)
+        const mvDiscountPct = prev.meal_voucher_discount_pct || 0;
+        // Desconto VT (%): idem
+        const vtDiscountPct = prev.transport_voucher_discount_pct || 0;
+
         const entryData = {
           ...baseEntry,
-          base_salary:                baseSalary,
-          extra_bonus:                prev.extra_bonus || 0,
-          meal_voucher_day_value:     prev.meal_voucher_day_value || 0,
-          meal_voucher_days:          prev.meal_voucher_days || 0,
-          meal_voucher_discount_pct:  prev.meal_voucher_discount_pct || 0,
-          transport_voucher_day_value: prev.transport_voucher_day_value || 0,
-          transport_voucher_days:     prev.transport_voucher_days || 0,
-          transport_voucher_discount_pct: prev.transport_voucher_discount_pct || 0,
-          food_voucher:               prev.food_voucher || 0,
-          inss_pct:                   prev.inss_pct || 0,
-          inss_deduction:             prev.inss_deduction || 0,
-          dental_plan:                prev.dental_plan || 0,
-          life_insurance:             prev.life_insurance || 0,
-          working_days_month:         30,
+          base_salary:                    baseSalary,
+          extra_bonus:                    prev.extra_bonus || 0,
+          meal_voucher_day_value:         prev.meal_voucher_day_value || 0,
+          meal_voucher_days:              prev.meal_voucher_days || 0,
+          meal_voucher_discount_pct:      mvDiscountPct,
+          transport_voucher_day_value:    prev.transport_voucher_day_value || 0,
+          transport_voucher_days:         prev.transport_voucher_days || 0,
+          transport_voucher_discount_pct: vtDiscountPct,
+          food_voucher:                   prev.food_voucher || 0,
+          inss_pct:                       inssPct,
+          inss_deduction:                 inssDeduction,
+          dental_plan:                    prev.dental_plan || 0,
+          life_insurance:                 prev.life_insurance || 0,
+          working_days_month:             30,
         };
-        // Bonificação de aniversário automática
+        // Aniversário
         if (hasBirthdayInMonth(emp)) {
           entryData.birthday_bonus = 200;
         }
@@ -373,7 +388,7 @@ Deno.serve(async (req) => {
       else if (payrollType === 'MOTOCICLISTA_CLT') {
         const includeSat = !workplace || workplace.work_schedule !== 'seg_sex';
         const fullMonthDays = calcWorkingDays(target_month, includeSat);
-        // Salário base: usa padrão do local se disponível, senão do lançamento anterior
+
         const cltMotoBaseSalary = (workplace && workplace.clt_moto_base_salary_default > 0)
           ? workplace.clt_moto_base_salary_default
           : (prev.clt_moto_base_salary || prev.base_salary || 0);
@@ -386,47 +401,50 @@ Deno.serve(async (req) => {
         const motoRental = (workplace && workplace.clt_moto_motorcycle_rental_default > 0)
           ? workplace.clt_moto_motorcycle_rental_default
           : (prev.motorcycle_rental || 0);
-        const mealVoucher = Math.round(mvDayValue * fullMonthDays * 100) / 100;
-        const mvDiscountPct = prev.meal_voucher_discount_pct || 0;
-        const mealVoucherGross = mealVoucher;
-        const mealVoucherDiscount = Math.round(mealVoucherGross * (mvDiscountPct / 100) * 100) / 100;
-        const mealVoucherNet = Math.round((mealVoucherGross - mealVoucherDiscount) * 100) / 100;
 
-        // Salário efetivo = base / 30 * 30 (mês cheio) = base
+        const mealVoucher = Math.round(mvDayValue * fullMonthDays * 100) / 100;
+
+        // Periculosidade: SEMPRE recalculada como 30% do salário efetivo
         const effectiveSalary = cltMotoBaseSalary;
-        // Periculosidade: 30% do efetivo
         const hazardPay = Math.round(effectiveSalary * 0.3 * 100) / 100;
-        // INSS automático
+
+        // INSS: SEMPRE recalculado pela tabela progressiva sobre (salário + periculosidade)
         const { pct: inssPct, discount: inssDiscount } = calcAutoINSS(effectiveSalary + hazardPay);
-        // Contribuição assistencial: 2% do salário efetivo (se não tinha no prev, usa 2%)
+
+        // Desconto VR (%): recalculado — mantém o percentual do mês anterior (convenção)
+        const mvDiscountPct = prev.meal_voucher_discount_pct || 0;
+        const mealVoucherDiscount = Math.round(mealVoucher * (mvDiscountPct / 100) * 100) / 100;
+
         const unionContribValue = prev.union_contribution_value > 0
           ? prev.union_contribution_value
           : Math.round(effectiveSalary * 0.02 * 100) / 100;
 
         const entryData = {
           ...baseEntry,
-          base_salary:                  cltMotoBaseSalary,
-          clt_moto_base_salary:         cltMotoBaseSalary,
-          clt_moto_worked_days:         30,
-          clt_moto_effective_salary:    effectiveSalary,
+          base_salary:                      cltMotoBaseSalary,
+          clt_moto_base_salary:             cltMotoBaseSalary,
+          clt_moto_worked_days:             30,
+          clt_moto_effective_salary:        effectiveSalary,
           full_month_contract_working_days: fullMonthDays,
-          contract_working_days:        fullMonthDays,
-          working_days_month:           30,
-          meal_voucher_day_value:       mvDayValue,
-          meal_voucher_days:            fullMonthDays,
-          meal_voucher:                 mealVoucherNet,
-          meal_voucher_discount_pct:    mvDiscountPct,
-          meal_voucher_discount:        mealVoucherDiscount,
-          food_voucher:                 foodVoucher,
-          motorcycle_rental:            motoRental,
-          cost_allowance:               prev.cost_allowance || 50,
-          hazard_pay:                   hazardPay,
-          inss_pct:                     inssPct,
-          inss_discount:                inssDiscount,
-          union_contribution_value:     unionContribValue,
-          life_insurance:               prev.life_insurance || 17.50,
-          transport_voucher:            prev.transport_voucher || 0,
-          other_benefits:               prev.other_benefits || 0,
+          contract_working_days:            fullMonthDays,
+          working_days_month:               30,
+          meal_voucher_day_value:           mvDayValue,
+          meal_voucher_days:                fullMonthDays,
+          meal_voucher:                     Math.round((mealVoucher - mealVoucherDiscount) * 100) / 100,
+          meal_voucher_discount_pct:        mvDiscountPct,
+          meal_voucher_discount:            mealVoucherDiscount,
+          food_voucher:                     foodVoucher,
+          motorcycle_rental:                motoRental,
+          cost_allowance:                   prev.cost_allowance || 50,
+          // Periculosidade: recalculada
+          hazard_pay:                       hazardPay,
+          // INSS: recalculado
+          inss_pct:                         inssPct,
+          inss_discount:                    inssDiscount,
+          union_contribution_value:         unionContribValue,
+          life_insurance:                   prev.life_insurance || 17.50,
+          transport_voucher:                prev.transport_voucher || 0,
+          other_benefits:                   prev.other_benefits || 0,
         };
 
         const calc = calcCLTMoto(entryData);
@@ -435,7 +453,6 @@ Deno.serve(async (req) => {
 
       // ── MOTOCICLISTA MEI ──────────────────────────────────────────────────
       else if (payrollType === 'MOTOCICLISTA_MEI') {
-        // Dias úteis Seg-Sex para o mês alvo
         const { first: wdFirst, second: wdSecond, total: wdTotal } = calcMeiWorkingDaysByPeriod(target_month);
 
         const entryData = {
@@ -458,7 +475,6 @@ Deno.serve(async (req) => {
 
       // ── SÓCIO (Pró-Labore) ────────────────────────────────────────────────
       else if (payrollType === 'SOCIO') {
-        // Bonificação de aniversário automática (R$ 200)
         const bBonus = hasBirthdayInMonth(emp) ? 200 : 0;
         const entryData = {
           ...baseEntry,

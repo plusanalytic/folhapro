@@ -102,7 +102,7 @@ export default function AppLogin({ onLogin }) {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Acesso restrito — usuário padrão: <strong>admin / admin</strong>
+          Acesso restrito
         </p>
       </div>
     </div>
