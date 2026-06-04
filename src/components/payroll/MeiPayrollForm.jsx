@@ -10,9 +10,8 @@ import { formatCurrency, getMonthName } from '@/lib/payrollCalculations';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import MeiPeriodDiscountsTable from './MeiPeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
-import ProvisionCalculator from './ProvisionCalculator';
 import { base44 } from '@/api/base44Client';
-import { RefreshCw, Calculator } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 
 const COST_ALLOWANCE_DEFAULT = 500;
@@ -331,13 +330,10 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
           </DialogHeader>
 
           <Tabs defaultValue="proventos">
-            <TabsList className="grid grid-cols-4 w-full mt-4">
+            <TabsList className="grid grid-cols-3 w-full mt-4">
               <TabsTrigger value="proventos">Proventos</TabsTrigger>
               <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
               <TabsTrigger value="resumo">Resumo</TabsTrigger>
-              <TabsTrigger value="provisao" className="gap-1.5">
-                <Calculator className="w-3.5 h-3.5" /> Provisão
-              </TabsTrigger>
             </TabsList>
 
             {/* ── ABA: Proventos ── */}
@@ -645,18 +641,6 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
                   </div>
                 </div>
               </div>
-            </TabsContent>
-
-            {/* ── ABA: Calculadora de Provisão ── */}
-            <TabsContent value="provisao" className="mt-4">
-              <ProvisionCalculator
-                items={[
-                  { label: 'Piso Salarial / Remuneração', value: form.base_salary },
-                  { label: 'Aluguel da Motocicleta', value: form.motorcycle_rental },
-                  { label: 'Vale Alimentação', value: form.food_voucher },
-                  { label: 'Seguro de Vida', value: form.life_insurance },
-                ]}
-              />
             </TabsContent>
 
             {/* ── ABA: Resumo ── */}

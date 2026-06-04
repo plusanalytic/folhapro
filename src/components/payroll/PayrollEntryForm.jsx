@@ -10,7 +10,6 @@ import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, 
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
-import ProvisionCalculator from './ProvisionCalculator';
 import { base44 } from '@/api/base44Client';
 
 // Regras de visibilidade de campos por modelo de folha
@@ -585,13 +584,12 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         </DialogHeader>
 
         <Tabs defaultValue="proventos">
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="proventos">Proventos</TabsTrigger>
             <TabsTrigger value="quinzenal">Quinzenal</TabsTrigger>
             <TabsTrigger value="faltas">
               Ajuste de Ponto {pointAdjustments.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5">{pointAdjustments.length}</span>}
             </TabsTrigger>
-            <TabsTrigger value="provisao">Provisão</TabsTrigger>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
           </TabsList>
 
@@ -1352,23 +1350,6 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 lockedPeriods={{ first: q1Locked, second: q2Locked }}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="provisao" className="mt-4">
-            <ProvisionCalculator
-              items={[
-                { label: 'Salário Base', value: form.base_salary },
-                { label: 'Vale Refeição', value: calc.meal_voucher },
-                { label: 'Vale Alimentação', value: form.food_voucher },
-                { label: 'Vale Transporte', value: form.transport_voucher },
-                { label: 'KM Adicional', value: calc.km_bonus || 0 },
-                { label: 'Ajuda de custo pacote de dados', value: form.cost_allowance },
-                { label: 'Aluguel da Motocicleta', value: form.motorcycle_rental },
-                { label: 'Periculosidade', value: form.hazard_pay },
-                { label: 'Bonificação / Prêmio', value: form.bonus },
-                { label: 'Outros Benefícios', value: form.other_benefits },
-              ]}
-            />
           </TabsContent>
 
           <TabsContent value="resumo" className="mt-4">
