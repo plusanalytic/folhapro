@@ -540,12 +540,10 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
     { label: `Adicional KM (${entry?.km_bonus_qty||0} km × ${formatCurrency(entry?.km_bonus_value||0)})`, value: kmBonus, show: kmBonus > 0 },
     { label: 'Aluguel da Motocicleta', value: motoRental, show: motoRental > 0 },
     { label: 'Vale Alimentação', value: foodVoucher, show: foodVoucher > 0 },
-    { label: 'Bonificação / Prêmio', value: bonus, show: bonus > 0 },
     { label: 'Outros Benefícios', value: otherBen, show: otherBen > 0 },
   ].filter(x => x.show);
 
   const descontos = [
-    { label: 'Seguro de Vida (Acordo entre as partes)', value: lifeInsurance, show: lifeInsurance > 0 },
   ].filter(x => x.show);
 
   const totalDescontos = descontos.reduce((s,d) => s+d.value, 0);

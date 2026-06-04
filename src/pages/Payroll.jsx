@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, FileArchive, AlertTriangle, UserPlus, Trash2, CheckSquare } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, AlertTriangle, UserPlus, Trash2, CheckSquare } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
@@ -420,36 +420,7 @@ export default function Payroll() {
                       <UserPlus className="w-3.5 h-3.5" /> Prestador
                     </Button>
                   )}
-                  {(() => {
-                    const companyEntryIdSet = new Set(allCompanyEntries.map(e => e.id));
-                    const companySelIds = [...selectedEntryIds].filter(id => companyEntryIdSet.has(id));
-                    const selCount = companySelIds.length;
-                    const overLimit = selCount > 20;
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`gap-1.5 ${selCount > 0 && !overLimit ? 'text-violet-700 border-violet-200 hover:bg-violet-50' : 'text-muted-foreground'}`}
-                        title={selCount === 0 ? 'Marque colaboradores com ☑ para gerar PDF em lote (máx. 20)' : overLimit ? 'Máximo 20 colaboradores por vez — reduza a seleção' : `Gerar PDF em lote para ${selCount} colaborador(es)`}
-                        disabled={selCount === 0 || overLimit}
-                        onClick={() => {
-                          const allPairs = [
-                            ...fixedEmps.map(emp => ({ emp, entry: getEntry(emp.id, company.id) })),
-                            ...espPairsFiltered,
-                          ].filter(({ entry }) => entry && companySelIds.includes(entry.id));
-                          const selItems = allPairs.map(({ emp, entry }) => {
-                            const jr = jobRoles.find(r => r.tangerino_id && String(r.tangerino_id) === String(emp.job_role_tangerino_id));
-                            const pt = emp.contract_type === 'ESPORADICO' ? (entry.esporadico_payroll_type || 'ESPORADICO') : (jr?.payroll_type || 'CLT');
-                            return { emp: { ...emp, position: emp.position || jr?.name }, entry, payrollType: pt };
-                          });
-                          setBulkPDF({ company, items: selItems });
-                        }}
-                      >
-                        <FileArchive className="w-3.5 h-3.5" />
-                        PDF em Lote{selCount > 0 ? ` (${selCount}${overLimit ? ' ⚠' : ''})` : ''}
-                      </Button>
-                    );
-                  })()}
+
                   {!readOnly && (closed ? (
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmReopen({ type: 'month', companyId: company.id, companyName: company.name })}>
                       <Unlock className="w-3.5 h-3.5" /> Reabrir Mês
@@ -467,7 +438,27 @@ export default function Payroll() {
                 <table className="w-full text-sm">
                   <thead>
                    <tr className="border-t border-b border-border bg-muted/30">
-                    <th className="p-3 pl-4 w-8"></th>
+                    <th className="p-3 pl-4 w-8">
+                    {(() => {
+                      const companyEntryIds = allCompanyEntries.map(e => e.id);
+                      const allSelected = companyEntryIds.length > 0 && companyEntryIds.every(id => selectedEntryIds.has(id));
+                      const someSelected = companyEntryIds.some(id => selectedEntryIds.has(id));
+                      return (
+                        <Checkbox
+                          checked={allSelected}
+                          data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
+                          onCheckedChange={(checked) => {
+                            setSelectedEntryIds(prev => {
+                              const next = new Set(prev);
+                              if (checked) companyEntryIds.forEach(id => next.add(id));
+                              else companyEntryIds.forEach(id => next.delete(id));
+                              return next;
+                            });
+                          }}
+                        />
+                      );
+                    })()}
+                  </th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Colaborador</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Cargo</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Local</th>
