@@ -3,7 +3,6 @@ import { base44 } from '@/api/base44Client';
 import { Search, CreditCard, Download, AlertTriangle, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import SearchableSelect from '@/components/ui/SearchableSelect';
 import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
