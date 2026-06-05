@@ -7,6 +7,7 @@ import { getMonthName } from '@/lib/payrollCalculations';
 import { Plus, Play, CheckCircle2, RotateCcw, Trash2, Edit, AlertTriangle, Zap, Users, Wrench } from 'lucide-react';
 import ReadjustmentRuleForm from '@/components/readjustment/ReadjustmentRuleForm';
 import ReadjustmentSimulationDialog from '@/components/readjustment/ReadjustmentSimulationDialog';
+import FixLockedBasesDialog from '@/components/readjustment/FixLockedBasesDialog';
 import { toast } from 'sonner';
 
 const STATUS_CONFIG = {
@@ -31,6 +32,7 @@ export default function Readjustment() {
   const [loading, setLoading] = useState(true);
   const [editingRule, setEditingRule] = useState(null);
   const [simulatingRule, setSimulatingRule] = useState(null);
+  const [fixingLockedBasesRule, setFixingLockedBasesRule] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [applyToSecondOnly, setApplyToSecondOnly] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -326,6 +328,11 @@ export default function Readjustment() {
                             </Button>
                           </>
                         )}
+                        <Button size="sm" variant="outline" className="gap-1.5 text-orange-600 border-orange-300 hover:bg-orange-50"
+                          title="Corrigir bases da 1ª quinzena bloqueadas que foram alteradas pelo reajuste"
+                          onClick={() => setFixingLockedBasesRule(rule)}>
+                          <Wrench className="w-3.5 h-3.5" /> Corrigir Bases
+                        </Button>
                         <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50"
                           onClick={() => setConfirmAction({ type: 'revert', rule })}>
                           <RotateCcw className="w-3.5 h-3.5" /> Reverter
@@ -492,6 +499,16 @@ export default function Readjustment() {
       {/* Simulation dialog */}
       {simulatingRule && (
         <ReadjustmentSimulationDialog rule={simulatingRule} onClose={() => setSimulatingRule(null)} />
+      )}
+
+      {/* Fix locked bases dialog */}
+      {fixingLockedBasesRule && (
+        <FixLockedBasesDialog
+          rule={fixingLockedBasesRule}
+          employees={employees}
+          onClose={() => setFixingLockedBasesRule(null)}
+          onDone={() => { setFixingLockedBasesRule(null); loadRules(); }}
+        />
       )}
     </div>
   );
