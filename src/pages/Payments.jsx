@@ -211,12 +211,13 @@ export default function Payments() {
 
   const [selectedMonth, setSelectedMonth] = useState(() => sessionStorage.getItem('filter_month_payments') || new Date().toISOString().slice(0, 7));
   const [selectedCompanies, setSelectedCompanies] = useState([]);
-  const [selectedJobRole, setSelectedJobRole] = useState('all');
-  const [selectedWorkplace, setSelectedWorkplace] = useState('all');
+  const [selectedJobRoles, setSelectedJobRoles] = useState([]);
+  const [selectedWorkplaces, setSelectedWorkplaces] = useState([]);
   const [search, setSearch] = useState('');
-  const [filterStatusQ1, setFilterStatusQ1] = useState('all');
-  const [filterStatusQ2, setFilterStatusQ2] = useState('all');
+  const [filterStatusQ1, setFilterStatusQ1] = useState([]);
+  const [filterStatusQ2, setFilterStatusQ2] = useState([]);
   const [selectedBanks, setSelectedBanks] = useState([]);
+  const [filterContractType, setFilterContractType] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all' | 'q1' | 'q2'
 
   const [saving, setSaving] = useState({});
@@ -351,12 +352,13 @@ export default function Payments() {
     const matchSearch = !search || emp.name.toLowerCase().includes(search.toLowerCase());
     const effectiveCompanyId = (emp?.contract_type !== 'ESPORADICO' && emp?.company_id) ? emp.company_id : entry.company_id;
     const matchCompany = selectedCompanies.length === 0 || selectedCompanies.includes(entry.company_id) || selectedCompanies.includes(effectiveCompanyId);
-    const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
-    const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
-    const matchStatusQ1 = filterStatusQ1 === 'all' || (ps?.status_q1 || 'PENDENTE') === filterStatusQ1;
-    const matchStatusQ2 = filterStatusQ2 === 'all' || (ps?.status_q2 || 'PENDENTE') === filterStatusQ2;
+    const matchJobRole = selectedJobRoles.length === 0 || selectedJobRoles.includes(String(emp.job_role_tangerino_id));
+    const matchWorkplace = selectedWorkplaces.length === 0 || (emp.workplace_list ?? []).map(String).some(id => selectedWorkplaces.includes(id));
+    const matchStatusQ1 = filterStatusQ1.length === 0 || filterStatusQ1.includes(ps?.status_q1 || 'PENDENTE');
+    const matchStatusQ2 = filterStatusQ2.length === 0 || filterStatusQ2.includes(ps?.status_q2 || 'PENDENTE');
     const matchBank = selectedBanks.length === 0 || selectedBanks.includes(emp.bank_name || '');
-    return matchSearch && matchCompany && matchJobRole && matchWorkplace && matchStatusQ1 && matchStatusQ2 && matchBank;
+    const matchContractType = filterContractType === 'all' || emp.contract_type === filterContractType;
+    return matchSearch && matchCompany && matchJobRole && matchWorkplace && matchStatusQ1 && matchStatusQ2 && matchBank && matchContractType;
   });
 
   const sortedEntries = [...filteredEntries].sort((a, b) => {
@@ -438,34 +440,45 @@ export default function Payments() {
             allLabel="Todas as Empresas"
             options={[...companies].sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(c => ({ value: c.id, label: c.name }))}
           />
-          <SearchableSelect
-            value={selectedJobRole}
-            onValueChange={setSelectedJobRole}
+          <MultiSearchableSelect
+            values={selectedJobRoles}
+            onValuesChange={setSelectedJobRoles}
             placeholder="Cargo"
             className="w-44"
             allLabel="Todos os Cargos"
             options={jobRoles.filter(jr => jr.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(jr => ({ value: String(jr.tangerino_id), label: jr.name }))}
           />
-          <SearchableSelect
-            value={selectedWorkplace}
-            onValueChange={setSelectedWorkplace}
+          <MultiSearchableSelect
+            values={selectedWorkplaces}
+            onValuesChange={setSelectedWorkplaces}
             placeholder="Local"
             className="w-44"
             allLabel="Todos os Locais"
             options={workplaces.filter(w => w.tangerino_id).sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(w => ({ value: String(w.tangerino_id), label: w.name }))}
           />
-          <Select value={filterStatusQ1} onValueChange={setFilterStatusQ1}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Status 1ª Q" /></SelectTrigger>
+          <MultiSearchableSelect
+            values={filterStatusQ1}
+            onValuesChange={setFilterStatusQ1}
+            placeholder="Status 1ª Q"
+            className="w-44"
+            allLabel="Status 1ª Quinzena"
+            options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+          />
+          <MultiSearchableSelect
+            values={filterStatusQ2}
+            onValuesChange={setFilterStatusQ2}
+            placeholder="Status 2ª Q"
+            className="w-44"
+            allLabel="Status 2ª Quinzena"
+            options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+          />
+          <Select value={filterContractType} onValueChange={setFilterContractType}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Tipo Prestador" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Status 1ª Quinzena</SelectItem>
-              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterStatusQ2} onValueChange={setFilterStatusQ2}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Status 2ª Q" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Status 2ª Quinzena</SelectItem>
-              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              <SelectItem value="all">Todos os Tipos</SelectItem>
+              <SelectItem value="CLT">CLT</SelectItem>
+              <SelectItem value="PJ">PJ / MEI</SelectItem>
+              <SelectItem value="ESPORADICO">Esporádico</SelectItem>
             </SelectContent>
           </Select>
           <MultiSearchableSelect

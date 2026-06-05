@@ -91,6 +91,11 @@ export default function Payroll() {
     // Nota: usa termination_date independentemente de is_active, para cobrir casos onde
     // o campo is_active pode ainda não ter sido setado mas a data de demissão já existe.
     setEmployees(e.filter(x => {
+      // Verifica data de admissão: colaborador não pode aparecer antes do mês de admissão
+      if (x.admission_date) {
+        const admMonth = x.admission_date.slice(0, 7);
+        if (admMonth > selectedMonth) return false;
+      }
       if (x.termination_date) {
         // Tem data de demissão: aparece somente até o mês da demissão (inclusive)
         const termMonth = x.termination_date.slice(0, 7);
