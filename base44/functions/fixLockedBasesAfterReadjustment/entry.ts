@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Snapshot não encontrado na regra' }, { status: 400 });
     }
 
-    // Buscar folhas atuais do mês da regra
+    // Buscar folhas atuais
     const allEntries = await base44.asServiceRole.entities.PayrollEntry.filter({
       reference_month: rule.reference_month,
     });
@@ -47,40 +47,28 @@ Deno.serve(async (req) => {
       const snap = snapshotById[entry.id];
       if (!snap) continue;
 
-      const snapFirstBase = snap.first_period_base ?? 0;
+      // Usar first_period_net do snapshot como base original (é o valor que foi efetivamente pago)
+      const snapFirstBase = snap.first_period_base ?? snap.first_period_net ?? 0;
       const currFirstBase = entry.first_period_base ?? 0;
-      const diff = r(snapFirstBase - currFirstBase);
 
+      if (snapFirstBase === 0) continue; // Não há base de referência no snapshot, pula
+      
+      const diff = r(snapFirstBase - currFirstBase);
       if (Math.abs(diff) < 0.001) continue; // Sem diferença, pula
 
+      // Lógica correta:
+      // 1. Restaurar first_period_base para o valor do snapshot
+      // 2. NÃO ALTERAR first_period_net (já foi pago!)
+      // 3. Adicionar APENAS a diferença na second_period_base e second_period_net
       const newFirstBase = snapFirstBase;
       const newSecondBase = r((entry.second_period_base ?? 0) + diff);
-
-      // Recalcular first_period_net mantendo descontos e ausências existentes
-      const firstAdv = entry.first_period_advance ?? 0;
-      const absFirst = entry.absence_discount_first ?? 0;
-      const firstDiscountTotal = (entry.first_discounts ?? []).reduce((s, d) =>
-        d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
-      const newFirstNet = r(newFirstBase - firstAdv - firstDiscountTotal - absFirst);
-
-      // Recalcular second_period_net mantendo descontos e ausências existentes
-      const absSecond = entry.absence_discount_second ?? 0;
-      const secondDiscountTotal = (entry.second_discounts ?? []).reduce((s, d) =>
-        d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
-      const fullMonthDays = entry.full_month_contract_working_days ?? 0;
-      const contractDays = entry.contract_working_days ?? 0;
-      const motoRatio = fullMonthDays > 0 ? contractDays / fullMonthDays : 1;
-      const kmBonus = r((entry.km_bonus_qty ?? 0) * (entry.km_bonus_value ?? 0));
-      const costAllow = r((entry.cost_allowance ?? 0) * motoRatio);
-      const foodVEff = r((entry.food_voucher ?? 0) * motoRatio);
-      const secondDiscFinal = entry.second_period_discount != null ? entry.second_period_discount : secondDiscountTotal;
-      const newSecondNet = r(newSecondBase + foodVEff + kmBonus + costAllow - secondDiscFinal - absSecond);
+      const newSecondNet = r((entry.second_period_net ?? 0) + diff);
 
       await base44.asServiceRole.entities.PayrollEntry.update(entry.id, {
         first_period_base: newFirstBase,
         second_period_base: newSecondBase,
-        first_period_net: newFirstNet,
         second_period_net: newSecondNet,
+        // first_period_net: NÃO ALTERAR — primeira quinzena já foi paga
       });
 
       fixedCount++;
@@ -92,6 +80,8 @@ Deno.serve(async (req) => {
         new_first_base: newFirstBase,
         old_second_base: entry.second_period_base ?? 0,
         new_second_base: newSecondBase,
+        old_second_net: entry.second_period_net ?? 0,
+        new_second_net: newSecondNet,
       });
     }
 
