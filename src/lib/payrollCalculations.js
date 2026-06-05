@@ -50,20 +50,52 @@ export function calculateFGTS(salary) {
   return Math.round(salary * FGTS_RATE * 100) / 100;
 }
 
-// Calcula dias úteis de um mês (seg-sex, sem feriados nacionais fixos)
+// ─── Cálculo da Páscoa (algoritmo de Butcher/Oudin) ──────────────────────────
+function calcEaster(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+// Retorna Set de feriados para um ano (MM-DD), incluindo feriados móveis
+function getHolidaysForYear(year) {
+  const fixed = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = new Set(fixed);
+  const easter = calcEaster(year);
+  const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  // Sexta-Feira Santa
+  const goodFriday = new Date(easter); goodFriday.setDate(easter.getDate() - 2);
+  holidays.add(fmt(goodFriday));
+  // Corpus Christi (60 dias após Páscoa)
+  const corpusChristi = new Date(easter); corpusChristi.setDate(easter.getDate() + 60);
+  holidays.add(fmt(corpusChristi));
+  return holidays;
+}
+
+// Calcula dias úteis de um mês (seg-sex, sem feriados nacionais fixos + móveis)
 export function getWorkingDaysInMonth(yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number);
-  // Feriados nacionais fixos (MM-DD)
-  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = getHolidaysForYear(year);
   let count = 0;
   const daysInMonth = new Date(year, month, 0).getDate();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month - 1, d);
-    const dow = date.getDay(); // 0=dom, 6=sab
+    const dow = date.getDay();
     if (dow === 0 || dow === 6) continue;
     const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (nationalHolidays.includes(mmdd)) continue;
-    // Páscoa - Sexta-feira Santa (variável, aproximação simples ignorada por ora)
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;
@@ -78,7 +110,7 @@ export function getWorkingDaysInMonth(yearMonth) {
 export function getWorkingDaysFromDate(fromDate, yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number);
   const startDay = parseInt(fromDate.slice(8, 10), 10);
-  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = getHolidaysForYear(year);
   let count = 0;
   const daysInMonth = new Date(year, month, 0).getDate();
   for (let d = startDay; d <= daysInMonth; d++) {
@@ -86,7 +118,7 @@ export function getWorkingDaysFromDate(fromDate, yearMonth) {
     const dow = date.getDay();
     if (dow === 0 || dow === 6) continue;
     const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (nationalHolidays.includes(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;
@@ -100,7 +132,7 @@ export function getWorkingDaysFromDate(fromDate, yearMonth) {
  */
 export function getContractWorkingDays(yearMonth, admissionDate = null) {
   const [year, month] = yearMonth.split('-').map(Number);
-  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = getHolidaysForYear(year);
   const daysInMonth = new Date(year, month, 0).getDate();
   // Se admitido neste mês, começa a contar a partir do dia de admissão
   let startDay = 1;
@@ -113,24 +145,24 @@ export function getContractWorkingDays(yearMonth, admissionDate = null) {
     const dow = date.getDay();
     if (dow === 0) continue; // exclui domingo
     const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (nationalHolidays.includes(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;
 }
 
-// Calcula dias úteis de um mês contando Seg-Sáb (exclui apenas domingo e feriados nacionais fixos)
+// Calcula dias úteis de um mês contando Seg-Sáb (exclui domingo e feriados)
 export function getWorkingDaysInMonthSatIncluded(yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number);
-  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = getHolidaysForYear(year);
   let count = 0;
   const daysInMonth = new Date(year, month, 0).getDate();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month - 1, d);
-    const dow = date.getDay(); // 0=dom, 6=sab
-    if (dow === 0) continue; // só exclui domingo
+    const dow = date.getDay();
+    if (dow === 0) continue;
     const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (nationalHolidays.includes(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;
@@ -138,20 +170,18 @@ export function getWorkingDaysInMonthSatIncluded(yearMonth) {
 
 /**
  * Dias úteis contrato (Seg-Sáb, excl. feriados) — mês cheio, sem considerar admissão.
- * Usado como denominador para cálculo do valor/dia dos benefícios.
- * @param {string} yearMonth - 'YYYY-MM'
  */
 export function getFullMonthContractWorkingDays(yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number);
-  const nationalHolidays = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const holidays = getHolidaysForYear(year);
   const daysInMonth = new Date(year, month, 0).getDate();
   let count = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month - 1, d);
     const dow = date.getDay();
-    if (dow === 0) continue; // exclui domingo
+    if (dow === 0) continue;
     const mmdd = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (nationalHolidays.includes(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;

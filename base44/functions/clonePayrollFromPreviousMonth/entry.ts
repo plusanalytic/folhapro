@@ -1,11 +1,48 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// ─── Feriados nacionais fixos ────────────────────────────────────────────────
-const HOLIDAYS = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
+// ─── Feriados nacionais fixos (MM-DD) ────────────────────────────────────────
+const FIXED_HOLIDAYS = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
+
+// ─── Cálculo da Páscoa (algoritmo de Butcher/Oudin) ──────────────────────────
+function calcEaster(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+// ─── Retorna Set de feriados para um ano (MM-DD) ──────────────────────────────
+function getHolidaysForYear(year) {
+  const holidays = new Set(FIXED_HOLIDAYS);
+  const easter = calcEaster(year);
+  // Sexta-Feira Santa (2 dias antes da Páscoa)
+  const goodFriday = new Date(easter); goodFriday.setDate(easter.getDate() - 2);
+  // Corpus Christi (60 dias após a Páscoa)
+  const corpusChristi = new Date(easter); corpusChristi.setDate(easter.getDate() + 60);
+  // Carnaval — Terça-Feira Gorda (47 dias antes da Páscoa) — opcional, muitos contratos não contam
+  // const carnival = new Date(easter); carnival.setDate(easter.getDate() - 47);
+
+  const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  holidays.add(fmt(goodFriday));
+  holidays.add(fmt(corpusChristi));
+  return holidays;
+}
 
 // ─── Dias úteis (Seg–Sáb por padrão, ou Seg–Sex se includeSat=false) ─────────
 function calcWorkingDays(yearMonth, includeSat = true) {
   const [yr, mo] = yearMonth.split('-').map(Number);
+  const holidays = getHolidaysForYear(yr);
   const daysInMonth = new Date(yr, mo, 0).getDate();
   let count = 0;
   for (let d = 1; d <= daysInMonth; d++) {
@@ -13,7 +50,23 @@ function calcWorkingDays(yearMonth, includeSat = true) {
     if (dow === 0) continue;
     if (!includeSat && dow === 6) continue;
     const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (HOLIDAYS.has(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
+// ─── Dias úteis VR (Seg–Sex, excl. feriados) ─────────────────────────────────
+function calcVRWorkingDays(yearMonth) {
+  const [yr, mo] = yearMonth.split('-').map(Number);
+  const holidays = getHolidaysForYear(yr);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(yr, mo - 1, d).getDay();
+    if (dow === 0 || dow === 6) continue; // exclui sábado e domingo
+    const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (holidays.has(mmdd)) continue;
     count++;
   }
   return count;
@@ -22,13 +75,14 @@ function calcWorkingDays(yearMonth, includeSat = true) {
 // ─── Dias úteis MEI (Seg–Sex) separados por quinzena ─────────────────────────
 function calcMeiWorkingDaysByPeriod(yearMonth) {
   const [yr, mo] = yearMonth.split('-').map(Number);
+  const holidays = getHolidaysForYear(yr);
   const daysInMonth = new Date(yr, mo, 0).getDate();
   let first = 0, second = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const dow = new Date(yr, mo - 1, d).getDay();
     if (dow === 0 || dow === 6) continue;
     const mmdd = `${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if (HOLIDAYS.has(mmdd)) continue;
+    if (holidays.has(mmdd)) continue;
     if (d <= 15) first++; else second++;
   }
   return { first, second, total: first + second };
@@ -388,6 +442,8 @@ Deno.serve(async (req) => {
       else if (payrollType === 'MOTOCICLISTA_CLT') {
         const includeSat = !workplace || workplace.work_schedule !== 'seg_sex';
         const fullMonthDays = calcWorkingDays(target_month, includeSat);
+        // VR conta apenas Seg-Sex, excluindo feriados (independente da escala de contrato)
+        const vrDays = calcVRWorkingDays(target_month);
 
         const cltMotoBaseSalary = (workplace && workplace.clt_moto_base_salary_default > 0)
           ? workplace.clt_moto_base_salary_default
@@ -402,7 +458,7 @@ Deno.serve(async (req) => {
           ? workplace.clt_moto_motorcycle_rental_default
           : (prev.motorcycle_rental || 0);
 
-        const mealVoucher = Math.round(mvDayValue * fullMonthDays * 100) / 100;
+        const mealVoucher = Math.round(mvDayValue * vrDays * 100) / 100;
 
         // Periculosidade: SEMPRE recalculada como 30% do salário efetivo
         const effectiveSalary = cltMotoBaseSalary;
@@ -429,7 +485,7 @@ Deno.serve(async (req) => {
           contract_working_days:            fullMonthDays,
           working_days_month:               30,
           meal_voucher_day_value:           mvDayValue,
-          meal_voucher_days:                fullMonthDays,
+          meal_voucher_days:                vrDays,
           meal_voucher:                     Math.round((mealVoucher - mealVoucherDiscount) * 100) / 100,
           meal_voucher_discount_pct:        mvDiscountPct,
           meal_voucher_discount:            mealVoucherDiscount,
