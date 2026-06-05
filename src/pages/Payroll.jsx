@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
-import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, AlertTriangle, UserPlus, Trash2, CheckSquare } from 'lucide-react';
+import { Lock, Unlock, Search, Eye, Printer, Copy, Loader2, UserCheck, AlertTriangle, UserPlus, Trash2, CheckSquare, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
@@ -262,6 +263,69 @@ export default function Payroll() {
     toast.success(action === 'close' ? `${entryList.length} folha(s) fechada(s)!` : `${entryList.length} folha(s) reaberta(s)!`);
   };
 
+  const handleExportXLSX = () => {
+    const rows = [];
+    companiesInView.forEach(company => {
+      const fixedEmps = filterEsporadico === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
+      const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp }) => {
+        if (!emp.name.toLowerCase().includes(search.toLowerCase())) return false;
+        if (selectedWorkplace !== 'all' && !(emp.workplace_list ?? []).map(String).includes(selectedWorkplace)) return false;
+        if (selectedJobRole !== 'all' && String(emp.job_role_tangerino_id) !== selectedJobRole) return false;
+        return true;
+      }).filter(({ emp }) => !fixedEmps.some(f => f.id === emp.id));
+
+      const all = [
+        ...[...fixedEmps].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(emp => ({ emp, entry: getEntry(emp.id, company.id) })),
+        ...[...espPairs].sort((a, b) => a.emp.name.localeCompare(b.emp.name, 'pt-BR')),
+      ];
+
+      all.forEach(({ emp, entry }) => {
+        const empJR = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+        const absence = entry ? getAbsenceByPeriod(entry) : { first: 0, second: 0 };
+        const isMEI = empJR?.payroll_type === 'MOTOCICLISTA_MEI';
+        const disc1 = entry ? calcPeriodDebits(entry.first_discounts, absence.first) + (isMEI ? (entry.life_insurance || 0) : 0) : 0;
+        const disc2 = entry ? calcPeriodDebits(entry.second_discounts, absence.second) : 0;
+        const bonif = entry ? calcBonificacoes(entry) : 0;
+        const effectiveSalary = entry ? (() => {
+          if (empJR?.payroll_type === 'ESCRITORIO') {
+            const wdm = entry.working_days_month > 0 ? entry.working_days_month : 30;
+            return Math.round(((entry.base_salary || 0) / 30) * wdm * 100) / 100;
+          }
+          if (empJR?.payroll_type === 'MOTOCICLISTA_CLT') {
+            const fullDays = entry.full_month_contract_working_days || 1;
+            const workedDays = entry.contract_working_days || fullDays;
+            return Math.round(((entry.clt_moto_base_salary || entry.base_salary || 0) * workedDays / fullDays) * 100) / 100;
+          }
+          return entry.clt_moto_effective_salary || entry.base_salary || 0;
+        })() : null;
+
+        const workplaceNames = (emp.workplace_list ?? []).map(id => workplaces.find(w => String(w.tangerino_id) === String(id))?.name).filter(Boolean).join(', ');
+
+        rows.push({
+          'Empresa': company.name,
+          'Colaborador': emp.name,
+          'Situação': emp.termination_date ? 'Demitido' : 'Ativo',
+          'Cargo': empJR?.name || '—',
+          'Local': workplaceNames || '—',
+          'Sal. Efetivo': effectiveSalary ?? '',
+          'Á Receber 1ªQ': entry?.first_period_net ?? '',
+          'Descontos 1ªQ': disc1 || '',
+          'Á Receber 2ªQ': entry?.second_period_net ?? '',
+          'Descontos 2ªQ': disc2 || '',
+          'Bonificações': bonif || '',
+          'Status': entry?.status === 'closed' ? 'Fechado' : entry ? 'Lançado' : 'Pendente',
+          'Dias Total': entry?.full_month_contract_working_days ?? '',
+          'Dias Trabalhados': entry?.contract_working_days ?? '',
+        });
+      });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Folha');
+    XLSX.writeFile(wb, `folha_${selectedMonth}.xlsx`);
+  };
+
   const handleDeleteEntry = async (entry) => {
     await base44.entities.PayrollEntry.delete(entry.id);
     load();
@@ -300,17 +364,27 @@ export default function Payroll() {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Lançamentos mensais</p>
         </div>
-        {!readOnly && (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => setCloneDialog(true)}
-            disabled={cloning}
+            onClick={handleExportXLSX}
           >
-            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-            Clonar do Mês Anterior
+            <Download className="w-4 h-4" />
+            Exportar XLSX
           </Button>
-        )}
+          {!readOnly && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setCloneDialog(true)}
+              disabled={cloning}
+            >
+              {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+              Clonar do Mês Anterior
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -525,8 +599,14 @@ export default function Payroll() {
                                {emp.name.slice(0, 2).toUpperCase()}
                              </div>
                              <span className="font-medium">{emp.name}</span>
+                             {emp.termination_date && (
+                               <span
+                                 title={`Demitido em ${emp.termination_date}`}
+                                 className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold border border-red-300"
+                               >D</span>
+                             )}
                            </div>
-                         </td>
+                          </td>
                          <td className="p-3 text-sm text-muted-foreground">
                            {jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id))?.name || '—'}
                          </td>
