@@ -429,6 +429,9 @@ Deno.serve(async (req) => {
           dental_plan:                    prev.dental_plan || 0,
           life_insurance:                 prev.life_insurance || 0,
           working_days_month:             30,
+          // Bonificações de Produtividade e Presença: clonadas do mês anterior
+          bonus:                          prev.bonus || 0,
+          attendance_bonus:               prev.attendance_bonus || 0,
         };
         // Aniversário
         if (hasBirthdayInMonth(emp)) {
