@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { MapPin, RefreshCw, Search, Building2, CheckCircle, XCircle } from 'lucide-react';
+import { MapPin, RefreshCw, Search, Building2, CheckCircle, XCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,24 +13,41 @@ export default function Workplaces() {
   const [workplaces, setWorkplaces] = useState([]);
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
-  const [savingField, setSavingField] = useState(null);
+  const [savingId, setSavingId] = useState(null);
+  // Edições pendentes (não salvas) por id de workplace
+  const [pendingEdits, setPendingEdits] = useState({});
+
+  const isDirty = (id) => !!pendingEdits[id];
 
   const handleDefaultChange = (id, field, value) => {
+    setPendingEdits(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), [field]: value },
+    }));
     setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
   };
 
   const handleScheduleChange = async (id, value) => {
+    setPendingEdits(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), work_schedule: value },
+    }));
     setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, work_schedule: value } : w));
-    await base44.entities.Workplace.update(id, { work_schedule: value });
   };
 
-  const handleDefaultBlur = async (id, field, value) => {
-    const key = `${id}-${field}`;
-    setSavingField(key);
-    const num = parseFloat(String(value).replace(',', '.')) || 0;
-    await base44.entities.Workplace.update(id, { [field]: num });
-    setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, [field]: num } : w));
-    setSavingField(null);
+  const handleSaveRow = async (id) => {
+    const edits = pendingEdits[id];
+    if (!edits) return;
+    setSavingId(id);
+    const normalized = {};
+    for (const [k, v] of Object.entries(edits)) {
+      normalized[k] = typeof v === 'string' ? (parseFloat(v.replace(',', '.')) || 0) : v;
+    }
+    await base44.entities.Workplace.update(id, normalized);
+    setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, ...normalized } : w));
+    setPendingEdits(prev => { const n = { ...prev }; delete n[id]; return n; });
+    setSavingId(null);
+    toast.success('Local de trabalho salvo com sucesso!');
   };
 
   const load = async () => {
@@ -72,9 +89,8 @@ export default function Workplaces() {
       min="0"
       value={value ?? 0}
       onChange={e => handleDefaultChange(id, field, e.target.value)}
-      onBlur={e => handleDefaultBlur(id, field, e.target.value)}
       className={`w-28 text-right font-mono text-xs h-8 ml-auto transition-colors ${
-        savingField === `${id}-${field}` ? 'border-primary' : ''
+        isDirty(id) ? 'border-amber-400' : ''
       }`}
     />
   );
@@ -185,7 +201,8 @@ export default function Workplaces() {
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">VA CLT Moto</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Aluguel Moto</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Escala</th>
-                </tr>
+                  <th className="text-center p-4 font-medium text-muted-foreground text-xs">Ação</th>
+                  </tr>
               </thead>
               <tbody>
                 {filtered.map(w => (
@@ -209,6 +226,18 @@ export default function Workplaces() {
                           <SelectItem value="seg_sex">Seg – Sex</SelectItem>
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="p-2 text-center">
+                      <Button
+                        size="sm"
+                        variant={isDirty(w.id) ? 'default' : 'outline'}
+                        className="h-8 gap-1.5 text-xs"
+                        disabled={!isDirty(w.id) || savingId === w.id}
+                        onClick={() => handleSaveRow(w.id)}
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {savingId === w.id ? 'Salvando...' : 'Salvar'}
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -243,7 +272,8 @@ export default function Workplaces() {
                   <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Bon. Produtividade (R$)</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Bon. Presença (R$)</th>
-                </tr>
+                  <th className="text-center p-4 font-medium text-muted-foreground text-xs">Ação</th>
+                  </tr>
               </thead>
               <tbody>
                 {filtered.map(w => (
@@ -254,6 +284,18 @@ export default function Workplaces() {
                         <NumCell id={w.id} field={field} value={w[field]} />
                       </td>
                     ))}
+                    <td className="p-2 text-center">
+                      <Button
+                        size="sm"
+                        variant={isDirty(w.id) ? 'default' : 'outline'}
+                        className="h-8 gap-1.5 text-xs"
+                        disabled={!isDirty(w.id) || savingId === w.id}
+                        onClick={() => handleSaveRow(w.id)}
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {savingId === w.id ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
