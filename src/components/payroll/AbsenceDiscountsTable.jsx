@@ -84,12 +84,12 @@ function calcBaseValues(payrollForm) {
   const foodVoucher = parseFloat(payrollForm?.food_voucher) || 0;
   const costAllowance = parseFloat(payrollForm?.cost_allowance) || 0;
 
-  // Valor dia salário base
-  const daily = baseSalary > 0 ? Math.round((baseSalary / workingDays) * 10000) / 10000 : 0;
+  // Diário = salário base / 30 (fixo em 30, igual ao campo Valor Dia exibido no formulário)
+  const daily = baseSalary > 0 ? Math.round((baseSalary / 30) * 10000) / 10000 : 0;
   // Periculosidade / 30 (fixo em 30 conforme regra)
   const hazard = hazardPay > 0 ? Math.round((hazardPay / 30) * 10000) / 10000 : 0;
-  // DSR = valor dia salário base + periculosidade/30
-  const dsr = Math.round((daily + hazard) * 10000) / 10000;
+  // DSR = (Salário Base Informado + Periculosidade) / 30
+  const dsr = Math.round(((baseSalary + hazardPay) / 30) * 10000) / 10000;
   // VR = valor dia direto do campo
   const vr = vrPerDay;
   // VT = valor dia direto do campo
