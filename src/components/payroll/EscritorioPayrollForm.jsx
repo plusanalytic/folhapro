@@ -93,9 +93,11 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const empWorkplace = workplaces.find(w =>
     (employee.workplace_list ?? []).map(String).includes(String(w.tangerino_id))
   );
-  // Defaults de bonificações do local (só aplicam em lançamentos novos — sem entry salvo)
-  const defaultBonus = !entry?.id ? (empWorkplace?.escritorio_bonus_default ?? 0) : 0;
-  const defaultAttendanceBonus = !entry?.id ? (empWorkplace?.escritorio_attendance_bonus_default ?? 0) : 0;
+  // Defaults de bonificações do local:
+  // - Lançamento novo (sem entry.id): usa o default do local
+  // - Folha clonada (tem entry.id mas o valor está zerado): também usa o default do local
+  const defaultBonus = (empWorkplace?.escritorio_bonus_default ?? 0);
+  const defaultAttendanceBonus = (empWorkplace?.escritorio_attendance_bonus_default ?? 0);
 
   const [form, setForm] = useState({
     company_id: employee.company_id,
@@ -112,9 +114,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     inss_deduction: entry?.inss_deduction ?? 0,
     // Bonificação Extra (soma ao salário base — rateado nas quinzenas)
     extra_bonus: entry?.extra_bonus ?? 0,
-    // Bonificações — usa defaults do local somente em novos lançamentos; depois preserva o que o usuário salvou
-    bonus: entry?.id != null ? (entry?.bonus ?? 0) : defaultBonus,
-    attendance_bonus: entry?.id != null ? (entry?.attendance_bonus ?? 0) : defaultAttendanceBonus,
+    // Bonificações — se a entry tem valor > 0, preserva; se zerado, usa default do local
+    bonus: (entry?.bonus > 0) ? entry.bonus : defaultBonus,
+    attendance_bonus: (entry?.attendance_bonus > 0) ? entry.attendance_bonus : defaultAttendanceBonus,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
