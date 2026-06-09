@@ -15,7 +15,7 @@ import Payroll from '@/pages/Payroll';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
 import CashOut from '@/pages/CashOut';
-import Workplaces from '@/pages/Workplaces';
+import Workplaces from '@/pages/Workplaces.jsx';
 import JobRoles from '@/pages/JobRoles';
 import PointAdjustments from '@/pages/PointAdjustments';
 import Payments from '@/pages/Payments';

@@ -62,7 +62,7 @@ function CalcRow({ label, value }) {
   );
 }
 
-export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null }) {
+export default function EscritorioPayrollForm({ employee, entry, referenceMonth, onSave, onClose, readOnly = false, jobRole = null, paymentStatus = null, workplaces = [] }) {
   const q1Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q1);
   const q2Locked = !readOnly && QUINZENA_BLOCKED_STATUSES.includes(paymentStatus?.status_q2);
   // baseLocked: campos que afetam net_total — bloqueado somente se q2 está bloqueada ou readOnly.
@@ -89,6 +89,14 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     return 30;
   })();
 
+  // Busca o local de trabalho do colaborador para pré-preencher defaults de Escritório
+  const empWorkplace = workplaces.find(w =>
+    (employee.workplace_list ?? []).map(String).includes(String(w.tangerino_id))
+  );
+  // Defaults de bonificações do local (só aplicam em lançamentos novos — sem entry salvo)
+  const defaultBonus = !entry?.id ? (empWorkplace?.escritorio_bonus_default ?? 0) : 0;
+  const defaultAttendanceBonus = !entry?.id ? (empWorkplace?.escritorio_attendance_bonus_default ?? 0) : 0;
+
   const [form, setForm] = useState({
     company_id: employee.company_id,
     // Convenção Coletiva
@@ -104,9 +112,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     inss_deduction: entry?.inss_deduction ?? 0,
     // Bonificação Extra (soma ao salário base — rateado nas quinzenas)
     extra_bonus: entry?.extra_bonus ?? 0,
-    // Bonificação
-    bonus: entry?.bonus ?? 0,
-    attendance_bonus: entry?.attendance_bonus ?? 0,
+    // Bonificações — usa defaults do local somente em novos lançamentos; depois preserva o que o usuário salvou
+    bonus: entry?.id != null ? (entry?.bonus ?? 0) : defaultBonus,
+    attendance_bonus: entry?.id != null ? (entry?.attendance_bonus ?? 0) : defaultAttendanceBonus,
     // Outros Benefícios
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
