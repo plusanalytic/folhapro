@@ -33,12 +33,16 @@ import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
 import ClonePayrollDialog from '@/components/payroll/ClonePayrollDialog';
 import AddEsporadicoDialog from '@/components/payroll/AddEsporadicoDialog';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/auditLog';
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
 
 export default function Payroll() {
   const readOnly = useReadOnly();
+  // Captura usuário logado para o log de auditoria
+  const appUserCtx = (() => { try { return JSON.parse(sessionStorage.getItem('app_user_session')); } catch { return null; } })();
+  const currentUserName = appUserCtx?.full_name || appUserCtx?.username || 'Usuário';
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
@@ -154,11 +158,30 @@ export default function Payroll() {
 
   const handleSaveEntry = async (data) => {
     const existing = editingEntry?.id ? entries.find(e => e.id === editingEntry.id) : getEntry(editingEmployee?.id, editingEntryCompanyId || editingEmployee?.company_id);
+    let savedId;
     if (existing) {
       await base44.entities.PayrollEntry.update(existing.id, data);
+      savedId = existing.id;
     } else {
-      await base44.entities.PayrollEntry.create({ ...data, employee_id: editingEmployee?.id, reference_month: selectedMonth });
+      const created = await base44.entities.PayrollEntry.create({ ...data, employee_id: editingEmployee?.id, reference_month: selectedMonth });
+      savedId = created?.id;
     }
+    const companyName = companies.find(c => c.id === (data.company_id || editingEmployee?.company_id))?.name || '';
+    logAudit({
+      action: existing ? 'update' : 'create',
+      entity_type: 'PayrollEntry',
+      entity_id: savedId,
+      employee_id: editingEmployee?.id,
+      employee_name: editingEmployee?.name,
+      company_id: data.company_id || editingEmployee?.company_id,
+      company_name: companyName,
+      reference_month: selectedMonth,
+      user_name: currentUserName,
+      description: existing
+        ? `Folha de ${editingEmployee?.name} editada — ${getMonthName(selectedMonth)} (${companyName})`
+        : `Novo lançamento criado para ${editingEmployee?.name} — ${getMonthName(selectedMonth)} (${companyName})`,
+      details: { net_total: data.net_total, gross_total: data.gross_total },
+    });
     setShowForm(false);
     setEditingEntry(null);
     setEditingEmployee(null);
@@ -174,12 +197,36 @@ export default function Payroll() {
     } else {
       await base44.entities.MonthClose.create({ company_id: companyId, reference_month: selectedMonth, status: 'closed', closed_at: new Date().toISOString() });
     }
+    const companyName = companies.find(c => c.id === companyId)?.name || '';
+    logAudit({
+      action: 'close_month',
+      entity_type: 'MonthClose',
+      company_id: companyId,
+      company_name: companyName,
+      reference_month: selectedMonth,
+      user_name: currentUserName,
+      description: `Mês de ${getMonthName(selectedMonth)} fechado para ${companyName}`,
+    });
     load();
     toast.success('Mês fechado com sucesso!');
   };
 
   const handleCloseEmployeeEntry = async (entry) => {
     await base44.entities.PayrollEntry.update(entry.id, { status: 'closed' });
+    const emp = employees.find(e => e.id === entry.employee_id);
+    const companyName = companies.find(c => c.id === entry.company_id)?.name || '';
+    logAudit({
+      action: 'close',
+      entity_type: 'PayrollEntry',
+      entity_id: entry.id,
+      employee_id: entry.employee_id,
+      employee_name: emp?.name || '',
+      company_id: entry.company_id,
+      company_name: companyName,
+      reference_month: selectedMonth,
+      user_name: currentUserName,
+      description: `Folha de ${emp?.name || 'colaborador'} fechada — ${getMonthName(selectedMonth)} (${companyName})`,
+    });
     load();
     toast.success('Folha do colaborador fechada!');
   };
@@ -199,6 +246,19 @@ export default function Payroll() {
       return;
     }
     await base44.entities.PayrollEntry.update(entry.id, { status: 'open' });
+    const companyName = companies.find(c => c.id === entry.company_id)?.name || '';
+    logAudit({
+      action: 'reopen',
+      entity_type: 'PayrollEntry',
+      entity_id: entry.id,
+      employee_id: entry.employee_id,
+      employee_name: empName,
+      company_id: entry.company_id,
+      company_name: companyName,
+      reference_month: selectedMonth,
+      user_name: currentUserName,
+      description: `Folha de ${empName} reaberta — ${getMonthName(selectedMonth)} (${companyName})`,
+    });
     load();
     toast.success('Folha do colaborador reaberta!');
   };
@@ -207,6 +267,16 @@ export default function Payroll() {
     const existing = monthCloses.find(m => m.company_id === companyId);
     if (existing) {
       await base44.entities.MonthClose.update(existing.id, { status: 'open', reopened_at: new Date().toISOString() });
+      const companyName = companies.find(c => c.id === companyId)?.name || '';
+      logAudit({
+        action: 'reopen_month',
+        entity_type: 'MonthClose',
+        company_id: companyId,
+        company_name: companyName,
+        reference_month: selectedMonth,
+        user_name: currentUserName,
+        description: `Mês de ${getMonthName(selectedMonth)} reaberto para ${companyName}`,
+      });
       load();
       toast.success('Mês reaberto!');
     }
@@ -327,7 +397,21 @@ export default function Payroll() {
   };
 
   const handleDeleteEntry = async (entry) => {
+    const emp = employees.find(e => e.id === entry.employee_id);
+    const companyName = companies.find(c => c.id === entry.company_id)?.name || '';
     await base44.entities.PayrollEntry.delete(entry.id);
+    logAudit({
+      action: 'delete',
+      entity_type: 'PayrollEntry',
+      entity_id: entry.id,
+      employee_id: entry.employee_id,
+      employee_name: emp?.name || '',
+      company_id: entry.company_id,
+      company_name: companyName,
+      reference_month: selectedMonth,
+      user_name: currentUserName,
+      description: `Lançamento de ${emp?.name || 'colaborador'} excluído — ${getMonthName(selectedMonth)} (${companyName})`,
+    });
     load();
     toast.success('Folha excluída!');
   };
@@ -345,6 +429,14 @@ export default function Payroll() {
         toast.info(data.message || 'Nenhum lançamento encontrado no mês anterior.');
       } else {
         toast.success(data.message || `${data.cloned} lançamentos clonados!`);
+        logAudit({
+          action: 'clone',
+          entity_type: 'PayrollEntry',
+          reference_month: selectedMonth,
+          user_name: currentUserName,
+          description: `Clonagem do mês anterior para ${getMonthName(selectedMonth)}: ${data.cloned} lançamento(s) processado(s)`,
+          details: { cloned: data.cloned, skipped: data.skipped, skippedFired: data.skippedFired, errors: data.errors?.length || 0 },
+        });
         load();
       }
     } catch (err) {

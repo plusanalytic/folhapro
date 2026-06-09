@@ -1,0 +1,66 @@
+{
+  "name": "PayrollAuditLog",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "create",
+        "update",
+        "delete",
+        "close",
+        "reopen",
+        "close_month",
+        "reopen_month",
+        "clone"
+      ],
+      "description": "Tipo de a\u00e7\u00e3o realizada"
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Tipo de entidade afetada (PayrollEntry, MonthClose, etc.)"
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "ID da entidade afetada"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID do colaborador"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Nome do colaborador"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Nome da empresa"
+    },
+    "reference_month": {
+      "type": "string",
+      "description": "M\u00eas de refer\u00eancia (YYYY-MM)"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Nome do usu\u00e1rio que realizou a a\u00e7\u00e3o"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o leg\u00edvel da altera\u00e7\u00e3o"
+    },
+    "details": {
+      "type": "object",
+      "description": "Detalhes extras da altera\u00e7\u00e3o (valores anteriores e novos)",
+      "default": {}
+    }
+  },
+  "required": [
+    "action",
+    "entity_type",
+    "description"
+  ]
+}
