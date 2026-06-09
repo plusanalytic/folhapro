@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, CreditCard, Download, AlertTriangle, Calendar } from 'lucide-react';
+import { Search, CreditCard, Download, AlertTriangle, Calendar, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
@@ -221,8 +222,8 @@ export default function Payments() {
 
   const [saving, setSaving] = useState({});
   const [revertConfirm, setRevertConfirm] = useState(null);
-  // { entry, quinzena, empName, quinzenaLabel, statusField, dateField }
   const [pagoConfirm, setPagoConfirm] = useState(null);
+  const [viewEntry, setViewEntry] = useState(null); // { entry, emp, jobRole, paymentStatus }
 
   const load = async () => {
     const [e, c, jr, w, p] = await Promise.all([
@@ -627,7 +628,18 @@ export default function Payments() {
               const disc2 = calcPeriodDebits(entry.second_discounts, absence.second);
               return (
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
-                  <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
+                  <td className="p-2 font-medium truncate" title={emp.name}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{emp.name}</span>
+                      <button
+                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                        title="Visualizar folha"
+                        onClick={() => setViewEntry({ entry, emp, jobRole: empJR, paymentStatus: ps })}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
                   <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(emp.admission_date)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getCompanyName(entry)}>{getCompanyName(entry)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getJobRoleName(emp)}>{getJobRoleName(emp)}</td>
@@ -702,6 +714,20 @@ export default function Payments() {
         onConfirm={handlePagoConfirm}
         onCancel={() => setPagoConfirm(null)}
       />
+
+      {viewEntry && (
+        <PayrollEntryForm
+          employee={viewEntry.emp}
+          entry={viewEntry.entry}
+          referenceMonth={selectedMonth}
+          onSave={() => {}}
+          onClose={() => setViewEntry(null)}
+          readOnly={true}
+          jobRole={viewEntry.jobRole}
+          paymentStatus={viewEntry.paymentStatus}
+          workplaces={workplaces}
+        />
+      )}
     </div>
   );
 }
