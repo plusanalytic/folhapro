@@ -21,7 +21,9 @@ const ALL_MODULES = [
   { key: 'point-adjustments', label: 'Ajuste de Ponto' },
   { key: 'settings',          label: 'Configurações' },
   { key: 'access',            label: 'Gestão de Acessos' },
-  { key: 'readjustment',       label: 'Reajuste Salarial' },
+  { key: 'readjustment',         label: 'Reajuste Salarial' },
+  { key: 'reverse-readjustment', label: 'Redução Salarial' },
+  { key: 'payroll-audit-log',    label: 'Log de Auditoria' },
 ];
 
 const PROFILE_LABELS = {
