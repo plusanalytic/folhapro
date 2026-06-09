@@ -149,6 +149,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   const [secondBaseRaw, setSecondBaseRaw] = useState(null);
   const [pointAdjustments, setPointAdjustments] = useState([]);
   const [absenceDiscounts, setAbsenceDiscounts] = useState(entry?.absence_discounts ?? {});
+  const [attendanceBonusZeroedByAbsence, setAttendanceBonusZeroedByAbsence] = useState(false);
 
   // Carregar ajustes de ponto expandidos por dia
   useEffect(() => {
@@ -182,6 +183,18 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       const forMonth = expanded.filter(a => a.date >= start && a.date <= end);
       forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       setPointAdjustments(forMonth);
+
+      // Regra: se folha nova (sem entry.id) e há FALTA NÃO JUSTIFICADA → zera Bonificação por Presença
+      if (!entry?.id) {
+        const hasFaltaNaoJustificada = forMonth.some(a =>
+          a.adjustment_reason_description &&
+          a.adjustment_reason_description.toUpperCase().includes('FALTA NÃO JUSTIFICADA')
+        );
+        if (hasFaltaNaoJustificada) {
+          setForm(f => ({ ...f, attendance_bonus: 0 }));
+          setAttendanceBonusZeroedByAbsence(true);
+        }
+      }
     });
   }, [employee.tangerino_id, referenceMonth]);
 
@@ -477,9 +490,21 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <FormRow label="Bonificação de Produtividade" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('bonus')} />
                 </FormRow>
-                <FormRow label="Bonificação por Presença" hint="Adicionado diretamente na 2ª quinzena">
-                  <NumInput {...numInputProps('attendance_bonus')} />
-                </FormRow>
+                <div>
+                  <Label>Bonificação por Presença</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Adicionado diretamente na 2ª quinzena</p>
+                  <div className="mt-1">
+                    <NumInput {...numInputProps('attendance_bonus')} />
+                  </div>
+                  {attendanceBonusZeroedByAbsence && (
+                    <div className="mt-1.5 flex items-start gap-1.5 bg-amber-50 border border-amber-300 rounded-md px-2.5 py-1.5">
+                      <span className="text-amber-600 text-xs mt-0.5">⚠️</span>
+                      <p className="text-xs text-amber-700">
+                        Bonificação por Presença zerada automaticamente — foi encontrada uma <strong>Falta Não Justificada</strong> nos ajustes de ponto deste mês.
+                      </p>
+                    </div>
+                  )}
+                </div>
                 <FormRow label="Bonificação de Aniversário" hint="Adicionado diretamente na 2ª quinzena">
                   <NumInput {...numInputProps('birthday_bonus')} />
                 </FormRow>
