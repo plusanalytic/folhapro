@@ -1346,7 +1346,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 setAbsenceDiscounts={setAbsenceDiscounts}
                 readOnly={readOnly}
                 isMotocyclist={payrollType === 'MOTOCICLISTA_CLT'}
-                payrollForm={form}
+                payrollForm={{
+                  ...form,
+                  full_month_contract_working_days: fullMonthContractDays,
+                  contract_working_days: contractWorkingDays,
+                }}
                 lockedPeriods={{ first: q1Locked, second: q2Locked }}
               />
             )}
