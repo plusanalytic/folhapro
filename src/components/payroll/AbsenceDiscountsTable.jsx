@@ -74,8 +74,10 @@ export function absenceDiscountByPeriod(absenceDiscounts) {
 function calcBaseValues(payrollForm) {
   // Salário base: usa clt_moto_base_salary se disponível, senão base_salary
   const baseSalary = parseFloat(payrollForm?.clt_moto_base_salary) || parseFloat(payrollForm?.base_salary) || 0;
-  // Dias úteis do mês: preferir full_month_contract_working_days, depois working_days_month, senão 30
+  // Dias úteis do mês (mês cheio): para salário base, VA e Aj. Custo
   const workingDays = parseFloat(payrollForm?.full_month_contract_working_days) || parseFloat(payrollForm?.working_days_month) || 30;
+  // Dias úteis do contrato: usado exclusivamente para Loc. Moto (aluguel ÷ dias úteis contrato)
+  const contractWorkingDays = parseFloat(payrollForm?.contract_working_days) || workingDays;
 
   const vrPerDay = parseFloat(payrollForm?.meal_voucher_day_value) || 0;
   const vtPerDay = parseFloat(payrollForm?.transport_voucher_day_value) || 0;
@@ -94,11 +96,11 @@ function calcBaseValues(payrollForm) {
   const vr = vrPerDay;
   // VT = valor dia direto do campo
   const vt = vtPerDay;
-  // Loc. Moto = aluguel / dias úteis (valor dia efetivo)
-  const moto = motoRental > 0 ? Math.round((motoRental / workingDays) * 10000) / 10000 : 0;
-  // VA = valor dia VA
+  // Loc. Moto = aluguel / dias úteis do CONTRATO (contract_working_days)
+  const moto = motoRental > 0 ? Math.round((motoRental / contractWorkingDays) * 10000) / 10000 : 0;
+  // VA = valor dia VA (usa workingDays do mês cheio)
   const va = foodVoucher > 0 ? Math.round((foodVoucher / workingDays) * 10000) / 10000 : 0;
-  // Aj. Custo = valor dia ajuda de custo
+  // Aj. Custo = valor dia ajuda de custo (usa workingDays do mês cheio)
   const ajcusto = costAllowance > 0 ? Math.round((costAllowance / workingDays) * 10000) / 10000 : 0;
 
   return { daily, vt, vr, dsr, moto, hazard, va, ajcusto };
