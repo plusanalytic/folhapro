@@ -184,16 +184,13 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       forMonth.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       setPointAdjustments(forMonth);
 
-      // Regra: se folha nova (sem entry.id) e há FALTA NÃO JUSTIFICADA → zera Bonificação por Presença
-      if (!entry?.id) {
-        const hasFaltaNaoJustificada = forMonth.some(a =>
-          a.adjustment_reason_description &&
-          a.adjustment_reason_description.toUpperCase().includes('FALTA NÃO JUSTIFICADA')
-        );
-        if (hasFaltaNaoJustificada) {
-          setForm(f => ({ ...f, attendance_bonus: 0 }));
-          setAttendanceBonusZeroedByAbsence(true);
-        }
+      // Verifica se há FALTA NÃO JUSTIFICADA para exibir aviso informativo
+      const hasFaltaNaoJustificada = forMonth.some(a =>
+        a.adjustment_reason_description &&
+        a.adjustment_reason_description.toUpperCase().includes('FALTA NÃO JUSTIFICADA')
+      );
+      if (hasFaltaNaoJustificada) {
+        setAttendanceBonusZeroedByAbsence(true);
       }
     });
   }, [employee.tangerino_id, referenceMonth]);
@@ -500,7 +497,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                     <div className="mt-1.5 flex items-start gap-1.5 bg-amber-50 border border-amber-300 rounded-md px-2.5 py-1.5">
                       <span className="text-amber-600 text-xs mt-0.5">⚠️</span>
                       <p className="text-xs text-amber-700">
-                        Bonificação por Presença zerada automaticamente — foi encontrada uma <strong>Falta Não Justificada</strong> nos ajustes de ponto deste mês.
+                        Há uma <strong>Falta Não Justificada</strong> registrada neste mês — a Bonificação por Presença foi ou será zerada automaticamente pelo sistema.
                       </p>
                     </div>
                   )}
