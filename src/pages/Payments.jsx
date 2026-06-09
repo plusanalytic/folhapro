@@ -369,8 +369,8 @@ export default function Payments() {
 
   const showQ1 = selectedPeriod !== 'q2';
   const showQ2 = selectedPeriod !== 'q1';
-  const totalCols = 5 + (showQ1 ? 4 : 0) + (showQ2 ? 4 : 0) + 1 + 6;
-  const tableMinWidth = 615 + (showQ1 ? 500 : 0) + (showQ2 ? 500 : 0) + 110 + 685;
+  const totalCols = 6 + (showQ1 ? 4 : 0) + (showQ2 ? 4 : 0) + 1 + 6;
+  const tableMinWidth = 655 + (showQ1 ? 500 : 0) + (showQ2 ? 500 : 0) + 110 + 685;
 
   const totalQ1 = sortedEntries.reduce((s, e) => s + getFirstNetDisplay(e, employees, jobRoles), 0);
   const totalQ2 = sortedEntries.reduce((s, e) => s + getSecondNetDisplay(e, employees, jobRoles), 0);
@@ -555,6 +555,7 @@ export default function Payments() {
         <table className="text-xs w-full" style={{ tableLayout: 'fixed', minWidth: `${tableMinWidth}px` }}>
           <colgroup>
             <col style={{ width: '180px' }} />
+            <col style={{ width: '40px' }} />
             <col style={{ width: '85px' }} />
             <col style={{ width: '110px' }} />
             <col style={{ width: '130px' }} />
@@ -582,6 +583,7 @@ export default function Payments() {
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b border-border">
               <th className="p-2 text-left font-bold text-white bg-primary" rowSpan={2}>COLABORADOR</th>
+              <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}></th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>ADMISSÃO</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>EMPRESA</th>
               <th className="p-2 text-center font-bold text-white bg-primary" rowSpan={2}>CARGO</th>
@@ -628,17 +630,15 @@ export default function Payments() {
               const disc2 = calcPeriodDebits(entry.second_discounts, absence.second);
               return (
                 <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-muted/10 ${idx % 2 === 1 ? 'bg-accent/20' : ''}`}>
-                  <td className="p-2 font-medium truncate" title={emp.name}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate">{emp.name}</span>
-                      <button
-                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                        title="Visualizar folha"
-                        onClick={() => setViewEntry({ entry, emp, jobRole: empJR, paymentStatus: ps })}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                  <td className="p-2 font-medium truncate" title={emp.name}>{emp.name}</td>
+                  <td className="p-2 text-center">
+                    <button
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      title="Visualizar folha"
+                      onClick={() => setViewEntry({ entry, emp, jobRole: empJR, paymentStatus: ps })}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                   <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(emp.admission_date)}</td>
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getCompanyName(entry)}>{getCompanyName(entry)}</td>

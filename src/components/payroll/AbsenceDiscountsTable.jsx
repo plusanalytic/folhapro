@@ -10,27 +10,28 @@ export const ABSENCE_REASON_IDS = new Set([5, 8, 16, 18, 19, 23, 24, 27, 2154902
 
 // Campos a calcular por motivo (null = nenhum desconto)
 // 'half' = metade de cada valor
+// va e ajcusto: só aplicados quando isMotocyclist (campos de CLT Moto)
 const REASON_COLS = {
-  5:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
-  8:       { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
-  16:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
-  18:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
-  19:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
-  23:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
-  24:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
-  27:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
-  2154902: { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true, half: true },
-  2157106: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
-  2160971: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
-  2169310: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false },
-  2170370: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
-  2173794: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  5:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  8:       { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
+  16:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
+  18:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
+  19:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
+  23:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  24:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  27:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
+  2154902: { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true, half: true },
+  2157106: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  2160971: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  2169310: { daily: false, vt: false, vr: false, dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  2170370: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  2173794: { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
 };
 
 // Retorna o total de uma linha de descontos
 export function rowTotal(disc) {
   if (!disc || typeof disc !== 'object') return 0;
-  return ['daily', 'vt', 'vr', 'dsr', 'moto', 'hazard'].reduce((s, k) => s + (parseFloat(disc[k]) || 0), 0);
+  return ['daily', 'vt', 'vr', 'dsr', 'moto', 'hazard', 'va', 'ajcusto'].reduce((s, k) => s + (parseFloat(disc[k]) || 0), 0);
 }
 
 // Retorna o total geral de absenceDiscounts
@@ -66,8 +67,10 @@ export function absenceDiscountByPeriod(absenceDiscounts) {
 //   VT          = valor dia vale transporte (campo direto)
 //   VR          = valor dia VR (campo direto)
 //   DSR         = (salário base / dias úteis) + (periculosidade / 30)
-//   Loc. Moto   = aluguel moto / dias úteis do mês
+//   Loc. Moto   = aluguel moto / dias úteis do mês (valor dia efetivo)
 //   Periculosidade = periculosidade / 30
+//   VA          = valor dia VA (food_voucher / full_month_contract_working_days)
+//   Aj. Custo   = valor dia ajuda de custo (cost_allowance / full_month_contract_working_days)
 function calcBaseValues(payrollForm) {
   // Salário base: usa clt_moto_base_salary se disponível, senão base_salary
   const baseSalary = parseFloat(payrollForm?.clt_moto_base_salary) || parseFloat(payrollForm?.base_salary) || 0;
@@ -78,6 +81,8 @@ function calcBaseValues(payrollForm) {
   const vtPerDay = parseFloat(payrollForm?.transport_voucher_day_value) || 0;
   const motoRental = parseFloat(payrollForm?.motorcycle_rental) || 0;
   const hazardPay = parseFloat(payrollForm?.hazard_pay) || 0;
+  const foodVoucher = parseFloat(payrollForm?.food_voucher) || 0;
+  const costAllowance = parseFloat(payrollForm?.cost_allowance) || 0;
 
   // Valor dia salário base
   const daily = baseSalary > 0 ? Math.round((baseSalary / workingDays) * 10000) / 10000 : 0;
@@ -89,10 +94,14 @@ function calcBaseValues(payrollForm) {
   const vr = vrPerDay;
   // VT = valor dia direto do campo
   const vt = vtPerDay;
-  // Loc. Moto = aluguel / dias úteis
+  // Loc. Moto = aluguel / dias úteis (valor dia efetivo)
   const moto = motoRental > 0 ? Math.round((motoRental / workingDays) * 10000) / 10000 : 0;
+  // VA = valor dia VA
+  const va = foodVoucher > 0 ? Math.round((foodVoucher / workingDays) * 10000) / 10000 : 0;
+  // Aj. Custo = valor dia ajuda de custo
+  const ajcusto = costAllowance > 0 ? Math.round((costAllowance / workingDays) * 10000) / 10000 : 0;
 
-  return { daily, vt, vr, dsr, moto, hazard };
+  return { daily, vt, vr, dsr, moto, hazard, va, ajcusto };
 }
 
 // Aplica as regras do motivo ao valor base
@@ -103,12 +112,14 @@ function calcAutoForReason(reasonId, payrollForm, isMotocyclist) {
 
   const factor = rules.half ? 0.5 : 1;
   return {
-    daily:  rules.daily  ? Math.round(base.daily  * factor * 100) / 100 : 0,
-    vt:     rules.vt     ? Math.round(base.vt     * factor * 100) / 100 : 0,
-    vr:     rules.vr     ? Math.round(base.vr     * factor * 100) / 100 : 0,
-    dsr:    rules.dsr    ? Math.round(base.dsr    * factor * 100) / 100 : 0,
-    moto:   (rules.moto   && isMotocyclist) ? Math.round(base.moto   * factor * 100) / 100 : 0,
-    hazard: (rules.hazard && isMotocyclist) ? Math.round(base.hazard * factor * 100) / 100 : 0,
+    daily:   rules.daily   ? Math.round(base.daily   * factor * 100) / 100 : 0,
+    vt:      rules.vt      ? Math.round(base.vt      * factor * 100) / 100 : 0,
+    vr:      rules.vr      ? Math.round(base.vr      * factor * 100) / 100 : 0,
+    dsr:     rules.dsr     ? Math.round(base.dsr     * factor * 100) / 100 : 0,
+    moto:    (rules.moto    && isMotocyclist) ? Math.round(base.moto    * factor * 100) / 100 : 0,
+    hazard:  (rules.hazard  && isMotocyclist) ? Math.round(base.hazard  * factor * 100) / 100 : 0,
+    va:      (rules.va      && isMotocyclist) ? Math.round(base.va      * factor * 100) / 100 : 0,
+    ajcusto: (rules.ajcusto && isMotocyclist) ? Math.round(base.ajcusto * factor * 100) / 100 : 0,
   };
 }
 
@@ -157,10 +168,16 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
       absenceRows.forEach(a => {
         const key = String(a.date ? `${a.tangerino_id}-${a.date}` : (a.tangerino_id || a.id));
         const existing = prev[key];
+
+        // Verifica se o dia cai em quinzena bloqueada — nunca recalcula se bloqueada
+        const rowDay = a.date ? parseInt(a.date.split('-')[2], 10) : 0;
+        const rowPeriodLocked = rowDay > 0 && (rowDay <= 15 ? !!lockedPeriods.first : !!lockedPeriods.second);
+        if (rowPeriodLocked) return; // preserva o valor já lançado/pago
+
         // Domingo nunca gera desconto
         const dow = a.date ? new Date(a.date + 'T00:00:00').getDay() : -1;
         if (dow === 0) {
-          next[key] = { daily: 0, vt: 0, vr: 0, dsr: 0, moto: 0, hazard: 0, _sunday: true };
+          next[key] = { daily: 0, vt: 0, vr: 0, dsr: 0, moto: 0, hazard: 0, va: 0, ajcusto: 0, _sunday: true };
           return;
         }
         // Só auto-preenche se: nunca preenchido OU totalmente zerado E não foi editado manualmente
@@ -286,6 +303,8 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
               {isMotocyclist && <>
                 <th className="text-right px-2 py-2 font-medium text-destructive">Loc. Moto</th>
                 <th className="text-right px-2 py-2 font-medium text-destructive">Periculosidade</th>
+                <th className="text-right px-2 py-2 font-medium text-destructive">VA</th>
+                <th className="text-right px-2 py-2 font-medium text-destructive">Aj. Custo</th>
               </>}
               {!readOnly && <th className="text-center px-2 py-2 font-medium text-muted-foreground">Auto</th>}
               <th className="text-left px-2 py-2 font-medium text-muted-foreground min-w-[120px]">Nota</th>
@@ -323,7 +342,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
 
                   {isAbsence && isSunday ? (
                     <>
-                      <td className="px-2 py-2 text-center text-muted-foreground text-xs" colSpan={isMotocyclist ? (readOnly ? 7 : 8) : (readOnly ? 5 : 6)}>
+                      <td className="px-2 py-2 text-center text-muted-foreground text-xs" colSpan={isMotocyclist ? (readOnly ? 9 : 10) : (readOnly ? 5 : 6)}>
                         Domingo — sem desconto
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground bg-muted/30">—</td>
@@ -337,6 +356,8 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                       {isMotocyclist && <>
                         <td className="px-2 py-1.5">{renderCell(key, 'moto')}</td>
                         <td className="px-2 py-1.5">{renderCell(key, 'hazard')}</td>
+                        <td className="px-2 py-1.5">{renderCell(key, 'va')}</td>
+                        <td className="px-2 py-1.5">{renderCell(key, 'ajcusto')}</td>
                       </>}
                       {!readOnly && (() => {
                         const rowDay = a.date ? parseInt(a.date.split('-')[2], 10) : 0;
@@ -378,6 +399,8 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
                       {isMotocyclist && <>
                         <td className="px-2 py-2 text-center text-muted-foreground">—</td>
                         <td className="px-2 py-2 text-center text-muted-foreground">—</td>
+                        <td className="px-2 py-2 text-center text-muted-foreground">—</td>
+                        <td className="px-2 py-2 text-center text-muted-foreground">—</td>
                       </>}
                       {!readOnly && <td className="px-2 py-2 text-center text-muted-foreground">—</td>}
                       <td className="px-2 py-1.5">
@@ -397,7 +420,7 @@ export default function AbsenceDiscountsTable({ pointAdjustments, absenceDiscoun
           {absenceRows.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 border-t-2 border-border font-semibold">
-                <td colSpan={isMotocyclist ? (readOnly ? 10 : 11) : (readOnly ? 8 : 9)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
+                <td colSpan={isMotocyclist ? (readOnly ? 12 : 13) : (readOnly ? 8 : 9)} className="px-3 py-2 text-right text-muted-foreground text-xs uppercase tracking-wide">
                   Total Desconto Faltas
                 </td>
                 <td className="px-3 py-2 text-right font-mono text-destructive">
