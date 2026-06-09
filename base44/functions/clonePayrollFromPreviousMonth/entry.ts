@@ -308,7 +308,11 @@ Deno.serve(async (req) => {
     const workplaceMap = {};
     for (const w of allWorkplaces) if (w.tangerino_id) workplaceMap[String(w.tangerino_id)] = w;
     const existingMap = {};
-    for (const e of existingEntries) existingMap[e.employee_id] = e.id;
+    const closedEntryEmployeeIds = new Set();
+    for (const e of existingEntries) {
+      existingMap[e.employee_id] = e.id;
+      if (e.status === 'closed') closedEntryEmployeeIds.add(e.employee_id);
+    }
 
     function isFiredBeforeMonth(emp) {
       if (!emp || emp.is_active !== false) return false;
@@ -325,14 +329,15 @@ Deno.serve(async (req) => {
       return emp.birth_date.slice(5, 7) === target_month.slice(5, 7);
     }
 
-    let cloned = 0, skipped = 0, skippedFired = 0;
+    let cloned = 0, skipped = 0, skippedFired = 0, skippedClosed = 0;
     const errors = [];
 
     for (const prev of prevEntries) {
       const emp = empMap[prev.employee_id];
 
-      if (isFiredBeforeMonth(emp))  { skippedFired++; continue; }
-      if (isEsporadico(emp))        { skipped++;      continue; }
+      if (isFiredBeforeMonth(emp))                    { skippedFired++;   continue; }
+      if (isEsporadico(emp))                          { skipped++;        continue; }
+      if (closedEntryEmployeeIds.has(prev.employee_id)) { skippedClosed++; continue; }
 
       // CashOuts do mês alvo para este colaborador
       const empCashOuts = targetCashOuts.filter(c =>
@@ -582,8 +587,8 @@ Deno.serve(async (req) => {
     }
 
     return Response.json({
-      cloned, skipped, skippedFired, errors, prev_month, target_month,
-      message: `${cloned} lançamento(s) calculado(s) e clonado(s) de ${prev_month} para ${target_month}.${skippedFired > 0 ? ` ${skippedFired} ignorado(s) por demissão.` : ''}${errors.length > 0 ? ` ${errors.length} erro(s).` : ''}`,
+      cloned, skipped, skippedFired, skippedClosed, errors, prev_month, target_month,
+      message: `${cloned} lançamento(s) clonado(s) de ${prev_month} para ${target_month}.${skippedClosed > 0 ? ` ${skippedClosed} não clonado(s) por estarem fechados.` : ''}${skippedFired > 0 ? ` ${skippedFired} ignorado(s) por demissão.` : ''}${errors.length > 0 ? ` ${errors.length} erro(s).` : ''}`,
     });
 
   } catch (error) {

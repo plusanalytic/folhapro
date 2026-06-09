@@ -440,10 +440,18 @@ export default function Payroll() {
       const res = await base44.functions.invoke('clonePayrollFromPreviousMonth', payload);
       const data = res.data;
       setCloneDialog(false);
-      if (data.cloned === 0 && data.skipped === 0) {
+      if (data.cloned === 0 && data.skipped === 0 && !data.skippedClosed) {
         toast.info(data.message || 'Nenhum lançamento encontrado no mês anterior.');
       } else {
-        toast.success(data.message || `${data.cloned} lançamentos clonados!`);
+        const msg = data.message || `${data.cloned} lançamentos clonados!`;
+        if (data.skippedClosed > 0 && data.cloned === 0) {
+          toast.warning(msg);
+        } else {
+          toast.success(msg);
+        }
+        if (data.skippedClosed > 0 && data.cloned > 0) {
+          toast.warning(`${data.skippedClosed} folha(s) não foram clonadas por estarem com status Fechado.`);
+        }
         logAudit({
           action: 'clone',
           entity_type: 'PayrollEntry',
