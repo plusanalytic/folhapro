@@ -167,6 +167,21 @@ export default function Payroll() {
       savedId = created?.id;
     }
     const companyName = companies.find(c => c.id === (data.company_id || editingEmployee?.company_id))?.name || '';
+
+    // Calcula campos alterados comparando com a entry anterior
+    let changedFields = [];
+    if (existing) {
+      const IGNORE_KEYS = ['id', 'created_date', 'updated_date', 'created_by_id'];
+      changedFields = Object.keys(data).filter(k => {
+        if (IGNORE_KEYS.includes(k)) return false;
+        const oldVal = existing[k];
+        const newVal = data[k];
+        // Comparação simples; trata undefined/null como 0 para campos numéricos
+        const norm = v => (v === undefined || v === null) ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+        return norm(oldVal) !== norm(newVal);
+      });
+    }
+
     logAudit({
       action: existing ? 'update' : 'create',
       entity_type: 'PayrollEntry',
@@ -180,7 +195,7 @@ export default function Payroll() {
       description: existing
         ? `Folha de ${editingEmployee?.name} editada — ${getMonthName(selectedMonth)} (${companyName})`
         : `Novo lançamento criado para ${editingEmployee?.name} — ${getMonthName(selectedMonth)} (${companyName})`,
-      details: { net_total: data.net_total, gross_total: data.gross_total },
+      details: existing && changedFields.length > 0 ? { changed_fields: changedFields } : {},
     });
     setShowForm(false);
     setEditingEntry(null);

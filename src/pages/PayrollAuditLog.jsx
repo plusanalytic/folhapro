@@ -42,9 +42,10 @@ function LogRow({ log }) {
 
   const fmtDate = (d) => {
     try {
-      return format(parseISO(d), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+      const date = new Date(d);
+      return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
     } catch {
-      return d;
+      return d || '—';
     }
   };
 
@@ -107,15 +108,26 @@ function LogRow({ log }) {
       {/* Detalhes expandidos */}
       {expanded && hasDetails && (
         <div className="px-12 pb-3">
-          <div className="bg-muted/30 rounded-lg p-3 text-xs font-mono space-y-1">
-            {Object.entries(log.details).map(([k, v]) => (
-              <div key={k} className="flex gap-2">
-                <span className="text-muted-foreground min-w-32">{k}:</span>
-                <span className="text-foreground break-all">
-                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                </span>
+          <div className="bg-muted/30 rounded-lg p-3 text-xs space-y-1">
+            {log.details.changed_fields && Array.isArray(log.details.changed_fields) ? (
+              <div>
+                <span className="text-muted-foreground font-medium block mb-1.5">Campos alterados:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {log.details.changed_fields.map(f => (
+                    <span key={f} className="bg-blue-100 text-blue-800 border border-blue-200 rounded px-2 py-0.5 font-mono text-xs">{f}</span>
+                  ))}
+                </div>
               </div>
-            ))}
+            ) : (
+              Object.entries(log.details).map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <span className="text-muted-foreground min-w-32 font-medium">{k}:</span>
+                  <span className="text-foreground break-all font-mono">
+                    {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
