@@ -308,10 +308,11 @@ Deno.serve(async (req) => {
     const workplaceMap = {};
     for (const w of allWorkplaces) if (w.tangerino_id) workplaceMap[String(w.tangerino_id)] = w;
     const existingMap = {};
-    const closedEntryEmployeeIds = new Set();
+    const closedEntryKeys = new Set();
     for (const e of existingEntries) {
-      existingMap[e.employee_id] = e.id;
-      if (e.status === 'closed') closedEntryEmployeeIds.add(e.employee_id);
+      const key = `${e.employee_id}_${e.company_id}`;
+      existingMap[key] = e.id;
+      if (e.status === 'closed') closedEntryKeys.add(key);
     }
 
     function isFiredBeforeMonth(emp) {
@@ -337,7 +338,8 @@ Deno.serve(async (req) => {
 
       if (isFiredBeforeMonth(emp))                    { skippedFired++;   continue; }
       if (isEsporadico(emp))                          { skipped++;        continue; }
-      if (closedEntryEmployeeIds.has(prev.employee_id)) { skippedClosed++; continue; }
+      const entryKey = `${prev.employee_id}_${prev.company_id}`;
+      if (closedEntryKeys.has(entryKey))              { skippedClosed++; continue; }
 
       // CashOuts do mês alvo para este colaborador
       const empCashOuts = targetCashOuts.filter(c =>
@@ -573,7 +575,7 @@ Deno.serve(async (req) => {
 
       // Persiste
       try {
-        const existingId = existingMap[prev.employee_id];
+        const existingId = existingMap[entryKey];
         if (existingId) {
           await updateWithRetry(base44, 'PayrollEntry', existingId, newEntry);
         } else {
