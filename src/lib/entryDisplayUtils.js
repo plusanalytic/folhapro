@@ -74,7 +74,7 @@ export function getAbsenceByPeriod(entry) {
     let second = 0;
     for (const [key, disc] of Object.entries(entry.absence_discounts)) {
       if (!disc || typeof disc !== 'object') continue;
-      const total = ['daily', 'vt', 'vr', 'dsr', 'moto', 'hazard'].reduce((s, k) => s + (parseFloat(disc[k]) || 0), 0);
+      const total = ['daily', 'vt', 'vr', 'dsr', 'moto', 'hazard', 'va', 'ajcusto'].reduce((s, k) => s + (parseFloat(disc[k]) || 0), 0);
       const dateMatch = key.match(/(\d{4}-\d{2}-(\d{2}))$/);
       const day = dateMatch ? parseInt(dateMatch[2], 10) : 0;
       if (day >= 1 && day <= 15) {
