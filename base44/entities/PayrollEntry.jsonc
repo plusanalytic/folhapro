@@ -99,6 +99,21 @@
       "type": "number",
       "default": 0
     },
+    "fixed_transport_voucher": {
+      "type": "number",
+      "default": 0,
+      "description": "Escrit\u00f3rio: Vale Transporte Fixo (valor mensal base)"
+    },
+    "fixed_transport_voucher_working_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Escrit\u00f3rio: Dias \u00fateis do m\u00eas para c\u00e1lculo do VT Fixo"
+    },
+    "fixed_transport_voucher_worked_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Escrit\u00f3rio: Dias \u00fateis trabalhados para c\u00e1lculo do VT Fixo"
+    },
     "km_bonus_qty": {
       "type": "number",
       "default": 0
