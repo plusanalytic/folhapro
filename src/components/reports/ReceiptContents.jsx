@@ -741,11 +741,16 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
   const secondNet = Math.round((secondBase + (entry?.food_voucher ?? 0) + (entry?.bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.birthday_bonus ?? 0) - (entry?.second_period_discount ?? secondDiscountTotal) - escAbsenceSecond) * 100) / 100;
   const monthName = getMonthName(month);
 
-  const pisoSalarial = entry?.base_salary ?? 0;
-  const pisoLabel = 'Piso Salarial / Salário Efetivo';
+  const pisoBase = entry?.base_salary ?? 0;
+  const workedDaysEsc = entry?.working_days_month ?? 30;
+  const valorDiaEsc = pisoBase > 0 ? pisoBase / 30 : 0;
+  const effectiveSalaryEsc = Math.round(valorDiaEsc * workedDaysEsc * 100) / 100;
+  const pisoLabel = workedDaysEsc !== 30
+    ? `Salário Efetivo (${workedDaysEsc}/30 dias)`
+    : 'Piso Salarial / Salário Efetivo';
 
   const proventosConv = [
-    { label: pisoLabel, value: pisoSalarial, show: true },
+    { label: pisoLabel, value: effectiveSalaryEsc, show: true },
     { label: 'Bonificação Extra', value: entry?.extra_bonus ?? 0, show: (entry?.extra_bonus ?? 0) > 0 },
     { label: `Vale Refeição (${entry?.meal_voucher_days ?? 0}d × ${formatCurrency(entry?.meal_voucher_day_value ?? 0)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
   ].filter(x => x.show);
