@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import PayrollEntryForm from '@/components/payroll/PayrollEntryForm';
+import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
@@ -715,7 +716,17 @@ export default function Payments() {
         onCancel={() => setPagoConfirm(null)}
       />
 
-      {viewEntry && (
+      {viewEntry && viewEntry.emp?.contract_type === 'ESPORADICO' ? (
+        <EsporadicoPayrollForm
+          employee={viewEntry.emp}
+          entry={viewEntry.entry}
+          referenceMonth={selectedMonth}
+          onSave={() => {}}
+          onClose={() => setViewEntry(null)}
+          readOnly={true}
+          paymentStatus={viewEntry.paymentStatus}
+        />
+      ) : viewEntry ? (
         <PayrollEntryForm
           employee={viewEntry.emp}
           entry={viewEntry.entry}
@@ -727,7 +738,7 @@ export default function Payments() {
           paymentStatus={viewEntry.paymentStatus}
           workplaces={workplaces}
         />
-      )}
+      ) : null}
     </div>
   );
 }
