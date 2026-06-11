@@ -114,6 +114,11 @@
       "default": 0,
       "description": "Escrit\u00f3rio: Dias \u00fateis trabalhados para c\u00e1lculo do VT Fixo proporcional"
     },
+    "fixed_transport_voucher_discount_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "Escrit\u00f3rio: % de desconto sobre o VT Fixo efetivo (descontado na conven\u00e7\u00e3o)"
+    },
     "km_bonus_qty": {
       "type": "number",
       "default": 0
@@ -263,7 +268,7 @@
     "first_period_base": {
       "type": "number",
       "default": 0,
-      "description": "Base da 1\u00aa quinzena (valor fixo salvo \u2014 usado quando first_period_base_locked = true)"
+      "description": "Base da 1\u00aa quinzena"
     },
     "second_period_base": {
       "type": "number",
@@ -272,8 +277,7 @@
     },
     "first_period_base_locked": {
       "type": "boolean",
-      "default": false,
-      "description": "Quando true, a Base da 1\u00aa Quinzena foi congelada (1\u00aa quinzena j\u00e1 paga). Impede rec\u00e1lculo pelo split."
+      "default": false
     },
     "gross_total": {
       "type": "number"

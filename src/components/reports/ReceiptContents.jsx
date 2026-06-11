@@ -724,6 +724,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
     fixed_transport_voucher: entry?.fixed_transport_voucher ?? 0,
     fixed_transport_voucher_working_days_month: entry?.fixed_transport_voucher_working_days_month ?? 0,
     fixed_transport_voucher_worked_days: entry?.fixed_transport_voucher_worked_days ?? 0,
+    fixed_transport_voucher_discount_pct: entry?.fixed_transport_voucher_discount_pct ?? 0,
     absence_discount_first: entry?.absence_discount_first ?? 0,
     absence_discount_second: entry?.absence_discount_second ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
@@ -761,6 +762,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
 
   const descontosConv = [
     { label: `Desconto VT (${entry?.transport_voucher_discount_pct ?? 0}%)`, value: calc.transport_voucher_discount, show: calc.transport_voucher_discount > 0 },
+    { label: `Desconto VT Fixo (${entry?.fixed_transport_voucher_discount_pct ?? 0}%)`, value: calc.fixed_transport_voucher_discount ?? 0, show: (calc.fixed_transport_voucher_discount ?? 0) > 0 },
     { label: `Desconto VR (${entry?.meal_voucher_discount_pct ?? 0}%)`, value: calc.meal_voucher_discount, show: calc.meal_voucher_discount > 0 },
     { label: `INSS (${entry?.inss_pct ?? 0}%)`, value: calc.inss_net, show: calc.inss_net > 0 },
   ].filter(x => x.show);

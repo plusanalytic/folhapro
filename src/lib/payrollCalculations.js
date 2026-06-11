@@ -202,20 +202,7 @@ export function calculateEscritorioPayroll(entry) {
   // Custo total convenção coletiva (apenas piso + VR)
   const totalConvencao = piso + mealVoucher;
 
-  // Descontos convenção
-  const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
-  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
-
-  // INSS sobre piso salarial
-  const inssPct = entry.inss_pct || 0;
-  const inssGross = Math.round(piso * (inssPct / 100) * 100) / 100;
-  const inssDeduction = entry.inss_deduction || 0;
-  const inssNet = Math.max(0, Math.round((inssGross - inssDeduction) * 100) / 100);
-
-  const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount + inssNet;
-  const liquidoConvencao = totalConvencao - totalDescConvencao;
-
-  // Outros benefícios
+  // Outros benefícios — calculados antes para usar o fixedVTResult nos descontos convenção
   const dental = entry.dental_plan || 0;
   const foodVoucher = entry.food_voucher || 0;
   const birthdayBonus = entry.birthday_bonus || 0;
@@ -229,7 +216,24 @@ export function calculateEscritorioPayroll(entry) {
   const fixedVTWorkedDays = entry.fixed_transport_voucher_worked_days || 0;
   const fixedVTDayValue = (fixedVTTotal > 0 && fixedVTWorkingDays > 0) ? fixedVTTotal / fixedVTWorkingDays : 0;
   const fixedVTResult = Math.round(fixedVTDayValue * fixedVTWorkedDays * 100) / 100;
+
+  // Descontos convenção
+  const transportVoucherDiscount = Math.round(transportVoucher * ((entry.transport_voucher_discount_pct || 0) / 100) * 100) / 100;
+  const mealVoucherDiscount = Math.round(mealVoucher * ((entry.meal_voucher_discount_pct || 0) / 100) * 100) / 100;
+  // Desconto VT Fixo (%) sobre o valor efetivo do VT Fixo
+  const fixedTransportVoucherDiscountPct = entry.fixed_transport_voucher_discount_pct || 0;
+  const fixedTransportVoucherDiscount = Math.round(fixedVTResult * (fixedTransportVoucherDiscountPct / 100) * 100) / 100;
+
+  // INSS sobre piso salarial
+  const inssPct = entry.inss_pct || 0;
+  const inssGross = Math.round(piso * (inssPct / 100) * 100) / 100;
+  const inssDeduction = entry.inss_deduction || 0;
+  const inssNet = Math.max(0, Math.round((inssGross - inssDeduction) * 100) / 100);
+
+  const totalDescConvencao = transportVoucherDiscount + mealVoucherDiscount + inssNet + fixedTransportVoucherDiscount;
+  const liquidoConvencao = totalConvencao - totalDescConvencao;
   // Todos os benefícios extras exibidos na seção "Outros Benefícios"
+  // O VT Fixo entra líquido do desconto nos "outros benefícios" (o desconto já foi subtraído no líquido convenção)
   const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + attendanceBonus + birthdayBonus + fixedVTResult;
 
   // Desconto de faltas por quinzena (faltas não afetam bruto/net_total — descontadas nas quinzenas)
@@ -270,6 +274,7 @@ export function calculateEscritorioPayroll(entry) {
     inss_deduction: inssDeduction,
     transport_voucher_discount: transportVoucherDiscount,
     meal_voucher_discount: mealVoucherDiscount,
+    fixed_transport_voucher_discount: fixedTransportVoucherDiscount,
     total_desc_convencao: Math.round(totalDescConvencao * 100) / 100,
     liquido_convencao: Math.round(liquidoConvencao * 100) / 100,
     total_outros_beneficios: Math.round(totalOutrosBeneficios * 100) / 100,

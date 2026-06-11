@@ -125,6 +125,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     fixed_transport_voucher: entry?.fixed_transport_voucher ?? 0,
     fixed_transport_voucher_working_days_month: entry?.fixed_transport_voucher_working_days_month > 0 ? entry.fixed_transport_voucher_working_days_month : workingDays,
     fixed_transport_voucher_worked_days: entry?.fixed_transport_voucher_worked_days > 0 ? entry.fixed_transport_voucher_worked_days : workingDays,
+    fixed_transport_voucher_discount_pct: entry?.fixed_transport_voucher_discount_pct ?? 0,
     // Geral
     first_period_advance: entry?.first_period_advance ?? 0,
     notes: entry?.notes ?? '',
@@ -309,6 +310,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       fixed_transport_voucher: form.fixed_transport_voucher,
       fixed_transport_voucher_working_days_month: form.fixed_transport_voucher_working_days_month,
       fixed_transport_voucher_worked_days: form.fixed_transport_voucher_worked_days,
+      fixed_transport_voucher_discount_pct: form.fixed_transport_voucher_discount_pct,
       meal_voucher: calc.meal_voucher,
       transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
@@ -580,6 +582,12 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                   <div className="flex gap-2 items-center">
                     <NumInput {...numInputProps('transport_voucher_discount_pct', { min: '0', placeholder: '%' })} />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.transport_voucher_discount)}</span>
+                  </div>
+                </FormRow>
+                <FormRow label="Desconto VT Fixo (%)" hint="% sobre o VT Fixo efetivo">
+                  <div className="flex gap-2 items-center">
+                    <NumInput {...numInputProps('fixed_transport_voucher_discount_pct', { min: '0', placeholder: '%' })} />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">= {formatCurrency(calc.fixed_transport_voucher_discount ?? 0)}</span>
                   </div>
                 </FormRow>
                 <FormRow label="Desconto Vale Refeição (%)" hint="% sobre o valor do vale refeição">
