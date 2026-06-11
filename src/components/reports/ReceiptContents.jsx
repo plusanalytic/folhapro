@@ -699,9 +699,14 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
 
 // ─── Holerite Escritório ──────────────────────────────────────────────────────
 export function EscritorioHoleriteContent({ employee, entry, month, company, paymentStatus }) {
+  // Salário efetivo = piso ÷ 30 × dias trabalhados (mesmo cálculo do formulário)
+  const _pisoBase = entry?.base_salary ?? 0;
+  const _workedDays = entry?.working_days_month ?? 30;
+  const _effectiveSalary = Math.round((_pisoBase / 30) * _workedDays * 100) / 100;
+
   // Recalcula apenas os campos de convenção (sem tocar nas quinzenas que vêm do entry)
   const calc = calculateEscritorioPayroll({
-    base_salary: entry?.base_salary ?? 0,
+    base_salary: _effectiveSalary,
     extra_bonus: entry?.extra_bonus ?? 0,
     meal_voucher_day_value: entry?.meal_voucher_day_value ?? 0,
     meal_voucher_days: entry?.meal_voucher_days ?? 0,
@@ -741,16 +746,12 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
   const secondNet = Math.round((secondBase + (entry?.food_voucher ?? 0) + (entry?.bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.birthday_bonus ?? 0) - (entry?.second_period_discount ?? secondDiscountTotal) - escAbsenceSecond) * 100) / 100;
   const monthName = getMonthName(month);
 
-  const pisoBase = entry?.base_salary ?? 0;
-  const workedDaysEsc = entry?.working_days_month ?? 30;
-  const valorDiaEsc = pisoBase > 0 ? pisoBase / 30 : 0;
-  const effectiveSalaryEsc = Math.round(valorDiaEsc * workedDaysEsc * 100) / 100;
-  const pisoLabel = workedDaysEsc !== 30
-    ? `Salário Efetivo (${workedDaysEsc}/30 dias)`
+  const pisoLabel = _workedDays !== 30
+    ? `Salário Efetivo (${_workedDays}/30 dias)`
     : 'Piso Salarial / Salário Efetivo';
 
   const proventosConv = [
-    { label: pisoLabel, value: effectiveSalaryEsc, show: true },
+    { label: pisoLabel, value: _effectiveSalary, show: true },
     { label: 'Bonificação Extra', value: entry?.extra_bonus ?? 0, show: (entry?.extra_bonus ?? 0) > 0 },
     { label: `Vale Refeição (${entry?.meal_voucher_days ?? 0}d × ${formatCurrency(entry?.meal_voucher_day_value ?? 0)})`, value: calc.meal_voucher, show: calc.meal_voucher > 0 },
   ].filter(x => x.show);
@@ -830,7 +831,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
             );
           })}
           <tr>
-            <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf' }}>TOTAL BRUTO CONV.</td>
+            <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf' }}>TOTAL BRUTO</td>
             <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#ede9fe', borderTop: '2px solid #6a3eaf', color: '#2563eb', fontFamily: 'monospace' }}>{formatCurrency(calc.gross_total)}</td>
             <td style={{ padding: '6px 10px', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', borderLeft: '1px solid #e8e4f5' }}>TOTAL DESCONTOS</td>
             <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', background: '#fee2e2', borderTop: '2px solid #dc2626', color: '#dc2626', fontFamily: 'monospace' }}>{formatCurrency(totalDescontosConv)}</td>
