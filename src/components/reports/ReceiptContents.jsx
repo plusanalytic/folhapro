@@ -721,6 +721,9 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
     bonus: entry?.bonus ?? 0,
     attendance_bonus: entry?.attendance_bonus ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
+    fixed_transport_voucher: entry?.fixed_transport_voucher ?? 0,
+    fixed_transport_voucher_working_days_month: entry?.fixed_transport_voucher_working_days_month ?? 0,
+    fixed_transport_voucher_worked_days: entry?.fixed_transport_voucher_worked_days ?? 0,
     absence_discount_first: entry?.absence_discount_first ?? 0,
     absence_discount_second: entry?.absence_discount_second ?? 0,
     first_period_advance: entry?.first_period_advance ?? 0,
@@ -767,6 +770,7 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
 
   const outrosBeneficios = [
     { label: `Vale Transporte (${entry?.transport_voucher_days ?? 0}d × ${formatCurrency(entry?.transport_voucher_day_value ?? 0)})`, value: calc.transport_voucher, show: calc.transport_voucher > 0 },
+    { label: `VT Fixo (${entry?.fixed_transport_voucher_worked_days ?? 0}d trabalhados / ${entry?.fixed_transport_voucher_working_days_month ?? 0}d úteis)`, value: calc.fixed_transport_voucher_result ?? 0, show: (calc.fixed_transport_voucher_result ?? 0) > 0 },
     { label: 'Seguro Odontológico', value: entry?.dental_plan ?? 0, show: (entry?.dental_plan ?? 0) > 0 },
     { label: 'Vale Alimentação', value: entry?.food_voucher ?? 0, show: (entry?.food_voucher ?? 0) > 0 },
     // Bonificações aparecem apenas na 2ª quinzena — não entram no split do líquido convenção

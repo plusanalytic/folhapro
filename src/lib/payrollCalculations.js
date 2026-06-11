@@ -223,8 +223,14 @@ export function calculateEscritorioPayroll(entry) {
   const attendanceBonus = entry.attendance_bonus || 0;
   // extra_bonus: bonificação extra que SOMA ao salário para base de rateio quinzenal
   const extraBonus = entry.extra_bonus || 0;
+  // VT Fixo: valor fixo ÷ dias úteis × dias trabalhados
+  const fixedVTTotal = entry.fixed_transport_voucher || 0;
+  const fixedVTWorkingDays = entry.fixed_transport_voucher_working_days_month || 0;
+  const fixedVTWorkedDays = entry.fixed_transport_voucher_worked_days || 0;
+  const fixedVTDayValue = (fixedVTTotal > 0 && fixedVTWorkingDays > 0) ? fixedVTTotal / fixedVTWorkingDays : 0;
+  const fixedVTResult = Math.round(fixedVTDayValue * fixedVTWorkedDays * 100) / 100;
   // Todos os benefícios extras exibidos na seção "Outros Benefícios"
-  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + attendanceBonus + birthdayBonus;
+  const totalOutrosBeneficios = transportVoucher + dental + foodVoucher + bonus + attendanceBonus + birthdayBonus + fixedVTResult;
 
   // Desconto de faltas por quinzena (faltas não afetam bruto/net_total — descontadas nas quinzenas)
   const absenceFirst = entry.absence_discount_first || 0;
@@ -256,6 +262,8 @@ export function calculateEscritorioPayroll(entry) {
   return {
     meal_voucher: mealVoucher,
     transport_voucher: transportVoucher,
+    fixed_transport_voucher_result: fixedVTResult,
+    fixed_transport_voucher_day_value: Math.round(fixedVTDayValue * 10000) / 10000,
     total_convencao: Math.round(totalConvencao * 100) / 100,
     inss: inssGross,
     inss_net: inssNet,

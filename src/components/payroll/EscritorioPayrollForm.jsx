@@ -121,6 +121,10 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     dental_plan: entry?.dental_plan ?? 0,
     food_voucher: entry?.food_voucher ?? 0,
     birthday_bonus: entry?.birthday_bonus ?? 0,
+    // VT Fixo
+    fixed_transport_voucher: entry?.fixed_transport_voucher ?? 0,
+    fixed_transport_voucher_working_days_month: entry?.fixed_transport_voucher_working_days_month > 0 ? entry.fixed_transport_voucher_working_days_month : workingDays,
+    fixed_transport_voucher_worked_days: entry?.fixed_transport_voucher_worked_days > 0 ? entry.fixed_transport_voucher_worked_days : workingDays,
     // Geral
     first_period_advance: entry?.first_period_advance ?? 0,
     notes: entry?.notes ?? '',
@@ -302,6 +306,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
       extra_bonus: form.extra_bonus,
       bonus: form.bonus,
       attendance_bonus: form.attendance_bonus,
+      fixed_transport_voucher: form.fixed_transport_voucher,
+      fixed_transport_voucher_working_days_month: form.fixed_transport_voucher_working_days_month,
+      fixed_transport_voucher_worked_days: form.fixed_transport_voucher_worked_days,
       meal_voucher: calc.meal_voucher,
       transport_voucher: calc.transport_voucher,
       meal_voucher_discount: calc.meal_voucher_discount,
@@ -479,6 +486,43 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <FormRow label="Vale Alimentação">
                   <NumInput {...numInputProps('food_voucher')} />
                 </FormRow>
+              </div>
+
+              {/* ── VT Fixo ── */}
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vale Transporte Fixo</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Valor Mensal VT Fixo (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Valor total do mês</p>
+                    <NumInput {...numInputProps('fixed_transport_voucher', { className: 'mt-1' })} />
+                  </div>
+                  <div>
+                    <Label>Dias Úteis do Mês</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Total de dias úteis</p>
+                    <NumInput {...numInputProps('fixed_transport_voucher_working_days_month', { step: '1', min: '0', className: 'mt-1' })} />
+                  </div>
+                  <div>
+                    <Label>Valor Dia VT Fixo (R$)</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Mensal ÷ dias úteis</p>
+                    <div className="mt-1 px-3 py-2 rounded-md border border-border bg-muted/30 font-mono text-sm font-semibold text-primary">
+                      {formatCurrency(calc.fixed_transport_voucher_day_value ?? 0)}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 items-end">
+                  <div>
+                    <Label>Dias Úteis Trabalhados</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Dias efetivamente trabalhados</p>
+                    <NumInput {...numInputProps('fixed_transport_voucher_worked_days', { step: '1', min: '0', className: 'mt-1' })} />
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between bg-primary/10 rounded-lg px-4 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      VT Fixo = {formatCurrency(calc.fixed_transport_voucher_day_value ?? 0)} × {form.fixed_transport_voucher_worked_days ?? 0} dias
+                    </p>
+                    <p className="font-mono font-bold text-primary text-lg">{formatCurrency(calc.fixed_transport_voucher_result ?? 0)}</p>
+                  </div>
+                </div>
               </div>
 
               <Separator />
@@ -857,6 +901,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outros Benefícios</p>
                 {form.dental_plan > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Seguro Odontológico</span><span className="font-mono">{formatCurrency(form.dental_plan)}</span></div>}
                 {calc.transport_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Transporte ({form.transport_voucher_days}d × {formatCurrency(form.transport_voucher_day_value)})</span><span className="font-mono">{formatCurrency(calc.transport_voucher)}</span></div>}
+                {(calc.fixed_transport_voucher_result ?? 0) > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">VT Fixo ({form.fixed_transport_voucher_worked_days}d trabalhados)</span><span className="font-mono">{formatCurrency(calc.fixed_transport_voucher_result)}</span></div>}
                 {form.food_voucher > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Vale Alimentação</span><span className="font-mono">{formatCurrency(form.food_voucher)}</span></div>}
                 {form.bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação de Produtividade</span><span className="font-mono">{formatCurrency(form.bonus)}</span></div>}
                 {form.attendance_bonus > 0 && <div className="flex justify-between py-2 border-b border-border"><span className="text-muted-foreground">Bonificação por Presença</span><span className="font-mono text-green-600">{formatCurrency(form.attendance_bonus)}</span></div>}
