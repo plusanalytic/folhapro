@@ -61,7 +61,7 @@ export default function Payroll() {
   const [selectedWorkplace, setSelectedWorkplace] = useState('all');
   const [selectedJobRole, setSelectedJobRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [filterEsporadico, setFilterEsporadico] = useState('all');
+  const [filterPayrollType, setFilterPayrollType] = useState('all');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -138,11 +138,18 @@ export default function Payroll() {
     return entries.find(e => e.employee_id === empId && e.reference_month === selectedMonth);
   };
 
+  const getEmployeePayrollType = (emp) => {
+    if (emp.contract_type === 'ESPORADICO') return 'ESPORADICO';
+    const jr = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
+    return jr?.payroll_type || null;
+  };
+
   const filteredEmployees = employees.filter(emp => {
     const matchCompany = selectedCompanies.length === 0 || selectedCompanies.includes(emp.company_id);
     const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase());
     const matchWorkplace = selectedWorkplace === 'all' || (emp.workplace_list ?? []).map(String).includes(selectedWorkplace);
     const matchJobRole = selectedJobRole === 'all' || String(emp.job_role_tangerino_id) === selectedJobRole;
+    const matchPayrollType = filterPayrollType === 'all' || getEmployeePayrollType(emp) === filterPayrollType;
     if (selectedStatus !== 'all') {
       const entry = getEntry(emp.id);
       const empJobRole = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
@@ -152,7 +159,7 @@ export default function Payroll() {
       else if (selectedStatus === 'launched' && (!entry || entry.status === 'closed')) return false;
       else if (selectedStatus === 'pending' && entry) return false;
     }
-    return matchCompany && matchSearch && matchWorkplace && matchJobRole;
+    return matchCompany && matchSearch && matchWorkplace && matchJobRole && matchPayrollType;
   });
   const getCompanyName = (id) => companies.find(c => c.id === id)?.name || '—';
 
@@ -351,7 +358,7 @@ export default function Payroll() {
   const handleExportXLSX = () => {
     const rows = [];
     companiesInView.forEach(company => {
-      const fixedEmps = filterEsporadico === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
+      const fixedEmps = filterPayrollType === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
       const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp }) => {
         if (!emp.name.toLowerCase().includes(search.toLowerCase())) return false;
         if (selectedWorkplace !== 'all' && !(emp.workplace_list ?? []).map(String).includes(selectedWorkplace)) return false;
@@ -548,13 +555,17 @@ export default function Payroll() {
             <SelectItem value="closed">Fechado</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterEsporadico} onValueChange={setFilterEsporadico}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Tipo" />
+        <Select value={filterPayrollType} onValueChange={setFilterPayrollType}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Tipo de Folha" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Tipos</SelectItem>
-            <SelectItem value="ESPORADICO">Prestador Esporádico</SelectItem>
+            <SelectItem value="MOTOCICLISTA_CLT">Motociclista CLT</SelectItem>
+            <SelectItem value="MOTOCICLISTA_MEI">Motociclista MEI</SelectItem>
+            <SelectItem value="ESCRITORIO">Escritório</SelectItem>
+            <SelectItem value="SOCIO">Sócio</SelectItem>
+            <SelectItem value="ESPORADICO">Esporádico</SelectItem>
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-40">
@@ -566,9 +577,9 @@ export default function Payroll() {
       {companiesInView.map(company => {
         const closed = isMonthClosed(company.id);
         // Esporádicos são sempre exibidos via espPairs (suportam múltiplas entries na mesma empresa)
-        const fixedEmps = filterEsporadico === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
+        const fixedEmps = filterPayrollType === 'ESPORADICO' ? [] : filteredEmployees.filter(e => e.company_id === company.id && e.contract_type !== 'ESPORADICO');
         // Esporádicos: representados como { emp, entry } para suportar múltiplas entries
-        const espPairs = esporadicoPairsByCompany(company.id).filter(({ emp, entry }) => {
+        const espPairs = (filterPayrollType !== 'all' && filterPayrollType !== 'ESPORADICO') ? [] : esporadicoPairsByCompany(company.id).filter(({ emp, entry }) => {
           if (!emp.name.toLowerCase().includes(search.toLowerCase())) return false;
           if (selectedWorkplace !== 'all' && !(emp.workplace_list ?? []).map(String).includes(selectedWorkplace)) return false;
           if (selectedJobRole !== 'all' && String(emp.job_role_tangerino_id) !== selectedJobRole) return false;
