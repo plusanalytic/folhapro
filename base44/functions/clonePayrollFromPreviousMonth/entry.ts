@@ -89,13 +89,13 @@ function calcMeiWorkingDaysByPeriod(yearMonth) {
 }
 
 // ─── INSS automático CLT Moto (tabela progressiva 2026) ──────────────────────
+// Fórmula: INSS líquido = (salário × alíquota%) - dedução
 function calcAutoINSS(salaryBase) {
-  // Tabela progressiva 2026 (simplificada em pct + deducao fixa)
   if (salaryBase <= 1518.00) return { pct: 7.5,  discount: 0 };
-  if (salaryBase <= 2793.88) return { pct: 9,    discount: 22.77 };
-  if (salaryBase <= 4190.83) return { pct: 12,   discount: 106.59 };
-  if (salaryBase <= 8157.41) return { pct: 14,   discount: 190.37 };
-  return                            { pct: 14,   discount: 190.37 }; // teto
+  if (salaryBase <= 2793.88) return { pct: 9,    discount: 24.32 };
+  if (salaryBase <= 4190.83) return { pct: 12,   discount: 111.41 };
+  if (salaryBase <= 8157.41) return { pct: 14,   discount: 195.14 };
+  return                            { pct: 14,   discount: 195.14 }; // teto
 }
 
 // ─── Cálculo ESCRITÓRIO ───────────────────────────────────────────────────────
