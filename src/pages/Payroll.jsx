@@ -860,14 +860,10 @@ export default function Payroll() {
                                       setEditingEntry(prefilledEsp);
                                       setEditingEntryCompanyId(company.id);
                                     } else {
-                                      const jobRoleForEmp = jobRoles.find(jr => jr.tangerino_id && String(jr.tangerino_id) === String(emp.job_role_tangerino_id));
-                                      const prefilled = (!entry && jobRoleForEmp?.base_salary > 0)
-                                        ? { base_salary: jobRoleForEmp.base_salary, clt_moto_base_salary: jobRoleForEmp.base_salary }
-                                        : null;
                                       // Se a entry veio de outra empresa (troca de empresa), força company_id novo ao salvar
                                       const entryToEdit = (entry && entry.company_id !== company.id)
                                         ? { ...entry, company_id: company.id }
-                                        : (entry || prefilled);
+                                        : (entry || null);
                                       setEditingEntry(entryToEdit);
                                       setEditingEntryCompanyId(null);
                                     }
