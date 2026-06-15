@@ -308,7 +308,8 @@ export default function PointAdjustments() {
                     <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Dia Int.</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Origem</th>
-                  </tr>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Últ. Atualização</th>
+                    </tr>
                 </thead>
                 <tbody>
                   {paginated.map((r, i) => (
@@ -343,7 +344,10 @@ export default function PointAdjustments() {
                           : <span className="text-xs text-muted-foreground">Não</span>}
                       </td>
                       <td className="p-3 text-muted-foreground text-xs">{r.origem || '—'}</td>
-                    </tr>
+                      <td className="p-3 text-muted-foreground font-mono text-xs">
+                        {r.last_update ? new Date(r.last_update).toLocaleString('pt-BR') : '—'}
+                      </td>
+                      </tr>
                   ))}
                 </tbody>
               </table>
