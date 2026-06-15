@@ -12,22 +12,30 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
  */
 
 const TANGERINO_AUTH = 'Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=';
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 500; // maior page size reduz o número de chamadas à API
 const SINCE = new Date('2020-01-01T00:00:00Z').getTime(); // busca todos desde o início
+const FETCH_TIMEOUT_MS = 30000; // 30s por requisição
 
 async function fetchPage(page) {
   const url = `https://api.tangerino.com.br/api/employer/adjustment/find-all?lastUpdate=${SINCE}&page=${page}&size=${PAGE_SIZE}`;
-  const res = await fetch(url, {
-    headers: {
-      'accept': 'application/json;charset=UTF-8',
-      'Authorization': TANGERINO_AUTH,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Tangerino API error ${res.status}: ${text}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'accept': 'application/json;charset=UTF-8',
+        'Authorization': TANGERINO_AUTH,
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Tangerino API error ${res.status}: ${text}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 async function fetchAllTangerinoIds() {
@@ -62,6 +70,8 @@ async function fetchAllTangerinoIds() {
     if (totalFromApi !== null && ids.size >= totalFromApi) break;
     if (items.length < PAGE_SIZE) break;
     page++;
+    // pequeno delay para não sobrecarregar a API do Tangerino
+    await new Promise(r => setTimeout(r, 300));
   }
 
   return ids;
