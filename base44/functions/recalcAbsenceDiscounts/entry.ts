@@ -15,10 +15,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
  *   - {}                   — todas as folhas abertas
  */
 
-const ABSENCE_REASON_IDS = new Set([5, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
+const ABSENCE_REASON_IDS = new Set([5, 11, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
 
 const REASON_COLS = {
   5:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
+  11:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false },
   8:       { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
   16:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
   18:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true  },
