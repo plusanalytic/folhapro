@@ -13,7 +13,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const TANGERINO_AUTH = 'Basic ZjE3N2FlYThiY2I4NDIxN2E3OWRmMGM4Njk4ZTMzYzg6NjU4Y2E4ZGIxOTEzNDJiYmIyZThmYWJkOGFiODMxNjc=';
 const PAGE_SIZE = 500; // maior page size reduz o número de chamadas à API
-const SINCE = new Date('2020-01-01T00:00:00Z').getTime(); // busca todos desde o início
+const now = new Date();
+const SINCE = new Date(now.getFullYear(), now.getMonth() - 3, 1).getTime(); // últimos 3 meses dinâmicos
 const FETCH_TIMEOUT_MS = 30000; // 30s por requisição
 
 async function fetchPage(page) {
