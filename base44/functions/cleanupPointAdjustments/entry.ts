@@ -110,15 +110,15 @@ Deno.serve(async (req) => {
     const localRecords = await fetchAllLocalRecords(base44);
     console.log(`[cleanup] Total de registros no banco: ${localRecords.length}`);
 
-    // 3. Identifica os registros órfãos — considera apenas registros dentro da janela de 3 meses
-    // (mesma janela usada para buscar no Tangerino, para não deletar registros legítimos mais antigos)
-    const sinceDate = new Date(SINCE).toISOString().slice(0, 10); // ex: "2026-03-01"
+    // 3. Identifica os registros órfãos — compara apenas os registros locais
+    // cujo last_update >= SINCE (mesma janela usada para buscar no Tangerino)
+    const sinceISO = new Date(SINCE).toISOString();
     const toDelete = localRecords.filter(r => {
       const tid = Number(r.tangerino_id);
       if (!tid) return false;
       if (tangerinoIds.has(tid)) return false;
-      // Só marca como órfão se o start_date está dentro da janela buscada no Tangerino
-      return r.start_date && r.start_date >= sinceDate;
+      // Só considera órfão se o last_update está dentro da janela buscada
+      return r.last_update && r.last_update >= sinceISO;
     });
 
     console.log(`[cleanup] Registros órfãos identificados: ${toDelete.length}`);
