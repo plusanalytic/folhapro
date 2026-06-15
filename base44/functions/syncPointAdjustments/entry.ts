@@ -8,6 +8,18 @@ function tsToDate(ts) {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
+// Converte timestamp respeitando o fuso local (sem deslocamento UTC)
+function tsToDateLocal(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+const DATE_FIX_CUTOFF = '2026-06-01';
+
 function tsToISO(ts) {
   if (!ts) return '';
   return new Date(ts).toISOString();
@@ -70,11 +82,17 @@ function mapRecord(item, employeeByTangerinoId) {
 
   const localEmployee = employeeByTangerinoId[String(emp.id)] || null;
 
+  // Para ajustes a partir de 2026-06-01, usa conversão local (corrige deslocamento UTC)
+  const startDateLegacy = tsToDate(item.startDate);
+  const useLocalConversion = startDateLegacy >= DATE_FIX_CUTOFF;
+  const startDate = useLocalConversion ? tsToDateLocal(item.startDate) : startDateLegacy;
+  const endDate = useLocalConversion ? tsToDateLocal(item.endDate) : tsToDate(item.endDate);
+
   return {
     tangerino_id: item.id,
     full_day: item.fullDay ?? false,
-    start_date: tsToDate(item.startDate),
-    end_date: tsToDate(item.endDate),
+    start_date: startDate,
+    end_date: endDate,
     last_update: tsToISO(item.lastUpdate),
     origem: item.origem ?? '',
     observation: item.observation ?? '',
