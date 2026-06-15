@@ -882,10 +882,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                   onChange={(e) => { set('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
                   onBlur={(e) => { setNum('hazard_pay', e.target.value); setHazardPayManuallyEdited(true); }}
                 />
-                {(isCLTMoto ? cltMotoEffectiveSalary : form.base_salary) > 0 && (
+                {isCLTMoto && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {(() => {
-                      const effectiveSal = isCLTMoto ? cltMotoEffectiveSalary : form.base_salary;
+                      const effectiveSal = cltMotoEffectiveSalary;
                       const autoVal = Math.round(effectiveSal * 0.3 * 100) / 100;
                       return (
                         <>
