@@ -6,13 +6,14 @@ import { Wand2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 
 // IDs de motivos de ajuste considerados FALTA (geram desconto)
-export const ABSENCE_REASON_IDS = new Set([5, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
+export const ABSENCE_REASON_IDS = new Set([5, 11, 8, 16, 18, 19, 23, 24, 27, 2154902, 2157106, 2160971, 2169310, 2170370, 2173794]);
 
 // Campos a calcular por motivo (null = nenhum desconto)
 // 'half' = metade de cada valor
 // va e ajcusto: só aplicados quando isMotocyclist (campos de CLT Moto)
 const REASON_COLS = {
   5:       { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
+  11:      { daily: false, vt: true,  vr: true,  dsr: false, moto: false, hazard: false, va: false, ajcusto: false },
   8:       { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
   16:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
   18:      { daily: true,  vt: true,  vr: true,  dsr: true,  moto: true,  hazard: true,  va: true,  ajcusto: true  },
