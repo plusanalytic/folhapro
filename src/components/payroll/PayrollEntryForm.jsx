@@ -689,10 +689,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                      <p className="text-xs text-muted-foreground">Dias efetivos trabalhados — usado para calcular valor efetivo (valor dia × este campo)</p>
                     </div>
                     <Input
-                     type="number" step="1" min="1" max="31" disabled={readOnly}
+                     type="number" step="1" min="0" max="31" disabled={readOnly}
                      className="w-20 font-mono text-center"
                      value={contractWorkingDays}
-                     onChange={e => { if (!readOnly) setContractWorkingDays(parseInt(e.target.value) || 1); }}
+                     onChange={e => { if (!readOnly) setContractWorkingDays(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0)); }}
                      onBlur={e => setContractWorkingDays(isNaN(parseInt(e.target.value)) ? defaultFullMonthDays : Math.max(0, parseInt(e.target.value)))}
                      onFocus={e => setTimeout(() => e.target.select(), 0)}
                     />
