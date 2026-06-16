@@ -203,8 +203,8 @@ export default function Workplaces() {
             Parâmetros padrão para <strong>novos lançamentos</strong> de folha <strong>Motociclista CLT</strong>.
             Os valores são aplicados automaticamente ao lançar ou clonar a folha (podem ser alterados manualmente depois).
           </div>
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="min-w-max w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="text-left p-4 font-medium text-muted-foreground">Local de Trabalho</th>
@@ -221,7 +221,7 @@ export default function Workplaces() {
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Bon. Meta Entrega</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Escala</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Ação</th>
-                  </tr>
+                </tr>
               </thead>
               <tbody>
                 {filtered.map(w => (
@@ -286,8 +286,8 @@ export default function Workplaces() {
             Parâmetros padrão para <strong>novos lançamentos</strong> de folha <strong>Escritório</strong>.
             Os valores são aplicados automaticamente ao lançar ou clonar a folha. Se a folha já existir e for editada, os valores não são recalculados — prevalece o que o usuário salvou.
           </div>
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="min-w-max w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="text-left p-4 font-medium text-muted-foreground">Local de Trabalho</th>
@@ -298,7 +298,7 @@ export default function Workplaces() {
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Bon. Produtividade (R$)</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Bon. Presença (R$)</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Ação</th>
-                  </tr>
+                </tr>
               </thead>
               <tbody>
                 {filtered.map(w => (
