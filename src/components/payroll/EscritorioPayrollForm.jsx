@@ -69,6 +69,7 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
   // Se apenas q1 está paga, todos os campos permanecem editáveis e a diferença vai para a 2ª quinzena.
   const baseLocked = readOnly || q2Locked;
 
+  const isJune2026OrLater = referenceMonth >= '2026-06';
   const workingDays = getWorkingDaysInMonth(referenceMonth);
   // Dias úteis para VR: proporcional se admissão ocorreu neste mês
   const vrWorkingDays = (() => {
