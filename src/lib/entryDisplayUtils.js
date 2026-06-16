@@ -9,6 +9,21 @@
  * bônus produtividade + bônus presença + bônus aniversário + bonificação/prêmio +
  * convênio médico + reajuste de cota + outros benefícios.
  */
+/**
+ * Calcula o valor efetivo de um benefício para CLT Moto (proporcional por dias trabalhados).
+ * Se contract_working_days = 0 (férias/afastamento), retorna 0.
+ * Para outros tipos de folha, retorna o valor bruto do campo.
+ */
+function calcEffectiveBenefit(entry, field) {
+  const raw = entry[field] || 0;
+  if (!raw) return 0;
+  const isCLTMoto = entry.clt_moto_base_salary > 0 && entry.full_month_contract_working_days > 0;
+  if (!isCLTMoto) return raw;
+  const denom = entry.full_month_contract_working_days;
+  const worked = entry.contract_working_days ?? 0; // 0 = férias/afastamento, sem fallback
+  return Math.round(raw / denom * worked * 100) / 100;
+}
+
 export function calcBonificacoes(entry) {
   if (!entry) return 0;
 
@@ -26,7 +41,8 @@ export function calcBonificacoes(entry) {
     gridCredits2 +
 
     (entry.km_bonus || 0) +               // Total KM adicional/excedente
-    (entry.cost_allowance || 0) +         // Ajuda de custo
+    calcEffectiveBenefit(entry, 'cost_allowance') + // Ajuda de custo (valor efetivo)
+    calcEffectiveBenefit(entry, 'food_voucher') +   // Vale Alimentação (valor efetivo)
     (entry.bonus || 0) +                  // Bonificação / Prêmio (produtividade)
     (entry.delivery_bonus || 0) +         // Bonificação por Entrega (CLT Moto)
     (entry.delivery_target_bonus || 0) +  // Bonificação Meta de Entrega (CLT Moto)
