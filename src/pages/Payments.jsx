@@ -27,29 +27,15 @@ import EsporadicoPayrollForm from '@/components/payroll/EsporadicoPayrollForm';
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
 
-function getFirstNetDisplay(entry, employees, jobRoles) {
-  const emp = employees.find(e => e.id === entry.employee_id);
-  const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
-  if (jr?.payroll_type !== 'MOTOCICLISTA_CLT') return entry.first_period_net ?? 0;
-  const d1 = (entry.first_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-  const c1 = (entry.first_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-  const absence = getAbsenceByPeriod(entry);
-  return Math.round(((entry.first_period_base || 0) - (entry.first_period_advance || 0) - (d1 - c1) - absence.first) * 100) / 100;
+function getFirstNetDisplay(entry) {
+  // Usa sempre o valor salvo pela folha de pagamento — é a fonte de verdade.
+  return entry.first_period_net ?? 0;
 }
 
-function getSecondNetDisplay(entry, employees, jobRoles) {
-  const emp = employees.find(e => e.id === entry.employee_id);
-  const jr = jobRoles.find(j => j.tangerino_id && String(j.tangerino_id) === String(emp?.job_role_tangerino_id));
-  if (jr?.payroll_type !== 'MOTOCICLISTA_CLT') return entry.second_period_net || 0;
-  const denom = entry.full_month_contract_working_days || 1;
-  const worked = entry.contract_working_days || denom;
-  const foodEff = Math.round((entry.food_voucher || 0) / denom * worked * 100) / 100;
-  const costEff = Math.round((entry.cost_allowance || 0) / denom * worked * 100) / 100;
-  const gDebits = (entry.second_discounts || []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-  const gCredits = (entry.second_discounts || []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-  const absence = getAbsenceByPeriod(entry);
-  const cltExtra = (entry.delivery_bonus || 0) + (entry.delivery_target_bonus || 0) + (entry.attendance_bonus || 0) + (entry.route_sp_bonus || 0) + (entry.overtime || 0);
-  return (entry.second_period_base || 0) + foodEff + (entry.km_bonus || 0) + costEff - (gDebits - gCredits) - absence.second + cltExtra;
+function getSecondNetDisplay(entry) {
+  // Usa sempre o valor salvo pela folha de pagamento — é a fonte de verdade.
+  // O campo second_period_net já inclui: base + VA efetivo + KM + ajuda de custo + bonificações CLT - descontos - faltas.
+  return entry.second_period_net || 0;
 }
 
 function formatDate(dateStr) {
@@ -373,8 +359,8 @@ export default function Payments() {
   const totalCols = 6 + (showQ1 ? 4 : 0) + (showQ2 ? 4 : 0) + 1 + 6;
   const tableMinWidth = 655 + (showQ1 ? 500 : 0) + (showQ2 ? 500 : 0) + 110 + 685;
 
-  const totalQ1 = sortedEntries.reduce((s, e) => s + getFirstNetDisplay(e, employees, jobRoles), 0);
-  const totalQ2 = sortedEntries.reduce((s, e) => s + getSecondNetDisplay(e, employees, jobRoles), 0);
+  const totalQ1 = sortedEntries.reduce((s, e) => s + getFirstNetDisplay(e), 0);
+  const totalQ2 = sortedEntries.reduce((s, e) => s + getSecondNetDisplay(e), 0);
   const totalBonificacoes = sortedEntries.reduce((s, e) => s + calcBonificacoes(e), 0);
 
   const exportXLSX = () => {
@@ -387,12 +373,12 @@ export default function Payments() {
         'Admissão': formatDate(emp?.admission_date),
         'Cargo': getJobRoleName(emp),
         'Local': getWorkplaceNames(emp),
-        '1ª Q - Á Receber': getFirstNetDisplay(entry, employees, jobRoles),
+        '1ª Q - Á Receber': getFirstNetDisplay(entry),
         '1ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.first_discounts, getAbsenceByPeriod(entry).first),
         '1ª Q - Status': ps?.status_q1 || 'PENDENTE',
         '1ª Q - Data Pagamento': formatDate(ps?.payment_date_q1),
         '1ª Q - OBS': ps?.obs_q1 || '',
-        '2ª Q - Á Receber': getSecondNetDisplay(entry, employees, jobRoles),
+        '2ª Q - Á Receber': getSecondNetDisplay(entry),
         '2ª Q - Descontos/Acréscimos': calcPeriodDebits(entry.second_discounts, getAbsenceByPeriod(entry).second),
         '2ª Q - Status': ps?.status_q2 || 'PENDENTE',
         '2ª Q - Data Pagamento': formatDate(ps?.payment_date_q2),
@@ -647,8 +633,8 @@ export default function Payments() {
                   <td className="p-2 text-xs text-muted-foreground truncate" title={getWorkplaceNames(emp)}>{getWorkplaceNames(emp)}</td>
 
                   {showQ1 && <>
-                    <td className={`p-2 text-right font-mono font-semibold whitespace-nowrap ${getFirstNetDisplay(entry, employees, jobRoles) < 0 ? 'text-destructive' : 'text-blue-600'}`}>
-                      {formatCurrency(getFirstNetDisplay(entry, employees, jobRoles))}
+                    <td className={`p-2 text-right font-mono font-semibold whitespace-nowrap ${getFirstNetDisplay(entry) < 0 ? 'text-destructive' : 'text-blue-600'}`}>
+                      {formatCurrency(getFirstNetDisplay(entry))}
                     </td>
                     <td className="p-2 text-right font-mono whitespace-nowrap">
                       {disc1 > 0 ? <span className="text-destructive">{formatCurrency(disc1)}</span> : '—'}
@@ -664,7 +650,7 @@ export default function Payments() {
 
                   {showQ2 && <>
                     <td className="p-2 text-right font-mono font-semibold text-green-600 whitespace-nowrap">
-                      {formatCurrency(getSecondNetDisplay(entry, employees, jobRoles))}
+                      {formatCurrency(getSecondNetDisplay(entry))}
                     </td>
                     <td className="p-2 text-right font-mono whitespace-nowrap">
                       {disc2 > 0 ? <span className="text-destructive">{formatCurrency(disc2)}</span> : '—'}
