@@ -468,6 +468,10 @@ Deno.serve(async (req) => {
           ? workplace.clt_moto_motorcycle_rental_default
           : (prev.motorcycle_rental || 0);
 
+        const costAllowance = (workplace && workplace.clt_moto_cost_allowance_default > 0)
+          ? workplace.clt_moto_cost_allowance_default
+          : (prev.cost_allowance || 50);
+
         const mealVoucher = Math.round(mvDayValue * vrDays * 100) / 100;
 
         // Periculosidade: SEMPRE recalculada como 30% do salário efetivo
@@ -501,7 +505,7 @@ Deno.serve(async (req) => {
           meal_voucher_discount:            mealVoucherDiscount,
           food_voucher:                     foodVoucher,
           motorcycle_rental:                motoRental,
-          cost_allowance:                   prev.cost_allowance || 50,
+          cost_allowance:                   costAllowance,
           // Periculosidade: recalculada
           hazard_pay:                       hazardPay,
           // INSS: recalculado

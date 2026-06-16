@@ -147,7 +147,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     transport_voucher: entry?.transport_voucher ?? 0,
     km_bonus_qty: entry?.km_bonus_qty ?? 0,
     km_bonus_value: entry?.km_bonus_value ?? 0,
-    cost_allowance: entry?.cost_allowance ?? (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 50 : 0),
+    cost_allowance: entry?.cost_allowance ?? (isCLTMoto && empWorkplace?.clt_moto_cost_allowance_default > 0 ? empWorkplace.clt_moto_cost_allowance_default : (jobRole?.payroll_type === 'MOTOCICLISTA_CLT' ? 50 : 0)),
     motorcycle_rental: entry?.motorcycle_rental ?? (isCLTMoto ? (empWorkplace?.clt_moto_motorcycle_rental_default || 0) : 0),
     hazard_pay: entry?.hazard_pay ?? 0,
     bonus: entry?.bonus ?? 0,
@@ -917,11 +917,25 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bonificações (pagas na 2ª quinzena — não somam ao bruto)</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Bonificação por Entrega</Label>
+                    <div className="flex items-center gap-2">
+                      <Label>Bonificação por Entrega</Label>
+                      {empWorkplace && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${empWorkplace.clt_moto_delivery_bonus_enabled ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                          {empWorkplace.clt_moto_delivery_bonus_enabled ? 'Sim' : 'Não'} no local
+                        </span>
+                      )}
+                    </div>
                     <Input {...numericField('delivery_bonus', q2ExtraLocked)} />
                   </div>
                   <div>
-                    <Label>Bonificação Meta de Entrega</Label>
+                    <div className="flex items-center gap-2">
+                      <Label>Bonificação Meta de Entrega</Label>
+                      {empWorkplace && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${empWorkplace.clt_moto_delivery_target_bonus_enabled ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                          {empWorkplace.clt_moto_delivery_target_bonus_enabled ? 'Sim' : 'Não'} no local
+                        </span>
+                      )}
+                    </div>
                     <Input {...numericField('delivery_target_bonus', q2ExtraLocked)} />
                   </div>
                   <div>

@@ -41,7 +41,8 @@ export default function Workplaces() {
     setSavingId(id);
     const normalized = {};
     for (const [k, v] of Object.entries(edits)) {
-      normalized[k] = typeof v === 'string' ? (parseFloat(v.replace(',', '.')) || 0) : v;
+      if (typeof v === 'boolean') normalized[k] = v;
+      else normalized[k] = typeof v === 'string' ? (parseFloat(v.replace(',', '.')) || 0) : v;
     }
     await base44.entities.Workplace.update(id, normalized);
     setWorkplaces(prev => prev.map(w => w.id === id ? { ...w, ...normalized } : w));
@@ -93,6 +94,21 @@ export default function Workplaces() {
         isDirty(id) ? 'border-amber-400' : ''
       }`}
     />
+  );
+
+  const BoolCell = ({ id, field, value }) => (
+    <Select
+      value={value ? 'sim' : 'nao'}
+      onValueChange={v => handleDefaultChange(id, field, v === 'sim')}
+    >
+      <SelectTrigger className={`w-20 h-8 text-xs ${isDirty(id) ? 'border-amber-400' : ''}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="sim">Sim</SelectItem>
+        <SelectItem value="nao">Não</SelectItem>
+      </SelectContent>
+    </Select>
   );
 
   const CommonCells = ({ w }) => (
@@ -200,6 +216,9 @@ export default function Workplaces() {
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">VR/dia CLT Moto</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">VA CLT Moto</th>
                   <th className="text-right p-4 font-medium text-muted-foreground text-xs">Aluguel Moto</th>
+                  <th className="text-right p-4 font-medium text-muted-foreground text-xs">Ajuda Custo Dados</th>
+                  <th className="text-center p-4 font-medium text-muted-foreground text-xs">Bon. Entrega</th>
+                  <th className="text-center p-4 font-medium text-muted-foreground text-xs">Bon. Meta Entrega</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Escala</th>
                   <th className="text-center p-4 font-medium text-muted-foreground text-xs">Ação</th>
                   </tr>
@@ -208,11 +227,17 @@ export default function Workplaces() {
                 {filtered.map(w => (
                   <tr key={w.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <CommonCells w={w} />
-                    {['clt_moto_base_salary_default', 'clt_moto_meal_voucher_day_value_default', 'clt_moto_food_voucher_default', 'clt_moto_motorcycle_rental_default'].map(field => (
-                      <td key={field} className="p-2 text-right">
-                        <NumCell id={w.id} field={field} value={w[field]} />
-                      </td>
-                    ))}
+                    {['clt_moto_base_salary_default', 'clt_moto_meal_voucher_day_value_default', 'clt_moto_food_voucher_default', 'clt_moto_motorcycle_rental_default', 'clt_moto_cost_allowance_default'].map(field => (
+                       <td key={field} className="p-2 text-right">
+                         <NumCell id={w.id} field={field} value={w[field]} />
+                       </td>
+                     ))}
+                     <td className="p-2 text-center">
+                       <BoolCell id={w.id} field="clt_moto_delivery_bonus_enabled" value={w.clt_moto_delivery_bonus_enabled} />
+                     </td>
+                     <td className="p-2 text-center">
+                       <BoolCell id={w.id} field="clt_moto_delivery_target_bonus_enabled" value={w.clt_moto_delivery_target_bonus_enabled} />
+                     </td>
                     <td className="p-2 text-center">
                       <Select
                         value={w.work_schedule || 'seg_sab'}
