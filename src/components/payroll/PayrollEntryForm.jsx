@@ -447,32 +447,25 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     return calcRaw;
   })();
 
-  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
+  const handleInstallmentConfirm = ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
 
-    // 1ª parcela: adiciona ao desconto da quinzena atual
-    const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
-    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
-    else setSecondDiscounts(prev => [...prev, firstEntry]);
-
-    // Parcelas seguintes: cria CashOuts nos meses posteriores
-    for (let i = 1; i < preview.length; i++) {
-      const p = preview[i];
-      const [y, m] = p.month.split('-').map(Number);
-      const day = isFirst ? 15 : 28;
-      const date = `${p.month}-${String(day).padStart(2, '0')}`;
-      await base44.entities.CashOut.create({
-        employee_id: employee.id,
-        company_id: employee.company_id,
-        date,
+    // Todas as parcelas são adicionadas apenas como descontos na folha — sem criar CashOuts
+    preview.forEach((p, i) => {
+      const entry = {
+        date: startDate,
         description: `${description} (${i + 1}/${installments})`,
         amount: installmentValue,
+        id: Date.now() + i,
         reference_month: p.month,
-        period: isFirst ? 'first' : 'second',
-        notes: `Parcela gerada automaticamente`,
-        deduct_from_payroll: true,
-      });
-    }
+      };
+      if (i === 0) {
+        // 1ª parcela: entra direto no desconto da quinzena atual
+        if (isFirst) setFirstDiscounts(prev => [...prev, entry]);
+        else setSecondDiscounts(prev => [...prev, entry]);
+      }
+      // Parcelas futuras ficam apenas registradas no preview — o usuário lança manualmente no CashOut se quiser
+    });
 
     setInstallmentDialog(null);
   };

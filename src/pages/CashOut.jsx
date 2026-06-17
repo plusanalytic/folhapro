@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useReadOnly } from '@/lib/AppUserContext';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock } from 'lucide-reac
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
+import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 
 function getPeriod(dateStr) {
   const day = parseInt(dateStr.split('-')[2]);
@@ -36,9 +37,12 @@ export default function CashOut() {
   const [cashOuts, setCashOuts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [filterCompany, setFilterCompany] = useState('all');
-  const [filterEmployee, setFilterEmployee] = useState('all');
-  const [filterMonth, setFilterMonth] = useState(() => sessionStorage.getItem('filter_month_cashout') || new Date().toISOString().substring(0, 7));
+  const [filterCompanies, setFilterCompanies] = useState([]);
+  const [filterEmployees, setFilterEmployees] = useState([]);
+  const [filterMonths, setFilterMonths] = useState(() => {
+    const saved = sessionStorage.getItem('filter_month_cashout');
+    return saved ? [saved] : [new Date().toISOString().substring(0, 7)];
+  });
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState('');
@@ -48,7 +52,7 @@ export default function CashOut() {
   const [editingId, setEditingId] = useState(null);
   const [blockedAlert, setBlockedAlert] = useState(null); // { period, status, empName }
 
-  useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonth); }, [filterMonth]);
+  useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonths[0] || ''); }, [filterMonths]);
 
   useEffect(() => {
     Promise.all([
@@ -61,12 +65,27 @@ export default function CashOut() {
   const employeeMap = Object.fromEntries(employees.map(e => [e.id, e]));
   const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
 
+  // Gera lista de meses disponíveis nos lançamentos + últimos 12 meses
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const set = new Set();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      set.add(d.toISOString().slice(0, 7));
+    }
+    cashOuts.forEach(c => { if (c.date) set.add(c.date.substring(0, 7)); });
+    return [...set].sort((a, b) => b.localeCompare(a)).map(m => {
+      const [y, mo] = m.split('-');
+      return { value: m, label: `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}` };
+    });
+  }, [cashOuts]);
+
   const filtered = cashOuts.filter(c => {
     const emp = employeeMap[c.employee_id];
     const companyId = emp?.company_id || c.company_id;
-    if (filterCompany !== 'all' && companyId !== filterCompany) return false;
-    if (filterEmployee !== 'all' && c.employee_id !== filterEmployee) return false;
-    if (filterMonth && !c.date?.startsWith(filterMonth)) return false;
+    if (filterCompanies.length > 0 && !filterCompanies.includes(companyId)) return false;
+    if (filterEmployees.length > 0 && !filterEmployees.includes(c.employee_id)) return false;
+    if (filterMonths.length > 0 && !filterMonths.some(m => c.date?.startsWith(m))) return false;
     if (search && !emp?.name?.toLowerCase().includes(search.toLowerCase()) && !c.description?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -201,10 +220,6 @@ export default function CashOut() {
     setShowForm(true);
   };
 
-  const filteredEmployeesForFilter = filterCompany === 'all'
-    ? employees
-    : employees.filter(e => e.company_id === filterCompany);
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -215,7 +230,8 @@ export default function CashOut() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold">Saída de Caixa</h1>
-              <span className="text-sm font-semibold bg-destructive/10 text-destructive px-3 py-1 rounded-full border border-destructive/20">{fmtMonth(filterMonth)}</span>
+              {filterMonths.length === 1 && <span className="text-sm font-semibold bg-destructive/10 text-destructive px-3 py-1 rounded-full border border-destructive/20">{fmtMonth(filterMonths[0])}</span>}
+              {filterMonths.length > 1 && <span className="text-sm font-semibold bg-destructive/10 text-destructive px-3 py-1 rounded-full border border-destructive/20">{filterMonths.length} meses</span>}
             </div>
             <p className="text-sm text-muted-foreground">Lançamentos de saída vinculados a empresas ou colaboradores</p>
           </div>
@@ -235,21 +251,35 @@ export default function CashOut() {
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Buscar colaborador ou descrição..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <Input type="month" className="w-44 h-9 font-mono" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} />
-            <Select value={filterCompany} onValueChange={v => { setFilterCompany(v); setFilterEmployee('all'); }}>
-              <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as empresas</SelectItem>
-                {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-              <SelectTrigger className="w-48 h-9"><SelectValue placeholder="Colaborador" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {filteredEmployeesForFilter.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <MultiSearchableSelect
+              values={filterMonths}
+              onValuesChange={setFilterMonths}
+              placeholder="Mês"
+              className="w-48"
+              allLabel="Todos os Meses"
+              options={monthOptions}
+            />
+            <MultiSearchableSelect
+              values={filterCompanies}
+              onValuesChange={v => { setFilterCompanies(v); setFilterEmployees([]); }}
+              placeholder="Empresa"
+              className="w-44"
+              allLabel="Todas as Empresas"
+              options={companies.map(c => ({ value: c.id, label: c.name }))}
+            />
+            <MultiSearchableSelect
+              values={filterEmployees}
+              onValuesChange={setFilterEmployees}
+              placeholder="Colaborador"
+              className="w-52"
+              allLabel="Todos os Colaboradores"
+              options={
+                (filterCompanies.length > 0
+                  ? employees.filter(e => filterCompanies.includes(e.company_id))
+                  : employees
+                ).map(e => ({ value: e.id, label: e.name }))
+              }
+            />
           </div>
         </CardContent>
       </Card>
