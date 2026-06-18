@@ -5,7 +5,7 @@ import { Plus, Trash2, CreditCard, Minus, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 
 // amount sempre positivo; type = 'debit' (subtrai) ou 'credit' (soma)
-export default function PeriodDiscountsTable({ items = [], onChange, readonly = false, readOnly = false, onOpenInstallment }) {
+export default function PeriodDiscountsTable({ items = [], onChange, readonly = false, readOnly = false, onOpenInstallment, onDeleteInstallment }) {
   const [newRow, setNewRow] = useState({ date: '', description: '', amount: '', type: 'debit' });
 
   const isRO = readonly || readOnly;
@@ -21,7 +21,19 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
     setNewRow({ date: '', description: '', amount: '', type: 'debit' });
   };
 
-  const removeRow = (idx) => onChange(items.filter((_, i) => i !== idx));
+  const removeRow = (idx, row) => {
+    // Se o item veio de um CashOut de parcela, usa o dialog de exclusão de parcelas
+    if (row?.fromCashOut && onDeleteInstallment) {
+      onDeleteInstallment(row);
+      return;
+    }
+    // Verifica se a descrição tem padrão de parcela "(N/M)"
+    if (/\(\d+\/\d+\)$/.test(row?.description || '') && onDeleteInstallment) {
+      onDeleteInstallment(row);
+      return;
+    }
+    onChange(items.filter((_, i) => i !== idx));
+  };
 
   // total líquido: créditos somam, débitos subtraem
   const netEffect = items.reduce((s, r) => {
@@ -72,7 +84,7 @@ export default function PeriodDiscountsTable({ items = [], onChange, readonly = 
                   </td>
                   {!isRO && (
                     <td className="px-2 py-2">
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeRow(idx)}>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeRow(idx, row)}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </td>

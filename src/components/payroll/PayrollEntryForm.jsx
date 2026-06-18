@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { calculatePayroll, formatCurrency, getMonthName, getWorkingDaysInMonth, getWorkingDaysFromDate, getWorkingDaysInMonthSatIncluded, getContractWorkingDays, getFullMonthContractWorkingDays } from '@/lib/payrollCalculations.js';
 import PeriodDiscountsTable from './PeriodDiscountsTable';
 import InstallmentDialog from './InstallmentDialog';
+import DeleteInstallmentsDialog from './DeleteInstallmentsDialog';
 import AbsenceDiscountsTable, { totalAbsenceDiscount, absenceDiscountByPeriod } from './AbsenceDiscountsTable';
 import { base44 } from '@/api/base44Client';
 
@@ -247,6 +248,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // Parcelas
   const [installmentDialog, setInstallmentDialog] = useState(null); // 'first' | 'second' | null
+  const [deleteInstallDialog, setDeleteInstallDialog] = useState(null); // { installment } | null
+  const [allInstallments, setAllInstallments] = useState([]); // CashOuts de parcelas do colaborador no mês e adjacentes
 
   // Ajustes de ponto (faltas) do colaborador no mês
   const [pointAdjustments, setPointAdjustments] = useState([]);
@@ -331,6 +334,10 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
     base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
+      // Guarda todos os installments do colaborador para o dialog de exclusão
+      const installments = cashOuts.filter(c => c.source === 'payroll_installment');
+      setAllInstallments(installments);
+
       const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
       const fromCashFirst = toDeduct.filter(c => c.period === 'first').map(c => ({
         id: c.id, date: c.date, description: c.description, amount: c.amount, fromCashOut: true,
@@ -1242,7 +1249,21 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 1ª Quinzena</p>
-                  <PeriodDiscountsTable items={firstDiscounts} onChange={(readOnly || q1Locked) ? () => {} : setFirstDiscounts} readOnly={readOnly || q1Locked} onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')} />
+                  <PeriodDiscountsTable
+                    items={firstDiscounts}
+                    onChange={(readOnly || q1Locked) ? () => {} : setFirstDiscounts}
+                    readOnly={readOnly || q1Locked}
+                    onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')}
+                    onDeleteInstallment={(item) => {
+                      // Busca o CashOut de parcelas com essa descrição para abrir o dialog de exclusão
+                      const match = allInstallments.find(ci => ci.description === item.description && ci.amount === item.amount);
+                      if (match) {
+                        const baseDesc = match.description?.replace(/\s*\(\d+\/\d+\)$/, '');
+                        const group = allInstallments.filter(ci => ci.description?.startsWith(baseDesc));
+                        setDeleteInstallDialog({ installment: match, group });
+                      }
+                    }}
+                  />
                 </div>
                 <div className={`${calc.first_period_net < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                   <div>
@@ -1334,7 +1355,20 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                 )}
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Descontos da 2ª Quinzena</p>
-                  <PeriodDiscountsTable items={secondDiscounts} onChange={(readOnly || q2Locked) ? () => {} : setSecondDiscounts} readOnly={readOnly || q2Locked} onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')} />
+                  <PeriodDiscountsTable
+                    items={secondDiscounts}
+                    onChange={(readOnly || q2Locked) ? () => {} : setSecondDiscounts}
+                    readOnly={readOnly || q2Locked}
+                    onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')}
+                    onDeleteInstallment={(item) => {
+                      const match = allInstallments.find(ci => ci.description === item.description && ci.amount === item.amount);
+                      if (match) {
+                        const baseDesc = match.description?.replace(/\s*\(\d+\/\d+\)$/, '');
+                        const group = allInstallments.filter(ci => ci.description?.startsWith(baseDesc));
+                        setDeleteInstallDialog({ installment: match, group });
+                      }
+                    }}
+                  />
                 </div>
                 <div className={`${(calc.second_period_net + cltExtraBonusTotal) < 0 ? 'bg-destructive/10' : 'bg-primary/10'} rounded-lg px-4 py-3 flex justify-between items-center`}>
                   <div>
@@ -1461,6 +1495,22 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
             onConfirm={handleInstallmentConfirm}
             referenceMonth={referenceMonth}
             period={installmentDialog}
+          />
+        )}
+        {deleteInstallDialog && (
+          <DeleteInstallmentsDialog
+            open={!!deleteInstallDialog}
+            onClose={() => setDeleteInstallDialog(null)}
+            selectedInstallment={deleteInstallDialog.installment}
+            installments={deleteInstallDialog.group}
+            onDeleted={(deletedIds) => {
+              // Remove os itens excluídos dos descontos locais e atualiza allInstallments
+              setAllInstallments(prev => prev.filter(i => !deletedIds.includes(i.id)));
+              const removeDeleted = (arr) => arr.filter(d => !deletedIds.some(id => d.id === id || d.source_id === id));
+              setFirstDiscounts(removeDeleted);
+              setSecondDiscounts(removeDeleted);
+              setDeleteInstallDialog(null);
+            }}
           />
         )}
 

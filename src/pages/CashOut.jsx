@@ -50,6 +50,7 @@ export default function CashOut() {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [blockedAlert, setBlockedAlert] = useState(null);
+  const [deleteInstallDialog, setDeleteInstallDialog] = useState(null); // { cashOut }
 
   useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonths[0] || ''); }, [filterMonths]);
 
@@ -347,11 +348,7 @@ export default function CashOut() {
                           </Button>
                         </>
                       )}
-                      {showInstallmentBadge && !readOnly && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
+                       {/* Parcelas de folha só podem ser excluídas pela folha de pagamento */}
                     </td>
                   </tr>
                 );
@@ -427,6 +424,7 @@ export default function CashOut() {
             <div>
               <p className="font-semibold">Parcelas geradas pela Folha de Pagamento</p>
               <p className="text-xs mt-0.5 text-blue-700">Estes lançamentos foram criados automaticamente ao parcelar descontos nas folhas. A <strong>1ª parcela</strong> já foi aplicada diretamente na folha; as demais serão descontadas nos meses subsequentes via CashOut.</p>
+              <p className="text-xs mt-1 font-semibold text-blue-800">🔒 Para excluir parcelas, acesse a folha de pagamento do colaborador e utilize o botão de exclusão no desconto correspondente.</p>
             </div>
           </div>
           {/* Resumo */}
