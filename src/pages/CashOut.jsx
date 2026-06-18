@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
+import CashOutFilters from '@/components/cashout/CashOutFilters';
 
 function getPeriod(dateStr) {
   const day = parseInt(dateStr.split('-')[2]);
@@ -234,45 +235,7 @@ export default function CashOut() {
     return { current: parseInt(match[1]), total: parseInt(match[2]) };
   };
 
-  const Filters = () => (
-    <Card>
-      <CardContent className="pt-4 pb-4">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar colaborador ou descrição..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <MultiSearchableSelect
-            values={filterMonths}
-            onValuesChange={setFilterMonths}
-            placeholder="Mês"
-            className="w-48"
-            allLabel="Todos os Meses"
-            selectedLabel="meses"
-            options={monthOptions}
-          />
-          <MultiSearchableSelect
-            values={filterCompanies}
-            onValuesChange={v => { setFilterCompanies(v); setFilterEmployees([]); }}
-            placeholder="Empresa"
-            className="w-44"
-            allLabel="Todas as Empresas"
-            selectedLabel="empresas"
-            options={companies.map(c => ({ value: c.id, label: c.name }))}
-          />
-          <MultiSearchableSelect
-            values={filterEmployees}
-            onValuesChange={setFilterEmployees}
-            placeholder="Colaborador"
-            className="w-52"
-            allLabel="Todos os Colaboradores"
-            selectedLabel="colaboradores"
-            options={(filterCompanies.length > 0 ? employees.filter(e => filterCompanies.includes(e.company_id)) : employees).map(e => ({ value: e.id, label: e.name }))}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
+
 
   const visibleIds = (items) => items.map(c => c.id);
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -496,7 +459,19 @@ export default function CashOut() {
         )}
       </div>
 
-      <Filters />
+      <CashOutFilters
+        search={search}
+        onSearchChange={setSearch}
+        filterMonths={filterMonths}
+        onFilterMonthsChange={setFilterMonths}
+        monthOptions={monthOptions}
+        filterCompanies={filterCompanies}
+        onFilterCompaniesChange={setFilterCompanies}
+        filterEmployees={filterEmployees}
+        onFilterEmployeesChange={setFilterEmployees}
+        companies={companies}
+        employees={employees}
+      />
 
       <Tabs defaultValue="cashout">
         <TabsList className="mb-4">
