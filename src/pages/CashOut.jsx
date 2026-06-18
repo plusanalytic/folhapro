@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock, CreditCard } from 'lucide-react';
+import DeleteInstallmentsDialog from '@/components/payroll/DeleteInstallmentsDialog';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
@@ -348,7 +349,18 @@ export default function CashOut() {
                           </Button>
                         </>
                       )}
-                       {/* Parcelas de folha só podem ser excluídas pela folha de pagamento */}
+                      {!readOnly && showInstallmentBadge && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
+                          const baseDesc = (c.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
+                          const group = installmentCashOuts.filter(i =>
+                            (i.description || '').replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc &&
+                            i.employee_id === c.employee_id
+                          );
+                          setDeleteInstallDialog({ selectedId: c.id, group: group.length > 0 ? group : [c] });
+                        }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -424,7 +436,7 @@ export default function CashOut() {
             <div>
               <p className="font-semibold">Parcelas geradas pela Folha de Pagamento</p>
               <p className="text-xs mt-0.5 text-blue-700">Estes lançamentos foram criados automaticamente ao parcelar descontos nas folhas. A <strong>1ª parcela</strong> já foi aplicada diretamente na folha; as demais serão descontadas nos meses subsequentes via CashOut.</p>
-              <p className="text-xs mt-1 font-semibold text-blue-800">🔒 Para excluir parcelas, acesse a folha de pagamento do colaborador e utilize o botão de exclusão no desconto correspondente.</p>
+              <p className="text-xs mt-1 font-semibold text-blue-800">⚠ Ao excluir uma parcela aqui, o desconto correspondente também será revertido na folha de pagamento do mês.</p>
             </div>
           </div>
           {/* Resumo */}
@@ -445,6 +457,19 @@ export default function CashOut() {
           <CashOutGrid items={filteredInstallments} showInstallmentBadge={true} />
         </TabsContent>
       </Tabs>
+
+      {deleteInstallDialog && (
+        <DeleteInstallmentsDialog
+          open={!!deleteInstallDialog}
+          onClose={() => setDeleteInstallDialog(null)}
+          selectedInstallmentId={deleteInstallDialog.selectedId}
+          installments={deleteInstallDialog.group}
+          onDeleted={(deletedIds) => {
+            setCashOuts(prev => prev.filter(c => !deletedIds.includes(c.id)));
+            setDeleteInstallDialog(null);
+          }}
+        />
+      )}
 
       <AlertDialog open={!!blockedAlert} onOpenChange={v => !v && setBlockedAlert(null)}>
         <AlertDialogContent>
