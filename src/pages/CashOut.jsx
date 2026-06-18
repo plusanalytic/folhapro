@@ -282,20 +282,67 @@ export default function CashOut() {
     setSelectedIds(allSelected ? selectedIds.filter(id => !ids.includes(id)) : [...new Set([...selectedIds, ...ids])]);
   };
 
-  const handleBulkDelete = async (items) => {
+  const removeCashOutFromPayrollEntry = async (inst, idsBeingDeleted) => {
+    const payEntries = await base44.entities.PayrollEntry.filter({ employee_id: inst.employee_id, reference_month: inst.reference_month });
+    if (!payEntries.length) return;
+    const e = payEntries[0];
+    const allCOs = await base44.entities.CashOut.filter({ employee_id: inst.employee_id, reference_month: inst.reference_month });
+    const remaining = allCOs.filter(c => c.deduct_from_payroll && !idsBeingDeleted.includes(c.id));
+    const firstNonCO = (e.first_discounts || []).filter(r => r.source !== 'cashout');
+    const secondNonCO = (e.second_discounts || []).filter(r => r.source !== 'cashout');
+    const firstCOs = remaining.filter(c => c.period === 'first').map(c => ({ type: 'debit', description: c.description, amount: c.amount, source: 'cashout', source_id: c.id }));
+    const secondCOs = remaining.filter(c => c.period === 'second').map(c => ({ type: 'debit', description: c.description, amount: c.amount, source: 'cashout', source_id: c.id }));
+    const newFirst = [...firstNonCO, ...firstCOs];
+    const newSecond = [...secondNonCO, ...secondCOs];
+    const calcDiscount = (arr) => arr.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0) - arr.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+    const newFD = calcDiscount(newFirst);
+    const newSD = calcDiscount(newSecond);
+    const newFNet = Math.round(((e.first_period_net || 0) - (newFD - (e.first_period_discount || 0))) * 100) / 100;
+    const newSNet = Math.round(((e.second_period_net || 0) - (newSD - (e.second_period_discount || 0))) * 100) / 100;
+    await base44.entities.PayrollEntry.update(e.id, { first_discounts: newFirst, second_discounts: newSecond, first_period_discount: newFD, second_period_discount: newSD, first_period_net: newFNet, second_period_net: newSNet });
+  };
+
+  const removeDirectDiscountFromPayrollEntry = async (inst) => {
+    const payEntries = await base44.entities.PayrollEntry.filter({ employee_id: inst.employee_id, reference_month: inst.reference_month });
+    if (!payEntries.length) return;
+    const e = payEntries[0];
+    const removeMatch = (arr) => arr.filter(d => !(d.description === inst.description && Math.abs(d.amount - inst.amount) < 0.01 && d.source !== 'cashout'));
+    const newFirst = removeMatch(e.first_discounts || []);
+    const newSecond = removeMatch(e.second_discounts || []);
+    const calcDiscount = (arr) => arr.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0) - arr.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+    const newFD = calcDiscount(newFirst);
+    const newSD = calcDiscount(newSecond);
+    const newFNet = Math.round(((e.first_period_net || 0) - (newFD - (e.first_period_discount || 0))) * 100) / 100;
+    const newSNet = Math.round(((e.second_period_net || 0) - (newSD - (e.second_period_discount || 0))) * 100) / 100;
+    await base44.entities.PayrollEntry.update(e.id, { first_discounts: newFirst, second_discounts: newSecond, first_period_discount: newFD, second_period_discount: newSD, first_period_net: newFNet, second_period_net: newSNet });
+  };
+
+  const handleBulkDelete = async (items, isInstallmentTab = false) => {
     const toDelete = items.filter(c => selectedIds.includes(c.id));
     if (toDelete.length === 0) return;
     setBulkDeleteLoading(true);
+    const idsBeingDeleted = toDelete.map(c => c.id);
+
     for (const co of toDelete) {
-      await base44.entities.CashOut.delete(co.id);
-      if (co.deduct_from_payroll && co.employee_id && co.reference_month) {
+      if (isInstallmentTab && co.employee_id && co.reference_month) {
+        // Parcelas de folha: sincroniza folha antes de deletar
+        if (co.deduct_from_payroll) {
+          await removeCashOutFromPayrollEntry(co, idsBeingDeleted);
+        } else {
+          // 1ª parcela aplicada diretamente na folha
+          await removeDirectDiscountFromPayrollEntry(co);
+        }
+      } else if (co.deduct_from_payroll && co.employee_id && co.reference_month) {
+        // Saída de caixa comum com desconto em folha
         await updatePayrollEntry(co.employee_id, co.reference_month);
       }
+      await base44.entities.CashOut.delete(co.id);
     }
-    setCashOuts(prev => prev.filter(c => !selectedIds.includes(c.id)));
+
+    setCashOuts(prev => prev.filter(c => !idsBeingDeleted.includes(c.id)));
     setSelectedIds([]);
     setBulkDeleteLoading(false);
-    toast.success(`${toDelete.length} lançamento(s) excluído(s)`);
+    toast.success(`${toDelete.length} lançamento(s) excluído(s) e folhas sincronizadas`);
   };
 
   const CashOutGrid = ({ items, showInstallmentBadge = false }) => {
@@ -314,7 +361,7 @@ export default function CashOut() {
               variant="destructive"
               size="sm"
               disabled={bulkDeleteLoading}
-              onClick={() => handleBulkDelete(items)}
+              onClick={() => handleBulkDelete(items, showInstallmentBadge)}
             >
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
               {bulkDeleteLoading ? 'Excluindo...' : `Excluir ${selectedInView.length} selecionado(s)`}
