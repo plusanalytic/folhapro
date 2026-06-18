@@ -207,6 +207,19 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
     ?? (cltMotoBase > 0 ? Math.round((cltMotoBase / 30) * cltMotoDays * 100) / 100 : (entry?.base_salary ?? 0));
   const effectiveBaseSalary = cltMotoBase > 0 ? cltMotoEffective : (entry?.base_salary ?? 0);
 
+  // Deduplica descontos de cashout: mantém apenas um item por source_id (evita duplicatas entre
+  // itens salvos diretamente pelo updatePayrollEntry e itens que vieram do useEffect ao salvar a folha)
+  function dedupeDiscounts(arr) {
+    const seen = new Set();
+    return (arr ?? []).filter(d => {
+      const key = d.source_id || d.source !== 'cashout' ? (d.source_id ? `cashout:${d.source_id}` : null) : null;
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   const calc = calculatePayroll({
     base_salary:               effectiveBaseSalary,
     absence_discount:          0,
@@ -253,15 +266,15 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
   const grossTotal    = entry?.gross_total ?? calc.gross_total;
   const absenceFirst  = entry?.absence_discount_first ?? 0;
   const absenceSecond = entry?.absence_discount_second ?? 0;
+  const firstDiscounts  = dedupeDiscounts(entry?.first_discounts).sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = dedupeDiscounts(entry?.second_discounts).sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   // firstNet recomputado dos itens individuais (evita depender do valor salvo que pode ser 0 incorretamente)
-  const gDebits1_pre  = (entry?.first_discounts ?? []).filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
-  const gCredits1_pre = (entry?.first_discounts ?? []).filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gDebits1_pre  = firstDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
+  const gCredits1_pre = firstDiscounts.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
   const firstNet      = Math.round(((entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5)) - (entry?.first_period_advance ?? 0) - (gDebits1_pre - gCredits1_pre) - (entry?.absence_discount_first ?? 0)) * 100) / 100;
   const firstBase     = entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5);
   const secondBase    = entry?.second_period_base ?? (entry?.net_total ?? 0) * (1 - (entry?.first_period_split ?? 0.5));
   const splitFirst    = entry?.first_period_split ?? 0.5;
-  const firstDiscounts  = [...(entry?.first_discounts  ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   // Recomputa secondNet a partir dos itens reais do grid (CLT Moto)
   const cltExtraBonus = (entry?.delivery_bonus ?? 0) + (entry?.delivery_target_bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.route_sp_bonus ?? 0) + (entry?.overtime ?? 0);
   const gDebits2 = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
@@ -528,8 +541,8 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
   const firstNet        = entry?.first_period_net ?? 0;
   const firstBase       = entry?.first_period_base ?? 0;
   const secondBase      = entry?.second_period_base ?? 0;
-  const firstDiscounts  = [...(entry?.first_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const firstDiscounts  = [...(entry?.first_discounts ?? []).filter((d,i,arr) => { const k = d.source_id && d.source === 'cashout' ? `cashout:${d.source_id}` : null; return !k || arr.findIndex(x => x.source_id === d.source_id && x.source === 'cashout') === i; })].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = [...(entry?.second_discounts ?? []).filter((d,i,arr) => { const k = d.source_id && d.source === 'cashout' ? `cashout:${d.source_id}` : null; return !k || arr.findIndex(x => x.source_id === d.source_id && x.source === 'cashout') === i; })].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   // Recalcula secondNet dinamicamente para garantir que bonus/overtime sejam somados
   const gDebits2  = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
   const gCredits2 = secondDiscounts.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
@@ -734,16 +747,16 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
   });
 
   const firstAdv = entry?.first_period_advance ?? 0;
-  const firstDiscounts  = [...(entry?.first_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const firstDiscounts  = [...(entry?.first_discounts ?? []).filter((d,i,arr) => { const k = d.source_id && d.source === 'cashout' ? `cashout:${d.source_id}` : null; return !k || arr.findIndex(x => x.source_id === d.source_id && x.source === 'cashout') === i; })].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = [...(entry?.second_discounts ?? []).filter((d,i,arr) => { const k = d.source_id && d.source === 'cashout' ? `cashout:${d.source_id}` : null; return !k || arr.findIndex(x => x.source_id === d.source_id && x.source === 'cashout') === i; })].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   const splitFirst = entry?.first_period_split ?? 0.5;
   // Usa os valores salvos de base quinzenal (respeitam o rateio configurado no formulário)
   const firstBase  = entry?.first_period_base  ?? (calc.net_total * splitFirst);
   const secondBase = entry?.second_period_base ?? (calc.net_total * (1 - splitFirst));
   const escAbsenceFirst  = entry?.absence_discount_first  ?? 0;
   const escAbsenceSecond = entry?.absence_discount_second ?? 0;
-  const firstDiscountTotal  = (entry?.first_discounts  ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
-  const secondDiscountTotal = (entry?.second_discounts ?? []).reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
+  const firstDiscountTotal  = firstDiscounts.reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
+  const secondDiscountTotal = secondDiscounts.reduce((s, d) => d.type === 'credit' ? s - (d.amount || 0) : s + (d.amount || 0), 0);
   // Recalcula os líquidos quinzenais para garantir que attendance_bonus e outros valores estejam somados
   // (compatível com folhas salvas antes da correção)
   const firstNet  = Math.round((firstBase - firstAdv - (entry?.first_period_discount ?? firstDiscountTotal) - escAbsenceFirst) * 100) / 100;
