@@ -122,8 +122,8 @@ export default function MeiPayrollForm({ employee, entry, referenceMonth, onSave
     working_days_second: String(entry ? (entry.working_days_second ?? '') : wdSecond),
   });
 
-  const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
-  const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
+  const [firstDiscounts, setFirstDiscounts] = useState((entry?.first_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
+  const [secondDiscounts, setSecondDiscounts] = useState((entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
   const [installmentDialog, setInstallmentDialog] = useState(null);
 
   // Conta faltas automaticamente a partir das tabelas de descontos

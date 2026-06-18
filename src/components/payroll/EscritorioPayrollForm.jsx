@@ -145,8 +145,9 @@ export default function EscritorioPayrollForm({ employee, entry, referenceMonth,
     }
   }, [employee.birth_date, referenceMonth, readOnly]);
 
-  const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
-  const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
+  // Filtra CashOuts salvos pois o useEffect os recarrega do banco (evita duplicatas)
+  const [firstDiscounts, setFirstDiscounts] = useState((entry?.first_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
+  const [secondDiscounts, setSecondDiscounts] = useState((entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
   const [installmentDialog, setInstallmentDialog] = useState(null);
 
   // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)

@@ -226,8 +226,9 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
   );
 
   // Descontos quinzenais (lista de {date, description, amount, id})
-  const [firstDiscounts, setFirstDiscounts] = useState(entry?.first_discounts ?? []);
-  const [secondDiscounts, setSecondDiscounts] = useState(entry?.second_discounts ?? []);
+  // Filtra CashOuts salvos pois o useEffect os recarrega do banco (evita duplicatas)
+  const [firstDiscounts, setFirstDiscounts] = useState((entry?.first_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
+  const [secondDiscounts, setSecondDiscounts] = useState((entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout'));
 
   // Rateio quinzenal: proporção da 1ª quinzena (padrão 0.5 = 50%)
   const [firstPeriodSplit, setFirstPeriodSplit] = useState(entry?.first_period_split ?? 0.5);
