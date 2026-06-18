@@ -459,22 +459,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
-    // 1ª parcela: entra direto como desconto na quinzena atual + registrada no CashOut para rastreamento
-    const firstEntry = {
-      date: startDate,
-      description: `${description} (1/${installments})`,
-      amount: installmentValue,
-      id: Date.now(),
-    };
-    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
-    else setSecondDiscounts(prev => [...prev, firstEntry]);
     setInstallmentDialog(null);
-    // Todas as parcelas (incluindo a 1ª) são registradas no CashOut com source=payroll_installment
+
+    // Cria todos os CashOuts (incluindo a 1ª) e coleta os registros criados
+    const createdCashOuts = [];
     for (let i = 0; i < preview.length; i++) {
       const p = preview[i];
       const day = isFirst ? 15 : 28;
       const date = i === 0 ? startDate : `${p.month}-${String(day).padStart(2, '0')}`;
-      await base44.entities.CashOut.create({
+      const created = await base44.entities.CashOut.create({
         employee_id: employee.id,
         company_id: employee.company_id,
         date,
@@ -486,7 +479,24 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         deduct_from_payroll: i > 0, // 1ª já foi aplicada direto na folha
         source: 'payroll_installment',
       });
+      createdCashOuts.push(created);
     }
+
+    // Atualiza allInstallments com os novos CashOuts criados
+    setAllInstallments(prev => [...prev, ...createdCashOuts]);
+
+    // 1ª parcela: adiciona direto nos descontos da quinzena com o ID real do CashOut
+    const firstCashOut = createdCashOuts[0];
+    const firstEntry = {
+      id: firstCashOut.id,        // ID real do CashOut
+      date: firstCashOut.date,
+      description: firstCashOut.description,
+      amount: firstCashOut.amount,
+      fromCashOut: true,          // marca para o PeriodDiscountsTable saber que é parcela
+      source: 'payroll_installment',
+    };
+    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
+    else setSecondDiscounts(prev => [...prev, firstEntry]);
   };
 
   // Converte hh:mm + valor/hora em total de hora extra
@@ -1258,19 +1268,15 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     readOnly={readOnly || q1Locked}
                     onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')}
                     onDeleteInstallment={(item) => {
-                      // Extrai descrição base do item clicado
-                      const baseDesc = item.description?.replace(/\s*\(\d+\/\d+\)$/, '') || item.description;
-                      // Busca no grupo completo pelo CashOut que corresponde a este item
-                      const match = allInstallments.find(ci =>
-                        ci.description === item.description ||
-                        (ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc && ci.amount === item.amount && !item.description?.match(/\(\d+\/\d+\)$/))
-                      );
-                      // Monta o grupo: todos os installments com a mesma descrição base
+                      const baseDesc = (item.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
                       const group = allInstallments.filter(ci =>
-                        ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
+                        (ci.description || '').replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
                       );
+                      // Encontra o CashOut que corresponde exatamente a este item
+                      const match = allInstallments.find(ci => ci.id === item.id) ||
+                        allInstallments.find(ci => ci.description === item.description);
                       if (group.length > 0) {
-                        setDeleteInstallDialog({ installment: match || group[0], group });
+                        setDeleteInstallDialog({ selectedId: match?.id || null, group });
                       }
                     }}
                   />
@@ -1371,16 +1377,14 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     readOnly={readOnly || q2Locked}
                     onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')}
                     onDeleteInstallment={(item) => {
-                      const baseDesc = item.description?.replace(/\s*\(\d+\/\d+\)$/, '') || item.description;
-                      const match = allInstallments.find(ci =>
-                        ci.description === item.description ||
-                        (ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc && ci.amount === item.amount)
-                      );
+                      const baseDesc = (item.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
                       const group = allInstallments.filter(ci =>
-                        ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
+                        (ci.description || '').replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
                       );
+                      const match = allInstallments.find(ci => ci.id === item.id) ||
+                        allInstallments.find(ci => ci.description === item.description);
                       if (group.length > 0) {
-                        setDeleteInstallDialog({ installment: match || group[0], group });
+                        setDeleteInstallDialog({ selectedId: match?.id || null, group });
                       }
                     }}
                   />
@@ -1516,12 +1520,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
           <DeleteInstallmentsDialog
             open={!!deleteInstallDialog}
             onClose={() => setDeleteInstallDialog(null)}
-            selectedInstallment={deleteInstallDialog.installment}
+            selectedInstallmentId={deleteInstallDialog.selectedId}
             installments={deleteInstallDialog.group}
             onDeleted={(deletedIds) => {
-              // Remove os itens excluídos dos descontos locais e atualiza allInstallments
               setAllInstallments(prev => prev.filter(i => !deletedIds.includes(i.id)));
-              const removeDeleted = (arr) => arr.filter(d => !deletedIds.some(id => d.id === id || d.source_id === id));
+              const removeDeleted = (arr) => arr.filter(d => !deletedIds.includes(d.id));
               setFirstDiscounts(removeDeleted);
               setSecondDiscounts(removeDeleted);
               setDeleteInstallDialog(null);
