@@ -333,10 +333,13 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   // Carregar CashOuts do colaborador no mês
   useEffect(() => {
-    base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }).then(cashOuts => {
-      // Guarda todos os installments do colaborador para o dialog de exclusão
-      const installments = cashOuts.filter(c => c.source === 'payroll_installment');
-      setAllInstallments(installments);
+    // Carrega CashOuts do mês E todos os installments do colaborador (para montar grupo de exclusão)
+    Promise.all([
+      base44.entities.CashOut.filter({ employee_id: employee.id, reference_month: referenceMonth }),
+      base44.entities.CashOut.filter({ employee_id: employee.id, source: 'payroll_installment' }),
+    ]).then(([cashOuts, allEmpInstallments]) => {
+      // Guarda TODOS os installments do colaborador (de todos os meses) para o dialog de exclusão
+      setAllInstallments(allEmpInstallments);
 
       const toDeduct = cashOuts.filter(c => c.deduct_from_payroll);
       const fromCashFirst = toDeduct.filter(c => c.period === 'first').map(c => ({
@@ -355,7 +358,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         return [...manual, ...fromCashSecond];
       });
     });
-  }, [employee.id, referenceMonth]);
+  }, [employee.id, referenceMonth]); // eslint-disable-line
 
   const set = (k, v) => { if (!readOnly) setForm(f => ({ ...f, [k]: v })); };
   const setNum = (k, v) => set(k, parseFloat(v) || 0);
@@ -1255,12 +1258,19 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     readOnly={readOnly || q1Locked}
                     onOpenInstallment={(readOnly || q1Locked) ? undefined : () => setInstallmentDialog('first')}
                     onDeleteInstallment={(item) => {
-                      // Busca o CashOut de parcelas com essa descrição para abrir o dialog de exclusão
-                      const match = allInstallments.find(ci => ci.description === item.description && ci.amount === item.amount);
-                      if (match) {
-                        const baseDesc = match.description?.replace(/\s*\(\d+\/\d+\)$/, '');
-                        const group = allInstallments.filter(ci => ci.description?.startsWith(baseDesc));
-                        setDeleteInstallDialog({ installment: match, group });
+                      // Extrai descrição base do item clicado
+                      const baseDesc = item.description?.replace(/\s*\(\d+\/\d+\)$/, '') || item.description;
+                      // Busca no grupo completo pelo CashOut que corresponde a este item
+                      const match = allInstallments.find(ci =>
+                        ci.description === item.description ||
+                        (ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc && ci.amount === item.amount && !item.description?.match(/\(\d+\/\d+\)$/))
+                      );
+                      // Monta o grupo: todos os installments com a mesma descrição base
+                      const group = allInstallments.filter(ci =>
+                        ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
+                      );
+                      if (group.length > 0) {
+                        setDeleteInstallDialog({ installment: match || group[0], group });
                       }
                     }}
                   />
@@ -1361,11 +1371,16 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
                     readOnly={readOnly || q2Locked}
                     onOpenInstallment={(readOnly || q2Locked) ? undefined : () => setInstallmentDialog('second')}
                     onDeleteInstallment={(item) => {
-                      const match = allInstallments.find(ci => ci.description === item.description && ci.amount === item.amount);
-                      if (match) {
-                        const baseDesc = match.description?.replace(/\s*\(\d+\/\d+\)$/, '');
-                        const group = allInstallments.filter(ci => ci.description?.startsWith(baseDesc));
-                        setDeleteInstallDialog({ installment: match, group });
+                      const baseDesc = item.description?.replace(/\s*\(\d+\/\d+\)$/, '') || item.description;
+                      const match = allInstallments.find(ci =>
+                        ci.description === item.description ||
+                        (ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc && ci.amount === item.amount)
+                      );
+                      const group = allInstallments.filter(ci =>
+                        ci.description?.replace(/\s*\(\d+\/\d+\)$/, '') === baseDesc
+                      );
+                      if (group.length > 0) {
+                        setDeleteInstallDialog({ installment: match || group[0], group });
                       }
                     }}
                   />
