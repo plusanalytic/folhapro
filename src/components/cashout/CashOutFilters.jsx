@@ -3,6 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import MultiSearchableSelect from '@/components/ui/MultiSearchableSelect';
 
+const currentMonth = new Date().toISOString().slice(0, 7);
+
 export default function CashOutFilters({
   search, onSearchChange,
   filterMonths, onFilterMonthsChange, monthOptions,
@@ -31,6 +33,7 @@ export default function CashOutFilters({
             allLabel="Todos os Meses"
             selectedLabel="meses"
             options={monthOptions}
+            scrollToValue={currentMonth}
           />
           <MultiSearchableSelect
             values={filterCompanies}

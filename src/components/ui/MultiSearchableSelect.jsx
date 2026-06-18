@@ -10,16 +10,24 @@ import { cn } from '@/lib/utils';
  * placeholder: string
  * allLabel: string — label when nothing selected
  */
-export default function MultiSearchableSelect({ values = [], onValuesChange, options = [], placeholder = 'Selecionar', allLabel = 'Todos', className, selectedLabel }) {
+export default function MultiSearchableSelect({ values = [], onValuesChange, options = [], placeholder = 'Selecionar', allLabel = 'Todos', className, selectedLabel, scrollToValue }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
+  const listRef = useRef(null);
+  const scrollTargetRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    if (open && scrollToValue && scrollTargetRef.current) {
+      scrollTargetRef.current.scrollIntoView({ block: 'center' });
+    }
+  }, [open, scrollToValue]);
 
   const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
 
@@ -70,13 +78,14 @@ export default function MultiSearchableSelect({ values = [], onValuesChange, opt
               onMouseDown={e => e.stopPropagation()}
             />
           </div>
-          <div className="max-h-56 overflow-y-auto py-1">
+          <div ref={listRef} className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 && (
               <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</div>
             )}
             {filtered.map(opt => (
               <button
                 key={opt.value}
+                ref={scrollToValue && opt.value === scrollToValue ? scrollTargetRef : null}
                 type="button"
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
                 onMouseDown={e => { e.preventDefault(); toggle(opt.value); }}
