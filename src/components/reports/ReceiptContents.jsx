@@ -260,8 +260,8 @@ export function HoleriteContent({ employee, entry, month, company, paymentStatus
   const firstBase     = entry?.first_period_base ?? (entry?.net_total ?? 0) * (entry?.first_period_split ?? 0.5);
   const secondBase    = entry?.second_period_base ?? (entry?.net_total ?? 0) * (1 - (entry?.first_period_split ?? 0.5));
   const splitFirst    = entry?.first_period_split ?? 0.5;
-  const firstDiscounts  = [...(entry?.first_discounts  ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const firstDiscounts  = [...(entry?.first_discounts  ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = [...(entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   // Recomputa secondNet a partir dos itens reais do grid (CLT Moto)
   const cltExtraBonus = (entry?.delivery_bonus ?? 0) + (entry?.delivery_target_bonus ?? 0) + (entry?.attendance_bonus ?? 0) + (entry?.route_sp_bonus ?? 0) + (entry?.overtime ?? 0);
   const gDebits2 = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
@@ -528,8 +528,8 @@ export function MeiHoleriteContent({ employee, entry, month, company, paymentSta
   const firstNet        = entry?.first_period_net ?? 0;
   const firstBase       = entry?.first_period_base ?? 0;
   const secondBase      = entry?.second_period_base ?? 0;
-  const firstDiscounts  = [...(entry?.first_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const firstDiscounts  = [...(entry?.first_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = [...(entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   // Recalcula secondNet dinamicamente para garantir que bonus/overtime sejam somados
   const gDebits2  = secondDiscounts.filter(r => r.type !== 'credit').reduce((s, r) => s + (r.amount || 0), 0);
   const gCredits2 = secondDiscounts.filter(r => r.type === 'credit').reduce((s, r) => s + (r.amount || 0), 0);
@@ -734,8 +734,8 @@ export function EscritorioHoleriteContent({ employee, entry, month, company, pay
   });
 
   const firstAdv = entry?.first_period_advance ?? 0;
-  const firstDiscounts  = [...(entry?.first_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
-  const secondDiscounts = [...(entry?.second_discounts ?? [])].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const firstDiscounts  = [...(entry?.first_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
+  const secondDiscounts = [...(entry?.second_discounts ?? []).filter(d => !d.fromCashOut && d.source !== 'cashout')].sort((a,b) => (b.type==='credit'?1:0)-(a.type==='credit'?1:0));
   const splitFirst = entry?.first_period_split ?? 0.5;
   // Usa os valores salvos de base quinzenal (respeitam o rateio configurado no formulário)
   const firstBase  = entry?.first_period_base  ?? (calc.net_total * splitFirst);
