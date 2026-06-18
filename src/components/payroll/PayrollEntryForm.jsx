@@ -449,7 +449,7 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
 
   const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
-    // 1ª parcela: entra direto como desconto na quinzena atual (não vai pro CashOut)
+    // 1ª parcela: entra direto como desconto na quinzena atual + registrada no CashOut para rastreamento
     const firstEntry = {
       date: startDate,
       description: `${description} (1/${installments})`,
@@ -459,11 +459,11 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
     else setSecondDiscounts(prev => [...prev, firstEntry]);
     setInstallmentDialog(null);
-    // Parcelas 2ª em diante: criadas no CashOut dos meses futuros (não duplicam a folha atual)
-    for (let i = 1; i < preview.length; i++) {
+    // Todas as parcelas (incluindo a 1ª) são registradas no CashOut com source=payroll_installment
+    for (let i = 0; i < preview.length; i++) {
       const p = preview[i];
       const day = isFirst ? 15 : 28;
-      const date = `${p.month}-${String(day).padStart(2, '0')}`;
+      const date = i === 0 ? startDate : `${p.month}-${String(day).padStart(2, '0')}`;
       await base44.entities.CashOut.create({
         employee_id: employee.id,
         company_id: employee.company_id,
@@ -473,7 +473,8 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
         reference_month: p.month,
         period: isFirst ? 'first' : 'second',
         notes: `Parcela ${i + 1}/${installments} — parcelamento gerado em ${referenceMonth}`,
-        deduct_from_payroll: true,
+        deduct_from_payroll: i > 0, // 1ª já foi aplicada direto na folha
+        source: 'payroll_installment',
       });
     }
   };

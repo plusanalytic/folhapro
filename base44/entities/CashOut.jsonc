@@ -43,6 +43,14 @@
       "type": "boolean",
       "default": false,
       "description": "Se true, o valor ser\u00e1 descontado da folha de pagamento do colaborador na quinzena correspondente"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "cashout",
+        "payroll_installment"
+      ],
+      "description": "Origem do lan\u00e7amento: cashout (manual) ou payroll_installment (gerado pela folha)"
     }
   },
   "required": [

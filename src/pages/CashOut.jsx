@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock, CreditCard } from 'lucide-react';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,9 +27,7 @@ function getMonthFromDate(dateStr) {
 }
 
 const BLOCKED_STATUSES = ['AGENDADO', 'PAGO', 'RESCISÃO', 'DESLIGADO', 'FÉRIAS', 'AFASTADO', 'SALDO NEGATIVO', 'COBRIDOR'];
-
 const EMPTY_FORM = { company_id: '', employee_id: '', date: '', description: '', amount: '', notes: '', deduct_from_payroll: false };
-
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTHS_PT[parseInt(mo)-1]}/${y.slice(2)}`; };
 
@@ -50,7 +49,7 @@ export default function CashOut() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [blockedAlert, setBlockedAlert] = useState(null); // { period, status, empName }
+  const [blockedAlert, setBlockedAlert] = useState(null);
 
   useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonths[0] || ''); }, [filterMonths]);
 
@@ -65,7 +64,6 @@ export default function CashOut() {
   const employeeMap = Object.fromEntries(employees.map(e => [e.id, e]));
   const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
 
-  // Gera lista de meses disponíveis nos lançamentos + últimos 12 meses
   const monthOptions = useMemo(() => {
     const now = new Date();
     const set = new Set();
@@ -80,7 +78,11 @@ export default function CashOut() {
     });
   }, [cashOuts]);
 
-  const filtered = cashOuts.filter(c => {
+  // Separa por fonte
+  const regularCashOuts = cashOuts.filter(c => c.source !== 'payroll_installment');
+  const installmentCashOuts = cashOuts.filter(c => c.source === 'payroll_installment');
+
+  const applyFilters = (list) => list.filter(c => {
     const emp = employeeMap[c.employee_id];
     const companyId = emp?.company_id || c.company_id;
     if (filterCompanies.length > 0 && !filterCompanies.includes(companyId)) return false;
@@ -90,9 +92,9 @@ export default function CashOut() {
     return true;
   });
 
-  const totalFiltered = filtered.reduce((s, c) => s + (c.amount || 0), 0);
+  const filteredRegular = applyFilters(regularCashOuts);
+  const filteredInstallments = applyFilters(installmentCashOuts);
 
-  // Employees filtered by company selection in the form
   const formEmployees = form.company_id
     ? employees.filter(e => e.company_id === form.company_id && e.is_active !== false)
     : employees.filter(e => e.is_active !== false);
@@ -135,7 +137,6 @@ export default function CashOut() {
       toast.error('Selecione um colaborador para descontar da folha');
       return;
     }
-    // Verifica se a quinzena já está bloqueada para pagamento
     if (form.deduct_from_payroll && form.employee_id && form.date) {
       const refMonth = getMonthFromDate(form.date);
       const period = getPeriod(form.date);
@@ -166,6 +167,7 @@ export default function CashOut() {
       period: getPeriod(form.date),
       notes: form.notes || '',
       deduct_from_payroll: deductFromPayroll,
+      source: 'cashout',
     };
     if (editingId) {
       const updated = await base44.entities.CashOut.update(editingId, record);
@@ -220,6 +222,147 @@ export default function CashOut() {
     setShowForm(true);
   };
 
+  // Extrai número da parcela a partir da descrição "Desc (2/5)"
+  const parseInstallmentLabel = (desc) => {
+    const match = desc?.match(/\((\d+)\/(\d+)\)$/);
+    if (!match) return null;
+    return { current: parseInt(match[1]), total: parseInt(match[2]) };
+  };
+
+  const Filters = () => (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar colaborador ou descrição..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <MultiSearchableSelect
+            values={filterMonths}
+            onValuesChange={setFilterMonths}
+            placeholder="Mês"
+            className="w-48"
+            allLabel="Todos os Meses"
+            options={monthOptions}
+          />
+          <MultiSearchableSelect
+            values={filterCompanies}
+            onValuesChange={v => { setFilterCompanies(v); setFilterEmployees([]); }}
+            placeholder="Empresa"
+            className="w-44"
+            allLabel="Todas as Empresas"
+            options={companies.map(c => ({ value: c.id, label: c.name }))}
+          />
+          <MultiSearchableSelect
+            values={filterEmployees}
+            onValuesChange={setFilterEmployees}
+            placeholder="Colaborador"
+            className="w-52"
+            allLabel="Todos os Colaboradores"
+            options={(filterCompanies.length > 0 ? employees.filter(e => filterCompanies.includes(e.company_id)) : employees).map(e => ({ value: e.id, label: e.name }))}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const CashOutGrid = ({ items, showInstallmentBadge = false }) => (
+    <Card>
+      <CardContent className="pt-4 pb-2">
+        <div className="rounded-lg border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/40 text-muted-foreground">
+                <th className="text-left px-4 py-3 font-medium">Data</th>
+                <th className="text-left px-4 py-3 font-medium">Empresa / Colaborador</th>
+                <th className="text-left px-4 py-3 font-medium">Descrição</th>
+                {showInstallmentBadge && <th className="text-left px-4 py-3 font-medium">Parcela</th>}
+                <th className="text-left px-4 py-3 font-medium">Quinzena</th>
+                <th className="text-left px-4 py-3 font-medium">Desconto Folha</th>
+                <th className="text-right px-4 py-3 font-medium">Valor</th>
+                {!readOnly && !showInstallmentBadge && <th className="w-10" />}
+                {showInstallmentBadge && <th className="w-10" />}
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={showInstallmentBadge ? 8 : 7} className="text-center text-muted-foreground py-10 text-sm">
+                    Nenhum lançamento encontrado
+                  </td>
+                </tr>
+              )}
+              {items.map(c => {
+                const emp = c.employee_id ? employeeMap[c.employee_id] : null;
+                const company = companyMap[emp?.company_id || c.company_id];
+                const installment = parseInstallmentLabel(c.description);
+                const isFirstInstallment = installment?.current === 1;
+                return (
+                  <tr key={c.id} className="border-t border-border hover:bg-muted/20">
+                    <td className="px-4 py-3 font-mono text-xs">{c.date}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{emp?.name ?? <span className="text-muted-foreground italic">Sem colaborador</span>}</p>
+                      <p className="text-xs text-muted-foreground">{company?.name ?? '—'}</p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{c.description}</td>
+                    {showInstallmentBadge && (
+                      <td className="px-4 py-3">
+                        {installment ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge className={`text-xs w-fit ${isFirstInstallment ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-100 text-blue-700 border-blue-300'}`}>
+                              {installment.current}ª / {installment.total}
+                            </Badge>
+                            {isFirstInstallment && (
+                              <span className="text-xs text-green-600 font-medium">✓ Aplicada na folha</span>
+                            )}
+                          </div>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="text-xs">
+                        {c.period === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.deduct_from_payroll && c.employee_id ? (
+                        <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300">Sim</Badge>
+                      ) : isFirstInstallment ? (
+                        <Badge className="text-xs bg-green-100 text-green-700 border-green-300">Direto na folha</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">Não</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold text-destructive">
+                      - {formatCurrency(c.amount)}
+                    </td>
+                    <td className="px-2 py-3 flex gap-1">
+                      {!readOnly && !showInstallmentBadge && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(c)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      {showInstallmentBadge && !readOnly && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -243,133 +386,67 @@ export default function CashOut() {
         )}
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar colaborador ou descrição..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+      <Filters />
+
+      <Tabs defaultValue="cashout">
+        <TabsList className="mb-4">
+          <TabsTrigger value="cashout" className="gap-2">
+            <ArrowDownCircle className="w-4 h-4" />
+            Saída de Caixa
+            <Badge variant="secondary" className="ml-1 text-xs">{filteredRegular.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="installments" className="gap-2">
+            <CreditCard className="w-4 h-4" />
+            Parcelas de Folha
+            <Badge variant="secondary" className="ml-1 text-xs">{filteredInstallments.length}</Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cashout" className="space-y-4">
+          {/* Resumo */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground mb-1">Total no período</p>
+                <p className="font-mono font-bold text-destructive text-xl">{formatCurrency(filteredRegular.reduce((s,c) => s + (c.amount||0), 0))}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground mb-1">Lançamentos</p>
+                <p className="font-bold text-xl">{filteredRegular.length}</p>
+              </CardContent>
+            </Card>
+          </div>
+          <CashOutGrid items={filteredRegular} showInstallmentBadge={false} />
+        </TabsContent>
+
+        <TabsContent value="installments" className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+            <CreditCard className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Parcelas geradas pela Folha de Pagamento</p>
+              <p className="text-xs mt-0.5 text-blue-700">Estes lançamentos foram criados automaticamente ao parcelar descontos nas folhas. A <strong>1ª parcela</strong> já foi aplicada diretamente na folha; as demais serão descontadas nos meses subsequentes via CashOut.</p>
             </div>
-            <MultiSearchableSelect
-              values={filterMonths}
-              onValuesChange={setFilterMonths}
-              placeholder="Mês"
-              className="w-48"
-              allLabel="Todos os Meses"
-              options={monthOptions}
-            />
-            <MultiSearchableSelect
-              values={filterCompanies}
-              onValuesChange={v => { setFilterCompanies(v); setFilterEmployees([]); }}
-              placeholder="Empresa"
-              className="w-44"
-              allLabel="Todas as Empresas"
-              options={companies.map(c => ({ value: c.id, label: c.name }))}
-            />
-            <MultiSearchableSelect
-              values={filterEmployees}
-              onValuesChange={setFilterEmployees}
-              placeholder="Colaborador"
-              className="w-52"
-              allLabel="Todos os Colaboradores"
-              options={
-                (filterCompanies.length > 0
-                  ? employees.filter(e => filterCompanies.includes(e.company_id))
-                  : employees
-                ).map(e => ({ value: e.id, label: e.name }))
-              }
-            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Resumo */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground mb-1">Total no período</p>
-            <p className="font-mono font-bold text-destructive text-xl">{formatCurrency(totalFiltered)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground mb-1">Lançamentos</p>
-            <p className="font-bold text-xl">{filtered.length}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabela */}
-      <Card>
-        <CardContent className="pt-4 pb-2">
-          <div className="rounded-lg border border-border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted/40 text-muted-foreground">
-                  <th className="text-left px-4 py-3 font-medium">Data</th>
-                  <th className="text-left px-4 py-3 font-medium">Empresa / Colaborador</th>
-                  <th className="text-left px-4 py-3 font-medium">Descrição</th>
-                  <th className="text-left px-4 py-3 font-medium">Quinzena</th>
-                  <th className="text-left px-4 py-3 font-medium">Desconto Folha</th>
-                  <th className="text-right px-4 py-3 font-medium">Valor</th>
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-center text-muted-foreground py-10 text-sm">
-                      Nenhum lançamento encontrado
-                    </td>
-                  </tr>
-                )}
-                {filtered.map(c => {
-                  const emp = c.employee_id ? employeeMap[c.employee_id] : null;
-                  const company = companyMap[emp?.company_id || c.company_id];
-                  return (
-                    <tr key={c.id} className="border-t border-border hover:bg-muted/20">
-                      <td className="px-4 py-3 font-mono text-xs">{c.date}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{emp?.name ?? <span className="text-muted-foreground italic">Sem colaborador</span>}</p>
-                        <p className="text-xs text-muted-foreground">{company?.name ?? '—'}</p>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{c.description}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline" className="text-xs">
-                          {c.period === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {c.deduct_from_payroll && c.employee_id ? (
-                          <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300">Sim</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs text-muted-foreground">Não</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-destructive">
-                        - {formatCurrency(c.amount)}
-                      </td>
-                      <td className="px-2 py-3 flex gap-1">
-                        {!readOnly && (
-                          <>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(c)}>
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Resumo */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground mb-1">Total no período</p>
+                <p className="font-mono font-bold text-destructive text-xl">{formatCurrency(filteredInstallments.reduce((s,c) => s + (c.amount||0), 0))}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground mb-1">Parcelas</p>
+                <p className="font-bold text-xl">{filteredInstallments.length}</p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+          <CashOutGrid items={filteredInstallments} showInstallmentBadge={true} />
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!blockedAlert} onOpenChange={v => !v && setBlockedAlert(null)}>
         <AlertDialogContent>
@@ -398,24 +475,14 @@ export default function CashOut() {
               <DialogTitle className="text-xl">{editingId ? 'Editar Lançamento' : 'Novo Lançamento de Saída'}</DialogTitle>
             </DialogHeader>
             <div className="max-w-2xl mx-auto space-y-5">
-
-              {/* Empresa */}
               <div>
                 <Label>Empresa <span className="text-destructive">*</span></Label>
-                <Select
-                  value={form.company_id}
-                  onValueChange={v => setForm(f => ({ ...f, company_id: v, employee_id: '', deduct_from_payroll: false }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione a empresa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
+                <Select value={form.company_id} onValueChange={v => setForm(f => ({ ...f, company_id: v, employee_id: '', deduct_from_payroll: false }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione a empresa..." /></SelectTrigger>
+                  <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
-              {/* Colaborador (opcional) */}
               <div>
                 <Label>Colaborador <span className="text-muted-foreground text-xs">(opcional)</span></Label>
                 <div className="relative mt-1">
@@ -425,32 +492,17 @@ export default function CashOut() {
                     placeholder="Digite para buscar colaborador..."
                     value={employeeSearch}
                     disabled={!form.company_id}
-                    onChange={e => {
-                      setEmployeeSearch(e.target.value);
-                      setShowEmployeeDropdown(true);
-                      if (!e.target.value) setForm(f => ({ ...f, employee_id: '', deduct_from_payroll: false }));
-                    }}
+                    onChange={e => { setEmployeeSearch(e.target.value); setShowEmployeeDropdown(true); if (!e.target.value) setForm(f => ({ ...f, employee_id: '', deduct_from_payroll: false })); }}
                     onFocus={() => setShowEmployeeDropdown(true)}
                   />
                   {showEmployeeDropdown && employeeSearch && (
                     <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                      {formEmployees
-                        .filter(e => e.name.toLowerCase().includes(employeeSearch.toLowerCase()))
-                        .map(e => (
-                          <button
-                            key={e.id}
-                            type="button"
-                            className="w-full text-left px-4 py-2.5 hover:bg-muted text-sm flex flex-col"
-                            onClick={() => {
-                              setForm(f => ({ ...f, employee_id: e.id }));
-                              setEmployeeSearch(e.name);
-                              setShowEmployeeDropdown(false);
-                            }}
-                          >
-                            <span className="font-medium">{e.name}</span>
-                            <span className="text-xs text-muted-foreground">{e.contract_type}</span>
-                          </button>
-                        ))}
+                      {formEmployees.filter(e => e.name.toLowerCase().includes(employeeSearch.toLowerCase())).map(e => (
+                        <button key={e.id} type="button" className="w-full text-left px-4 py-2.5 hover:bg-muted text-sm flex flex-col" onClick={() => { setForm(f => ({ ...f, employee_id: e.id })); setEmployeeSearch(e.name); setShowEmployeeDropdown(false); }}>
+                          <span className="font-medium">{e.name}</span>
+                          <span className="text-xs text-muted-foreground">{e.contract_type}</span>
+                        </button>
+                      ))}
                       {formEmployees.filter(e => e.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
                         <div className="px-4 py-3 text-sm text-muted-foreground">Nenhum colaborador encontrado</div>
                       )}
@@ -460,28 +512,16 @@ export default function CashOut() {
                 {form.employee_id && (
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-primary">✓ {employeeMap[form.employee_id]?.name} selecionado</p>
-                    <button
-                      type="button"
-                      className="text-xs text-muted-foreground hover:text-destructive"
-                      onClick={() => { setForm(f => ({ ...f, employee_id: '', deduct_from_payroll: false })); setEmployeeSearch(''); }}
-                    >
-                      Remover
-                    </button>
+                    <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => { setForm(f => ({ ...f, employee_id: '', deduct_from_payroll: false })); setEmployeeSearch(''); }}>Remover</button>
                   </div>
                 )}
-                {!form.company_id && (
-                  <p className="text-xs text-muted-foreground mt-1">Selecione uma empresa primeiro</p>
-                )}
+                {!form.company_id && <p className="text-xs text-muted-foreground mt-1">Selecione uma empresa primeiro</p>}
               </div>
 
               <div>
                 <Label>Data do lançamento <span className="text-destructive">*</span></Label>
                 <Input type="date" className="mt-1 font-mono" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                {form.date && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    → {getPeriod(form.date) === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'} · {getMonthFromDate(form.date)}
-                  </p>
-                )}
+                {form.date && <p className="text-xs text-muted-foreground mt-1">→ {getPeriod(form.date) === 'first' ? '1ª Quinzena (1–15)' : '2ª Quinzena (16–30)'} · {getMonthFromDate(form.date)}</p>}
               </div>
 
               <div>
@@ -494,40 +534,23 @@ export default function CashOut() {
                 <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="0,00" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
               </div>
 
-              {/* Flag: Descontar do colaborador */}
               <div className={`flex items-center justify-between rounded-lg border p-4 ${!form.employee_id ? 'opacity-50' : ''}`}>
                 <div>
                   <p className="font-medium text-sm">Descontar do colaborador</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {form.employee_id
-                      ? 'O valor será descontado da folha de pagamento na quinzena correspondente'
-                      : 'Selecione um colaborador para habilitar esta opção'}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{form.employee_id ? 'O valor será descontado da folha de pagamento na quinzena correspondente' : 'Selecione um colaborador para habilitar esta opção'}</p>
                 </div>
-                <Switch
-                  checked={form.deduct_from_payroll}
-                  disabled={!form.employee_id}
-                  onCheckedChange={v => setForm(f => ({ ...f, deduct_from_payroll: v }))}
-                />
+                <Switch checked={form.deduct_from_payroll} disabled={!form.employee_id} onCheckedChange={v => setForm(f => ({ ...f, deduct_from_payroll: v }))} />
               </div>
 
               <div>
                 <Label>Observação</Label>
-                <Textarea
-                  className="mt-1 resize-none"
-                  rows={3}
-                  placeholder="Informações adicionais sobre este lançamento..."
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                />
+                <Textarea className="mt-1 resize-none" rows={3} placeholder="Informações adicionais sobre este lançamento..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
             </div>
           </div>
           <div className="flex gap-3 px-6 py-4 border-t border-border bg-background shrink-0">
             <Button variant="outline" className="flex-1 max-w-xs" onClick={() => { setShowForm(false); setEmployeeSearch(''); setEditingId(null); }}>Cancelar</Button>
-            <Button className="flex-1 max-w-xs" onClick={handleSave} disabled={loading}>
-              {loading ? 'Salvando...' : editingId ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
-            </Button>
+            <Button className="flex-1 max-w-xs" onClick={handleSave} disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar Lançamento' : 'Salvar Lançamento'}</Button>
           </div>
         </DialogContent>
       </Dialog>

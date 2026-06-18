@@ -128,7 +128,7 @@ export default function InstallmentDialog({ open, onClose, onConfirm, referenceM
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                A 1ª parcela será adicionada aos descontos desta quinzena. As demais deverão ser lançadas manualmente no módulo Saída de Caixa nos meses seguintes.
+                Todas as parcelas serão registradas no módulo <strong>Saída de Caixa → Parcelas de Folha</strong>. A 1ª parcela também será aplicada diretamente nesta quinzena.
               </p>
             </div>
           )}
