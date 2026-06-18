@@ -123,25 +123,11 @@ export default function EsporadicoPayrollForm({ employee, entry, referenceMonth,
   const totalDescontos = (form.life_insurance || 0) + (form.other_discounts || 0) + totalAbsDiscount + monthDiscountTotal;
   const netTotal = totalVencimentos - totalDescontos;
 
-  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
+  const handleInstallmentConfirm = ({ description, installmentValue, startDate, installments }) => {
+    // Apenas a 1ª parcela entra como desconto na folha atual — nenhuma parcela é criada no CashOut
     const firstEntry = { date: startDate, description: `${description} (1/${installments})`, amount: installmentValue, id: Date.now() };
     setMonthDiscounts(prev => [...prev, firstEntry]);
     setInstallmentDialog(null);
-    for (let i = 1; i < preview.length; i++) {
-      const p = preview[i];
-      const date = `${p.month}-28`;
-      await base44.entities.CashOut.create({
-        employee_id: employee.id,
-        company_id: employee.company_id,
-        date,
-        description: `${description} (${i + 1}/${installments})`,
-        amount: installmentValue,
-        reference_month: p.month,
-        period: 'second',
-        notes: `Parcela gerada automaticamente`,
-        deduct_from_payroll: true,
-      });
-    }
   };
 
   const handleSave = () => {

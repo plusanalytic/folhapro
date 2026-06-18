@@ -128,7 +128,7 @@ export default function InstallmentDialog({ open, onClose, onConfirm, referenceM
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                A parcela do mês atual será adicionada aos descontos desta quinzena. As demais serão lançadas automaticamente nos meses seguintes como CashOut.
+                A 1ª parcela será adicionada aos descontos desta quinzena. As demais deverão ser lançadas manualmente no módulo Saída de Caixa nos meses seguintes.
               </p>
             </div>
           )}
