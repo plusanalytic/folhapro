@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock, CreditCard } from 'lucide-react';
+import { Plus, Trash2, ArrowDownCircle, Search, Pencil, Lock, CreditCard, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import DeleteInstallmentsDialog from '@/components/payroll/DeleteInstallmentsDialog';
 import { formatCurrency } from '@/lib/payrollCalculations';
 import { toast } from 'sonner';
@@ -51,7 +52,9 @@ export default function CashOut() {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [blockedAlert, setBlockedAlert] = useState(null);
-  const [deleteInstallDialog, setDeleteInstallDialog] = useState(null); // { cashOut }
+  const [deleteInstallDialog, setDeleteInstallDialog] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   useEffect(() => { sessionStorage.setItem('filter_month_cashout', filterMonths[0] || ''); }, [filterMonths]);
 
@@ -245,6 +248,7 @@ export default function CashOut() {
             placeholder="Mês"
             className="w-48"
             allLabel="Todos os Meses"
+            selectedLabel="meses"
             options={monthOptions}
           />
           <MultiSearchableSelect
@@ -253,6 +257,7 @@ export default function CashOut() {
             placeholder="Empresa"
             className="w-44"
             allLabel="Todas as Empresas"
+            selectedLabel="empresas"
             options={companies.map(c => ({ value: c.id, label: c.name }))}
           />
           <MultiSearchableSelect
@@ -261,6 +266,7 @@ export default function CashOut() {
             placeholder="Colaborador"
             className="w-52"
             allLabel="Todos os Colaboradores"
+            selectedLabel="colaboradores"
             options={(filterCompanies.length > 0 ? employees.filter(e => filterCompanies.includes(e.company_id)) : employees).map(e => ({ value: e.id, label: e.name }))}
           />
         </div>
@@ -268,13 +274,59 @@ export default function CashOut() {
     </Card>
   );
 
-  const CashOutGrid = ({ items, showInstallmentBadge = false }) => (
+  const visibleIds = (items) => items.map(c => c.id);
+  const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSelectAll = (items) => {
+    const ids = visibleIds(items);
+    const allSelected = ids.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? selectedIds.filter(id => !ids.includes(id)) : [...new Set([...selectedIds, ...ids])]);
+  };
+
+  const handleBulkDelete = async (items) => {
+    const toDelete = items.filter(c => selectedIds.includes(c.id));
+    if (toDelete.length === 0) return;
+    setBulkDeleteLoading(true);
+    for (const co of toDelete) {
+      await base44.entities.CashOut.delete(co.id);
+      if (co.deduct_from_payroll && co.employee_id && co.reference_month) {
+        await updatePayrollEntry(co.employee_id, co.reference_month);
+      }
+    }
+    setCashOuts(prev => prev.filter(c => !selectedIds.includes(c.id)));
+    setSelectedIds([]);
+    setBulkDeleteLoading(false);
+    toast.success(`${toDelete.length} lançamento(s) excluído(s)`);
+  };
+
+  const CashOutGrid = ({ items, showInstallmentBadge = false }) => {
+    const ids = visibleIds(items);
+    const allSelected = ids.length > 0 && ids.every(id => selectedIds.includes(id));
+    const someSelected = ids.some(id => selectedIds.includes(id));
+    const selectedInView = ids.filter(id => selectedIds.includes(id));
+
+    return (
     <Card>
       <CardContent className="pt-4 pb-2">
+        {!readOnly && someSelected && (
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <span className="text-sm text-muted-foreground">{selectedInView.length} selecionado(s)</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={bulkDeleteLoading}
+              onClick={() => handleBulkDelete(items)}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {bulkDeleteLoading ? 'Excluindo...' : `Excluir ${selectedInView.length} selecionado(s)`}
+            </Button>
+            <button className="text-xs text-muted-foreground underline" onClick={() => setSelectedIds([])}>Limpar seleção</button>
+          </div>
+        )}
         <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/40 text-muted-foreground">
+                {!readOnly && <th className="px-3 py-3 w-8"><Checkbox checked={allSelected} onCheckedChange={() => toggleSelectAll(items)} /></th>}
                 <th className="text-left px-4 py-3 font-medium">Data</th>
                 <th className="text-left px-4 py-3 font-medium">Empresa / Colaborador</th>
                 <th className="text-left px-4 py-3 font-medium">Descrição</th>
@@ -282,14 +334,13 @@ export default function CashOut() {
                 <th className="text-left px-4 py-3 font-medium">Quinzena</th>
                 <th className="text-left px-4 py-3 font-medium">Desconto Folha</th>
                 <th className="text-right px-4 py-3 font-medium">Valor</th>
-                {!readOnly && !showInstallmentBadge && <th className="w-10" />}
-                {showInstallmentBadge && <th className="w-10" />}
+                {!readOnly && <th className="w-10" />}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={showInstallmentBadge ? 8 : 7} className="text-center text-muted-foreground py-10 text-sm">
+                  <td colSpan={showInstallmentBadge ? 9 : 8} className="text-center text-muted-foreground py-10 text-sm">
                     Nenhum lançamento encontrado
                   </td>
                 </tr>
@@ -299,8 +350,10 @@ export default function CashOut() {
                 const company = companyMap[emp?.company_id || c.company_id];
                 const installment = parseInstallmentLabel(c.description);
                 const isFirstInstallment = installment?.current === 1;
+                const isSelected = selectedIds.includes(c.id);
                 return (
-                  <tr key={c.id} className="border-t border-border hover:bg-muted/20">
+                  <tr key={c.id} className={`border-t border-border hover:bg-muted/20 ${isSelected ? 'bg-primary/5' : ''}`}>
+                    {!readOnly && <td className="px-3 py-3"><Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} /></td>}
                     <td className="px-4 py-3 font-mono text-xs">{c.date}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{emp?.name ?? <span className="text-muted-foreground italic">Sem colaborador</span>}</p>
@@ -338,16 +391,16 @@ export default function CashOut() {
                     <td className="px-4 py-3 text-right font-mono font-semibold text-destructive">
                       - {formatCurrency(c.amount)}
                     </td>
-                    <td className="px-2 py-3 flex gap-1">
+                    <td className="px-2 py-3">
                       {!readOnly && !showInstallmentBadge && (
-                        <>
+                        <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(c)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
-                        </>
+                        </div>
                       )}
                       {!readOnly && showInstallmentBadge && (
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
@@ -362,15 +415,16 @@ export default function CashOut() {
                         </Button>
                       )}
                     </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
+                    </tr>
+                    );
+                    })}
+                    </tbody>
+                    </table>
+                    </div>
+                    </CardContent>
+                    </Card>
+                    );
+                    };
 
   return (
     <div className="p-6 space-y-6">

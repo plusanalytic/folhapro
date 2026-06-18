@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  * placeholder: string
  * allLabel: string — label when nothing selected
  */
-export default function MultiSearchableSelect({ values = [], onValuesChange, options = [], placeholder = 'Selecionar', allLabel = 'Todos', className }) {
+export default function MultiSearchableSelect({ values = [], onValuesChange, options = [], placeholder = 'Selecionar', allLabel = 'Todos', className, selectedLabel }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -35,7 +35,9 @@ export default function MultiSearchableSelect({ values = [], onValuesChange, opt
     ? allLabel
     : values.length === 1
       ? options.find(o => o.value === values[0])?.label || values[0]
-      : `${values.length} empresas`;
+      : selectedLabel
+        ? `${values.length} ${selectedLabel}`
+        : `${values.length} selecionados`;
 
   return (
     <div ref={ref} className={cn('relative', className)}>
