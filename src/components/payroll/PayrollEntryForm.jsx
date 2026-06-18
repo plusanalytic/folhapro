@@ -447,27 +447,35 @@ export default function PayrollEntryForm({ employee, entry, referenceMonth, onSa
     return calcRaw;
   })();
 
-  const handleInstallmentConfirm = ({ description, installmentValue, startDate, preview, installments }) => {
+  const handleInstallmentConfirm = async ({ description, installmentValue, startDate, preview, installments }) => {
     const isFirst = installmentDialog === 'first';
-
-    // Todas as parcelas são adicionadas apenas como descontos na folha — sem criar CashOuts
-    preview.forEach((p, i) => {
-      const entry = {
-        date: startDate,
+    // 1ª parcela: entra direto como desconto na quinzena atual (não vai pro CashOut)
+    const firstEntry = {
+      date: startDate,
+      description: `${description} (1/${installments})`,
+      amount: installmentValue,
+      id: Date.now(),
+    };
+    if (isFirst) setFirstDiscounts(prev => [...prev, firstEntry]);
+    else setSecondDiscounts(prev => [...prev, firstEntry]);
+    setInstallmentDialog(null);
+    // Parcelas 2ª em diante: criadas no CashOut dos meses futuros (não duplicam a folha atual)
+    for (let i = 1; i < preview.length; i++) {
+      const p = preview[i];
+      const day = isFirst ? 15 : 28;
+      const date = `${p.month}-${String(day).padStart(2, '0')}`;
+      await base44.entities.CashOut.create({
+        employee_id: employee.id,
+        company_id: employee.company_id,
+        date,
         description: `${description} (${i + 1}/${installments})`,
         amount: installmentValue,
-        id: Date.now() + i,
         reference_month: p.month,
-      };
-      if (i === 0) {
-        // 1ª parcela: entra direto no desconto da quinzena atual
-        if (isFirst) setFirstDiscounts(prev => [...prev, entry]);
-        else setSecondDiscounts(prev => [...prev, entry]);
-      }
-      // Parcelas futuras ficam apenas registradas no preview — o usuário lança manualmente no CashOut se quiser
-    });
-
-    setInstallmentDialog(null);
+        period: isFirst ? 'first' : 'second',
+        notes: `Parcela ${i + 1}/${installments} — parcelamento gerado em ${referenceMonth}`,
+        deduct_from_payroll: true,
+      });
+    }
   };
 
   // Converte hh:mm + valor/hora em total de hora extra
