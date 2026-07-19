@@ -4,8 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Building2, Users, MapPin, Briefcase, Calculator, Wallet, Clock,
-  Shield, RefreshCw, FileText, Database, Zap, Bug, GitBranch, CheckCircle2
+  Shield, RefreshCw, FileText, Database, Zap, Bug, GitBranch, CheckCircle2, Download
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { exportDocumentationToWord } from '@/lib/exportDocumentationToWord';
 
 const modules = [
   {
@@ -140,7 +142,7 @@ export default function Documentation() {
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Sidebar de navegação */}
-      <nav className="w-56 border-r bg-card flex-shrink-0 p-4">
+      <nav className="w-56 border-r bg-card flex-shrink-0 p-4 flex flex-col">
         <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Documentação</h2>
         <ul className="space-y-1">
           {sections.map(s => (
@@ -156,6 +158,9 @@ export default function Documentation() {
             </li>
           ))}
         </ul>
+        <Button onClick={exportDocumentationToWord} className="mt-auto gap-2" variant="outline">
+          <Download className="h-4 w-4" /> Exportar Word
+        </Button>
       </nav>
 
       {/* Conteúdo */}
