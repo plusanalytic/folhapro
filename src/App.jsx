@@ -23,6 +23,7 @@ import AccessManagement from '@/pages/AccessManagement';
 import Readjustment from '@/pages/Readjustment';
 import ReverseReadjustment from '@/pages/ReverseReadjustment';
 import PayrollAuditLog from '@/pages/PayrollAuditLog';
+import Documentation from '@/pages/Documentation';
 import AppLogin from '@/pages/AppLogin';
 import { AppUserContext } from '@/lib/AppUserContext';
 import { Navigate } from 'react-router-dom';
@@ -91,6 +92,7 @@ const AuthenticatedApp = () => {
         <Route path="/readjustment"       element={can('readjustment')       ? <Readjustment /> : <Navigate to="/" replace />} />
         <Route path="/reverse-readjustment" element={can('reverse-readjustment') ? <ReverseReadjustment /> : <Navigate to="/" replace />} />
         <Route path="/payroll-audit-log"    element={can('payroll-audit-log')    ? <PayrollAuditLog />   : <Navigate to="/" replace />} />
+        <Route path="/documentation"        element={can('documentation')        ? <Documentation />     : <Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
