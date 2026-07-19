@@ -24,6 +24,7 @@ const ALL_MODULES = [
   { key: 'readjustment',         label: 'Reajuste Salarial' },
   { key: 'reverse-readjustment', label: 'Redução Salarial' },
   { key: 'payroll-audit-log',    label: 'Log de Auditoria' },
+  { key: 'documentation',        label: 'Documentação' },
 ];
 
 const PROFILE_LABELS = {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, ChevronLeft, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp, TrendingDown, ScrollText } from 'lucide-react';
+import { Building2, Users, FileText, BarChart3, Settings, ChevronRight, ChevronLeft, Banknote, ArrowDownCircle, MapPin, Briefcase, ClipboardCheck, CreditCard, ShieldCheck, X, TrendingUp, TrendingDown, ScrollText, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppUser } from '@/lib/AppUserContext';
 
@@ -18,7 +18,8 @@ const ALL_NAV_ITEMS = [
 { path: '/access', moduleKey: 'access', icon: ShieldCheck, label: 'Gestão de Acessos' },
 { path: '/readjustment', moduleKey: 'readjustment', icon: TrendingUp, label: 'Reajuste Salarial' },
 { path: '/reverse-readjustment', moduleKey: 'reverse-readjustment', icon: TrendingDown, label: 'Redução Salarial' },
-{ path: '/payroll-audit-log', moduleKey: 'payroll-audit-log', icon: ScrollText, label: 'Log de Auditoria' }];
+{ path: '/payroll-audit-log', moduleKey: 'payroll-audit-log', icon: ScrollText, label: 'Log de Auditoria' },
+{ path: '/documentation', moduleKey: 'documentation', icon: BookOpen, label: 'Documentação' }];
 
 
 export default function AppSidebar({ collapsed: collapsedProp, mobileOpen, onMobileClose }) {
